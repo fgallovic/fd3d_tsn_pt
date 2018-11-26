@@ -1,4 +1,5 @@
     MODULE waveforms_com
+!comment on first line to test git
 !waveforms for misfit
       integer,allocatable,dimension(:,:):: stainfo
       integer:: NRseis,NSTAcomp,Nseis
