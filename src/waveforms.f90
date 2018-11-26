@@ -2,7 +2,7 @@
 !waveforms for misfit
       integer,allocatable,dimension(:,:):: stainfo
       integer:: NRseis,NSTAcomp,Nseis
-      real,allocatable,dimension(:):: Dsynt,stasigma, slipGF
+      real,allocatable,dimension(:):: Dsynt,stasigma, xx!slipGF
       real,allocatable,dimension(:,:):: Dseis, StaDist
       real SigmaData   ! Typically 0.05m
       real misfit,VR,Tshift,M0
@@ -198,7 +198,7 @@ print *,'file with GFspectr saved'
     allocate(Dsynt(Nseis))
    
     if (iwaveform==2) then
-     allocate(stadist(nl*nw,nrseis))
+     allocate(stadist(nl*nw,nrseis),xx(nl*nw))
      !read sources.dat
      open(224,file='sources.dat',status='old')
      open(225,file='stations.dat',status='old')
@@ -224,11 +224,14 @@ print *,'file with GFspectr saved'
     USE fd3dparam_com
     USE medium_com
     IMPLICIT NONE
-    real,allocatable,dimension(:):: MSR
+!#if defined MPI
+!    include 'mpif.h'
+!#endif
+    real,allocatable,dimension(:):: MSR,slipGF
     complex, allocatable, dimension(:,:) :: sr,cseis
     integer i,j,k,m, jj,ii,ierr,kk
     integer ifrom,ito,jfrom,jto,kfrom,kto
-    real dum,dum1,dum2
+    real dum,maxslip
     COMPLEX,DIMENSION(:),ALLOCATABLE:: seis1
 
     allocate(MSR(NL*NW*nSR))
@@ -236,7 +239,7 @@ print *,'file with GFspectr saved'
      allocate(sr(np,nl*nw))
      allocate(cseis(np,nl*nw)) 
      allocate(seis1(np))
-     allocate(slipGF(nl*nw))
+     if (.not.(allocated(slipGF))) allocate(slipGF(nl*nw))
      slipGF=0.
     endif
 
@@ -273,8 +276,6 @@ print *,'file with GFspectr saved'
       write(297,'(1E13.5)')MSR
       close(297)
       open(297,FILE='mtildemomentrate.dat')
-      dum2=0.
-      dum1=0.
       do k=1,nSR
         dum=0.
         do j=1,nzt
@@ -285,10 +286,8 @@ print *,'file with GFspectr saved'
           enddo
         enddo
         write(297,*)dtseis*(k-1),dum
-        dum2=dum2+((dum-dum1)/dtseis)**2;dum1=dum
       enddo
       close(297)
-      write(*,*)'Integral of moment acceleration squared: ',dum2*dtseis
     endif
 
     M0=0
@@ -300,12 +299,16 @@ print *,'file with GFspectr saved'
     M0=M0*dt*dh*dh
     write(*,*)M0
 
+
+
+    
     if(M0<1.e14)then
        Dsynt=0.
     else
       if(iwaveform==1)then
         Dsynt=matmul(H,MSR)*dtseis
       elseif(iwaveform==2) then 
+       maxslip=maxval(slipGF)
        do jj=1,nl*nw
         call four1(sr(:,jj),np,-1)
        enddo
@@ -315,6 +318,7 @@ print *,'file with GFspectr saved'
        open(243,file=trim(GFfile),form='unformatted',status='old',iostat=ierr)
        if (ierr/=0) print *,'error while openening file:',trim(GFfile),ierr
        do jj=1,NRseis
+        xx(jj)=minval(stadist(:,jj),mask=(slipGF>0.1*maxslip))
         do k=1,3
           if(stainfo(k,jj)==0)cycle
 !          if (mrank==0) print *,'reading'
@@ -345,6 +349,11 @@ print *,'file with GFspectr saved'
       close(297)
     endif
 
+!#if defined MPI
+!call MPI_Barrier(MPI_COMM_WORLD,ierr)
+!print *,'waveforms calculated'
+!#endif
+    
     deallocate(MSR)
     if (iwaveform==2) deallocate(sr,seis1,cseis)
     END    
@@ -423,17 +432,93 @@ print *,'file with GFspectr saved'
     END
 
 
-    subroutine evalmisfit2()
+    subroutine evalmisfit2() !old type of misfit calculation
+    use mod_pgamisf
+    use waveforms_com
+    implicit none
+#if defined MPI
+    include 'mpif.h'
+#endif
+    integer :: jj,k,m,i
+    real,allocatable :: pgaM(:,:),pgaD(:,:)
+    real :: mw,diff,mean,misf
+    logical :: k1,k2
+    logical, allocatable :: kmask(:)
+    integer :: nstat,ierr
+
+
+    misf=0.
+    m=0
+    nstat=0
+!    maxslip=maxval(slipGF)
+    mw=(log10(m0)-9.1)/1.5
+    diff=0.
+    allocate(pgaM(nrseis,nper),pgaD(nrseis,nper),kmask(nrseis))
+    kmask=.false.
+
+    open(2223,file='dobliky.dat')
+     do jj=1,NRseis
+        k1=.false.
+        k2=.false.
+      do k=1,3
+        if(stainfo(k,jj)==0)cycle
+        m=m+1
+        if (k==1) then
+          call pcn05(nT,nT,nper,nper,dtseis,damp,per(:),Dsynt((m-1)*nT+1:)*100.,sd,sv,sa1,psv,psa)
+          k1=.true.
+        elseif (k==2) then
+          call pcn05(nT,nT,nper,nper,dtseis,damp,per(:),Dsynt((m-1)*nT+1:)*100.,sd,sv,sa2,psv,psa)
+          k2=.true.
+        endif
+        if (k1*k2 .and. k<3) then
+!          xx=
+          do i=1,nper
+            call pga_theor(xx(jj),mw,per(i),pgaM(jj,i))
+            pgaD(jj,i)=sqrt(sa1(i)*sa2(i))
+            write(2223,*) mw,xx(jj),per(i),exp(pgaM(jj,i))/100.,pgaD(jj,i)/100.
+          enddo
+          kmask(jj)=.true.
+          nstat=nstat+1
+        endif
+      enddo
+      write(2223,*)
+    enddo
+    do i=1,nper
+     mean=sum(log(pgad(:,i)),mask=kmask)/nstat
+     diff=sum(pgam(:,i),mask=kmask)/nstat
+     do jj=1,nrseis 
+           if(kmask(jj)) then
+            misf=misf+(log(pgaD(jj,i))-pgam(jj,i))**2/(PGAsigma(i)**2) !first part difference from the mean value for each station for particular event
+!            diff=diff+(log(pgaD(jj,i))-pgaM(jj,i))
+           endif 
+     enddo
+     misf=misf+(mean-diff)**2*nstat**2/(PGAsigma(i)**2+nstat*PGAtau(i)**2)/PGAsigma(i)**2
+    enddo
+    misf=misf/2./nper
+!    endif
+!    misfit=.5*misf
+    close(2223)
+    deallocate(pgaD,pgaM,kmask)
+!#if defined MPI
+!call MPI_Barrier(MPI_COMM_WORLD,ierr)
+    print *,'misfit:',misf
+!#endif   
+    misfit=misf 
+!    deallocate(slipGF)
+    end subroutine 
+
+
+    subroutine evalmisfit2a() !old type of misfit calculation
     use mod_pgamisf
     use waveforms_com
     implicit none
     integer :: jj,k,m,i
-    real :: pgaM,pgaD,xx,maxslip,misf,mw
+    real :: pgaM,pgaD,maxslip,misf,mw!,xx
     logical :: k1,k2
 
     misf=0.
     m=0
-    maxslip=maxval(slipGF)
+!    maxslip=maxval(slipGF)
     mw=(log10(m0)-9.1)/1.5
     open(2223,file='dobliky.dat')
      do jj=1,NRseis
@@ -450,11 +535,11 @@ print *,'file with GFspectr saved'
           k2=.true.
         endif
         if (k1*k2 .and. k<3) then
-          xx=minval(stadist(:,jj),mask=(slipGF>0.1*maxslip))
+!          xx=minval(stadist(:,jj),mask=(slipGF>0.1*maxslip))
           do i=1,nper
             call pga_theor(xx,mw,per(i),pgaM)
             pgaD=sqrt(sa1(i)*sa2(i))
-            misf=misf+(pgaM-log(pgaD))**2/(tau(i)**2)/nper
+            misf=misf+(pgaM-log(pgaD))**2/(st(i)**2)/nper
             write(2223,*) mw,xx,per(i),exp(pgaM)/100.,pgaD/100.
           enddo
         endif
@@ -464,7 +549,7 @@ print *,'file with GFspectr saved'
     print *,'misfit:',misf
     misfit=.5*misf
     close(2223)
-    deallocate(slipGF)
+!    deallocate(slipGF)
     end subroutine 
     
     SUBROUTINE plotseis()
