@@ -1,5 +1,10 @@
     MODULE waveforms_com
+<<<<<<< HEAD
+!waveforms for misfit calculation
+=======
+!comment on first line to test git
 !waveforms for misfit
+>>>>>>> 9b5a9288e34b2502e3f0bc6bcb658a2ed99a8058
       integer,allocatable,dimension(:,:):: stainfo
       integer:: NRseis,NSTAcomp,Nseis
       real,allocatable,dimension(:):: Dsynt,stasigma, xx!slipGF
