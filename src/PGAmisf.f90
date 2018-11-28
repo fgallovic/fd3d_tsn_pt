@@ -1,6 +1,6 @@
 module mod_pgamisf
 integer :: nper
-real, allocatable :: per(:),a(:),b(:),c(:),d(:),c1(:),tau(:)
+real, allocatable :: per(:),a(:),b(:),c(:),d(:),c0(:),st(:),PGAsigma(:),PGAtau(:)
 real, allocatable :: sd(:),sv(:),sa1(:),sa2(:),psv(:),psa(:)
 !real :: pga_theor
 real :: damp=0.05
@@ -22,9 +22,9 @@ enddo
 !print *,i
 if (i>nper) then
  print *,'period inconsistent'
- y=0/0.
+ y=-99999.!1/0.
 else
- y=a(i)*mw+b(i)*x-log(x+c(i)*exp(d(i)*mw))+c1(i)
+ y=a(i)*mw+b(i)*x-log(x+c(i)*exp(d(i)*mw))+c0(i)
 endif
 !print *,i,pga_theor
 end subroutine
@@ -43,7 +43,7 @@ open(unit=1111,file='coeff1.dat',status='old')
   if (ierr==0) nper=nper+1
  enddo
 !allocate
-allocate(per(nper),a(nper),b(nper),c(nper),d(nper),c1(nper),tau(nper))
+allocate(per(nper),a(nper),b(nper),c(nper),d(nper),c0(nper),st(nper),PGAsigma(nper),PGAtau(nper))
 rewind(1111)
  do i=1,nper
   read(1111,*) per(i),a(i),b(i),c(i),d(i)
@@ -52,7 +52,7 @@ close(1111)
 
 open(unit=1112,file='coeff2.dat',status='old')
  do i=1,nper
-  read(1112,*) dum1,dum,c1(i),(dum, j=1,4),tau(i)
+  read(1112,*) dum1,c0(i),dum,(dum, j=1,3),PGAsigma(i),PGAtau(i),st(i)
   if (abs(dum1-per(i))>eps) then 
 !   read(1112,*) 
 !  else
