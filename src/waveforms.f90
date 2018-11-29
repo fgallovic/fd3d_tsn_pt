@@ -231,7 +231,7 @@ print *,'file with GFspectr saved'
     real dum,maxslip,dum1,dum2
     COMPLEX,DIMENSION(:),ALLOCATABLE:: seis1
 
-    allocate(MSR(NL*NW*nSR),slipGF(nl*nw))
+    allocate(MSR(NL*NW*nSR),slipGF(nl*nw),sr(np,nl*nw))
     slipGF=0.
     
     m=0
@@ -300,7 +300,7 @@ print *,'file with GFspectr saved'
       if(iwaveform==1)then
         Dsynt=matmul(H,MSR)*dtseis
       elseif(iwaveform==2) then
-        allocate(sr(np,nl*nw),cseis(np,nl*nw),seis1(np))
+        allocate(cseis(np,nl*nw),seis1(np))
         maxslip=maxval(slipGF)
         do jj=1,nl*nw
           call four1(sr(:,jj),np,-1)
@@ -331,7 +331,7 @@ print *,'file with GFspectr saved'
           enddo
         enddo
         close(243)
-        deallocate(sr,seis1,cseis)
+        deallocate(seis1,cseis)
       endif
     endif
 
@@ -343,7 +343,7 @@ print *,'file with GFspectr saved'
       close(297)
     endif
    
-    deallocate(MSR,slipGF)
+    deallocate(MSR,slipGF,sr)
 
     END    
     
@@ -476,7 +476,7 @@ print *,'file with GFspectr saved'
 !            diff=diff+(log(pgaD(jj,i))-pgaM(jj,i))
            endif 
      enddo
-     misf=misf+(mean-diff)**2*nstat**2/(PGAsigma(i)**2+nstat*PGAtau(i)**2)/PGAsigma(i)**2
+     misf=misf-(mean-diff)**2*nstat**2*PGAtau(i)**2/(PGAsigma(i)**2+nstat*PGAtau(i)**2)/PGAsigma(i)**2
     enddo
     misf=misf/2./nper
     close(2223)
