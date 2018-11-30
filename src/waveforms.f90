@@ -198,7 +198,7 @@ print *,'file with GFspectr saved'
     allocate(Dsynt(Nseis))
    
     if (iwaveform==2) then
-     allocate(stadist(nl*nw,nrseis),ruptdist(nl*nw))
+     allocate(stadist(nl*nw,nrseis),ruptdist(nrseis))
      !read sources.dat
      open(224,file='sources.dat',status='old')
      open(225,file='stations.dat',status='old')
