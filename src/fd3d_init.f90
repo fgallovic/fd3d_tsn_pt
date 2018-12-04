@@ -62,7 +62,7 @@
       read(11,*) ntfd
       read(11,*) dt
       read(11,*) dip
-      read(11,*) nabc, pml_vp,pml_fact   (pml_fact=-(N+1)*log(0.001), see Komatitsch and Martin, 2007, Geophysics 72)
+      read(11,*) nabc, pml_vp,pml_fact   !(pml_fact=-(N+1)*log(0.001), see Komatitsch and Martin, 2007, Geophysics 72)
       read(11,*) damp_s
 	  nxt=nxtT+2*nabc
 	  nyt=nytT+nabc
