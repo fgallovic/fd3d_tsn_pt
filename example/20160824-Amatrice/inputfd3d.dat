@@ -1,4 +1,4 @@
-300 102 142       \* Number of grid points in x,y,z direction (FD) + 2 for free surface *\
+300 100 140       \* Number of grid points in x,y,z direction (FD) *\
 100.0             \* Grid size in meters (FD) *\
 5000              \* Number of time step (FD) *\
 0.002             \* Time step in seconds (FD) *\
