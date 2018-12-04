@@ -1,12 +1,4 @@
 #!/bin/bash
-#nxt=180
-#nzt=60
-#dh=0.2
-#ntfd=1600
-#dt=0.005
-#MAX=`minmax -C mtilde.dat | awk '{print $2*0.8}'`
-echo $MAX
-
 python >temp.out << END
 from numpy import *
 f=open('inputfd3d.dat','r').readlines()
@@ -42,7 +34,7 @@ read nxt nzt dh L W < temp.out
 
 gnuplot << END
 set term postscript color 12
-set output 'frictionin.ps'
+set output 'friction1.ps'
 set multiplot
 set size 0.5,0.5
 set palette defined ( 0 "white", 2 "skyblue", 3 "light-green", 6 "yellow", 10 "light-red" )

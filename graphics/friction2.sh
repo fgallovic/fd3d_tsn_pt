@@ -1,15 +1,5 @@
 #!/bin/bash
-#nxt=180
-#nzt=60
-#dh=0.2
-#L=36.
-#W=12.
-#ntfd=1600
-#dt=0.005
-#MAX=`minmax -C mtilde.dat | awk '{print $2*0.8}'`
-echo $MAX
-
-python3 >temp.out << END
+python >temp.out << END
 from numpy import *
 import matplotlib.pyplot as plt
 f=open('inputfd3d.dat','r').readlines()
@@ -19,13 +9,12 @@ f=open('input.dat','r').readlines()
 L,W=float(f[17].split()[0])/1000.,float(f[17].split()[1])/1000.
 
 fricpar=loadtxt('result/friction.inp')
-nzt=nzt-2
-T0=fricpar[:,0].reshape((nzt+2,nxt))/1.e6;T0=T0[:-2,:]
-Ts=fricpar[:,1].reshape((nzt+2,nxt))/1.e6;Ts=Ts[:-2,:]
-Dc=fricpar[:,2].reshape((nzt+2,nxt));Dc=Dc[:-2,:]
-Mus=fricpar[:,3].reshape((nzt+2,nxt));Mus=Mus[:-2,:]
-sd=loadtxt('result/stressdrop.res').reshape((nzt+2,nxt))/(-1.e6);sd=sd[:-2,:]
-slip=loadtxt('result/slip.res').reshape((nzt+2,nxt));slip=slip[:-2,:]
+T0=fricpar[:,0].reshape((nzt,nxt))/1.e6
+Ts=fricpar[:,1].reshape((nzt,nxt))/1.e6
+Dc=fricpar[:,2].reshape((nzt,nxt))
+Mus=fricpar[:,3].reshape((nzt,nxt))
+sd=loadtxt('result/stressdrop.res').reshape((nzt,nxt))/(-1.e6)
+slip=loadtxt('result/slip.res').reshape((nzt,nxt))
 slipmax=slip.max()
 
 x=linspace(dh/2.,L-dh/2.,nxt)
@@ -48,7 +37,6 @@ f.write('\n')
 f.write('\n')
 for j in range(nzt):
   f.write(' '.join([str(Ts[j,i]-T0[j,i]) for i in range(nxt)])+'\n')
-#print(min(Ts[:,:].flatten()-T0[:,:].flatten()))
 f.write('\n')
 f.write('\n')
 for j in range(nzt):
@@ -77,7 +65,7 @@ read nxt nzt dh L W < temp.out
 
 gnuplot << END
 set term postscript color solid enhanced 12
-set output 'frictionin2.ps'
+set output 'friction2.ps'
 set multiplot
 set size 0.4,0.4
 set palette defined ( 0 "white", 2 "skyblue", 3 "light-green", 6 "yellow", 10 "light-red" )
@@ -102,7 +90,7 @@ plot 'friction.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 0 notitle w ima
 set origin .5,.77
 set title 'Static - Dynamic fric. coeff'
 #set cbtics 0.1
-#set cbrange [0:.6]
+set cbrange [0:.6]
 plot 'friction.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 1 notitle w image,\
 'slipcontour.dat' w l notitle lt -1 lw 1,\
 'nucleationzonecontour.dat' w l notitle lt 3 lw 2,\
@@ -111,7 +99,7 @@ plot 'friction.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 1 notitle w ima
 set origin 0.,0.47
 set title 'Dc (m)'
 #set cbtics 0.1
-#set cbrange [.15:.8]
+set cbrange [.15:.8]
 plot 'friction.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 2 notitle w image,\
 'slipcontour.dat' w l notitle lt -1 lw 1,\
 'nucleationzonecontour.dat' w l notitle lt 3 lw 2,\
@@ -122,7 +110,7 @@ set origin 0.5,0.47
 set title 'Strength excess (MPa)'
 #set cbtics 0.1
 set autoscale cb
-#set cbrange [-1:0]
+set cbrange [-2:10]
 plot 'friction.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):(\$3) index 3 notitle w image,\
 'slipcontour.dat' w l notitle lt -1 lw 1,\
 'nucleationzonecontour.dat' w l notitle lt 3 lw 2,\
