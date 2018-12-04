@@ -49,6 +49,7 @@
       IMPLICIT NONE
 	
 	integer nxtT, nytT, nztT
+    real pml_vp,pml_fact
 	
 	nfs=2
 !--------------------
@@ -61,12 +62,13 @@
       read(11,*) ntfd
       read(11,*) dt
       read(11,*) dip
-      read(11,*) nabc, omegaM_pml
+      read(11,*) nabc, pml_vp,pml_fact   (pml_fact=-(N+1)*log(0.001), see Komatitsch and Martin, 2007, Geophysics 72)
       read(11,*) damp_s
 	  nxt=nxtT+2*nabc
 	  nyt=nytT+nabc
       nzt=nztT+nabc+nfs
       nysc=nyt
+      omegaM_pml=pml_fact*pml_vp/(2.*dh*(nabc-1))
       close(11)
 
 !----------------------------

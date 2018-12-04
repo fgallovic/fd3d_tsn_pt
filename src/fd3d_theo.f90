@@ -68,7 +68,6 @@
 !   initialize arrays
 !-------------------------------------------------------
       !pml initialization
-      print *, nxt, nyt, nzt, nysc,nfs
       allocate(tx(nxt,nzt),tz(nxt,nzt),v1t(nxt,nzt),avdx(nxt,nzt),avdz(nxt,nzt), RFx(nxt,nzt),RFz(nxt,nzt))
       allocate(etot_out(ntfd), epot_out(ntfd), ekin_out(ntfd), efault_out(ntfd))
       allocate(omega_pml(nabc-1), omegaR_pml(nabc-1),omega_pmlM(nabc-1), omegaR_pmlM(nabc-1), au1(nxt,nzt),av1(nxt,nzt),aw1(nxt,nzt))
@@ -326,12 +325,7 @@
             RFz(i,k) = pdz + avdz(i,k)
             tz(i,k) = -RFz(i,k) - 0.5*d1(i,nysc,k)*dht*w1(i,nysc,k)
             avdz(i,k) = pdz
-!JE TO V PORRADKU?
-!          enddo
-!        enddo
 
-!        do k = nabc+1,nzt-nfs
-!          do i = nabc+1,nxt-nabc
             pdx = (+(xx(i,nysc,k) - xx(i-1,nysc,k))/2 + (xz(i,nysc,k) - xz(i,nysc,k-1))/2 - xy(i,nysc-1,k))
             avdx(i,k)= damp_s*(pdx - avdx(i,k))
             RFx(i,k) = pdx + avdx(i,k)
@@ -452,7 +446,7 @@
 		
         if(mod(it,int(1./dt))==0)then
           maxvel=maxval(sliprateout(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
-          write(*,*)'Checkuji',time,maxvel
+          write(*,*)'Time: ',time,'Slip rate max: ',maxvel
           if(maxvel>maxvelsave)maxvelsave=maxvel
           if (maxvel<=0.01*maxvelsave)exit
         endif
