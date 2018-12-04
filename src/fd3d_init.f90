@@ -10,8 +10,10 @@
 
     MODULE friction_com
       USE fd3dparam_com
-      real,allocatable,dimension(:,:):: strinix,peak_xz,Dc
-      real:: dip,topdepth
+      USE pml_com
+      real,allocatable,dimension(:,:):: strinix,peak_xz,Dc,dyn_xz,gliss
+
+      real:: dip
       real,parameter:: pi=3.1415926535
       CONTAINS
       FUNCTION normstress(j)
@@ -19,16 +21,17 @@
       real:: normstress
       integer:: j
 #if defined DIPSLIP
-      normstress=max(1.e5,8520.*(dh*real(nzt-j-2)*sin(dip/180.*pi)+topdepth*1000.))
+      normstress=max(1.e5,8520.*dh*real(nzt-nfs-j)*sin(dip/180.*pi))
 #else
-      normstress=max(1.e5,16200.*(dh*real(nzt-j-2)*sin(dip/180.*pi)+topdepth*1000.))
+      normstress=max(1.e5,16200.*dh*real(nzt-nfs-j)*sin(dip/180.*pi))
 #endif
+
       END FUNCTION
     END MODULE
 
     MODULE source_com
       REAL,ALLOCATABLE,DIMENSION(:,:):: ruptime,rise,slip,schange
-      real,allocatable,dimension(:,:,:):: sliprate
+      real,allocatable,dimension(:,:,:):: sliprate, shearstress
       real    :: output_param(6)
       integer :: ioutput
     END MODULE
@@ -41,30 +44,39 @@
       USE fd3dparam_com
       USE friction_com
       USE source_com
+      USE pml_com
+      USE traction_com
       IMPLICIT NONE
-
+	
+	integer nxtT, nytT, nztT
+	
+	nfs=2
 !--------------------
 ! Read the input file
 !--------------------
       write(*,*)'Reading FD3D parameters...'
       open(11, file='inputfd3d.dat', status='old')
-      read(11,*) nxt,nyt,nzt
-      nysc=nyt-2
+      read(11,*) nxtT,nytT,nztT
       read(11,*) dh
       read(11,*) ntfd
       read(11,*) dt
-      read(11,*) dip,topdepth
+      read(11,*) dip
+      read(11,*) nabc, omegaM_pml
+      read(11,*) damp_s
+	  nxt=nxtT+2*nabc
+	  nyt=nytT+nabc
+      nzt=nztT+nabc+nfs
+      nysc=nyt
       close(11)
-      topdepth=-2.*dh*sin(dip/180.*pi)/1000.
-write(*,*)'Changing topdepth to ',topdepth
+
 !----------------------------
 ! Allocate FD module arrays
 !----------------------------
       allocate(lam1(nxt,nyt,nzt),mu1(nxt,nyt,nzt),d1(nxt,nyt,nzt))
       allocate(u1(nxt,nyt,nzt),v1(nxt,nyt,nzt),w1(nxt,nyt,nzt))
       allocate(xx(nxt,nyt,nzt),yy(nxt,nyt,nzt),zz(nxt,nyt,nzt),xy(nxt,nyt,nzt),yz(nxt,nyt,nzt),xz(nxt,nyt,nzt))
-      allocate(strinix(nxt,nzt),peak_xz(nxt,nzt),Dc(nxt,nzt))
-      allocate(ruptime(nxt,nzt),slip(nxt,nzt),rise(nxt,nzt),schange(nxt,nzt),sliprate(nxt,nzt,ntfd))
+      allocate(strinix(nxt,nzt),peak_xz(nxt,nzt),Dc(nxt,nzt),dyn_xz(nxt,nzt),gliss(nxt,nzt))
+      allocate(ruptime(nxt,nzt),slip(nxt,nzt),rise(nxt,nzt),schange(nxt,nzt),sliprate(nxt,nzt,ntfd),shearstress(nxt,nzt,ntfd))
 
       strinix=0.;peak_xz=0.;Dc=0.
 
@@ -72,17 +84,18 @@ write(*,*)'Changing topdepth to ',topdepth
 ! Read the velocity model
 ! Be careful: the velocity model for the FD is upside down
 !------------------------------------------------------------
-      CALL readcrustalmodel(dip,topdepth)
+      CALL readcrustalmodel(dip)
 
     END
 
 
-   SUBROUTINE readcrustalmodel(dip,topdepth)
+   SUBROUTINE readcrustalmodel(dip)
     USE medium_com
     USE fd3dparam_com
+    USE pml_com
     IMPLICIT NONE
     real*8,parameter:: PI=3.1415926535
-    real dip,topdepth
+    real dip
     real    :: vpe(2),vse(2),den(2),CFL,dum,dd,vpp,vss
     real,allocatable,dimension(:):: vp,vs,depth,rho
     INTEGER ndepth,j,k
@@ -108,7 +121,7 @@ write(*,*)'Changing topdepth to ',topdepth
     close(10)
 !    open(10,FILE='model.new.dat')
     do k=nzt,1,-1
-      dum=topdepth*1.e3+(dh*real(nzt-k+1)-dh/2.)*sin(dip/180.d0*PI)
+      dum=(dh*real(nzt-nfs-k)+dh/2.)*sin(dip/180.d0*PI)    ! TADY SE TO MUSI OPRAVIT!
       if(dum>depth(ndepth))then
         vpp=vp(ndepth)
         vss=vs(ndepth)
@@ -144,7 +157,7 @@ write(*,*)'Changing topdepth to ',topdepth
 !-------------------------------------------------------
     CFL = vpe(2)*dt/dh
     if (CFL.gt.0.25) then
-      print *,'Your simulation is numerically unstable'
+      print *,'Your simulation is numerically unstable', CFL
       stop
     endif
     END

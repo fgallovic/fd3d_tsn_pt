@@ -223,6 +223,7 @@ print *,'file with GFspectr saved'
     USE source_com
     USE fd3dparam_com
     USE medium_com
+    USE pml_com
     IMPLICIT NONE
     real,allocatable,dimension(:):: MSR,slipGF
     complex, allocatable, dimension(:,:) :: sr,cseis
@@ -235,12 +236,12 @@ print *,'file with GFspectr saved'
     slipGF=0.
     
     m=0
-    do j=1,NW
-      jto=max(1,int(dW/dh*j))+1   !Upper two rows are modeling the free surface condition
-      jfrom=min(jto,int(dW/dh*(j-1))+1)+1  ! 2 for free surface
+    do j=1,NW! Je potreba overit it, ifrom, jto, jfrom !!!!!!!!!!!!!!!!!!!!!!
+      jto=max(1,int(dW/dh*j))+1+nabc   !Upper two rows are modeling the free surface condition
+      jfrom=min(jto,int(dW/dh*(j-1))+1)+1+nabc  ! 2 for free surface
       do i=1,NL
-        ifrom=int(dL/dh*(i-1))+1
-        ito=int(dL/dh*i)
+        ifrom=int(dL/dh*(i-1))+1+nabc
+        ito=int(dL/dh*i)+nabc
         jj=(j-1)*NL+i
         kk=0
         do k=1,nSR
@@ -271,8 +272,8 @@ print *,'file with GFspectr saved'
       dum1=0.
       do k=1,nSR
         dum=0.
-        do j=1,nzt
-          do i=1,nxt
+        do j=nabc+1,nzt-nfs
+          do i=nabc+1,nxt-nabc
             kfrom=int(dtseis/dt*(k-1))+1
             kto=int(dtseis/dt*k)
             dum=dum+sum(sliprate(i,j,kfrom:kto))/dble(kto-kfrom+1)*mu1(i,nysc,j)*dh*dh
@@ -286,8 +287,8 @@ print *,'file with GFspectr saved'
     endif
 
     M0=0
-    do j=1,nzt
-      do i=1,nxt
+    do j=nabc+1,nzt-nfs
+      do i=nabc+1,nxt-nabc
         M0=M0+sum(sliprate(i,j,:))*mu1(i,nysc,j)
       enddo
     enddo

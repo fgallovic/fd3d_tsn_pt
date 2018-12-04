@@ -6,6 +6,7 @@
     USE inversion_com
     USE mod_pt
     USE mod_ctrl
+    USE pml_com
 #if defined GPUMPI
     USE openacc
 #endif
@@ -71,6 +72,7 @@
     if(RUNI==0.or.RUNI==10)then !    Call the forward modelling only
       write(*,*)'Running forward modeling:'
 !      CALL forwardspecial1()
+!      CALL forwardspecialTPV5()
       CALL readinversionresult()
       ioutput=1
       if(iwaveform==0)write(*,*)'Note: No seismogram calculation.'
@@ -80,14 +82,18 @@
       if(RUNI==0)then
         write(*,*)'Note: Saving normal stress profile.'
         open(719,FILE='normalstressprofile.dat')
-        do i=1,nzt
-          write(719,*)dh*real(nzt-i-2)/1.e3,normstress(i)/1.e6
+        do i=nabc+1,nzt-nfs
+          write(719,*)dh*real(nzt-nfs-i)/1.e3,normstress(i)/1.e6
         enddo
         close(719)
       endif
       write(*,*)'Running dynamic rupture simulation...'
       CALL validatefd3dmodel(err)
-      if(err)write(*,*)'Forward model violates constraints!'
+      if(err)then
+        write(*,*)'Forward model violates constraints!'
+      else
+        write(*,*)'Forward model satisfies constraints!'
+      endif
       call fd3d()
       print *,'-----------------------------------------------------'
       print *,'Average speed:       ',output_param(1)
@@ -145,7 +151,7 @@
 !        do k = 1,nzt
 !          do i = 1,nxt
 !            read(25)sliprate(i,k,it)
-            read(25)sliprate(1:nxt,1:nzt,it)
+            read(25)sliprate(nabc+1:nxt-nabc,nabc+1:nzt-nfs,it)
 !          enddo
 !        enddo
       enddo

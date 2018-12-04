@@ -133,6 +133,7 @@
     USE fd3dparam_com
     USE friction_com
     USE frictionconstraints_com
+    USE pml_com
     IMPLICIT NONE
     logical  modelinvalid
     real x,z,rr,x0,z0
@@ -144,8 +145,8 @@
 !    print *,minval(dc),maxval(dc)
 !    write(*,*) minval(strinix),maxval(strinix)
 !Constraints on Min/Max values
-    do j=1,nzt-2
-      do i=1,nxt
+    do j=nabc+1,nzt-nfs
+      do i=nabc+1,nxt-nabc
         if(Dc(i,j)<DcMin.or.Dc(i,j)>DcMax)then
 !          write(*,*)'Dc',i,j,Dc(i,j),Dcmin,DcMax
           return
@@ -165,10 +166,10 @@
 !Constraint on the nucleation zone
     if(ConstraintNucl==1)then
       nuclOK=0
-      do j=1,nzt-2
-        z=dh*(real(j)-0.5)
-        do i=1,nxt
-          x=dh*(real(i)-0.5)
+      do j=nabc+1,nzt-nfs
+        z=dh*(real(j-nabc)-0.5)
+        do i=nabc+1,nxt-nabc
+          x=dh*(real(i-nabc)-0.5)
           rr=(x-NuclConstraintL)**2+(z-NuclConstraintW)**2
           if(rr>NuclConstraintR**2.and.peak_xz(i,j)<=strinix(i,j))then
 !            write(*,*)'Nucl',x,z,peak_xz(i,j)-strinix(i,j)
@@ -183,22 +184,22 @@
 !Constraint on Mean Overstress:   
       allocate(strengthexcess1(nxt,nzt))
       strengthexcess1(:,:)=strinix(:,:)-peak_xz(:,:)
-      nuclsize=dh*dh*COUNT(strengthexcess1(1:nxt,1:nzt-2)>=0.)!/1.e6
-      meanoverstress=sum(strengthexcess1(1:nxt,1:nzt-2),strengthexcess1(1:nxt,1:nzt-2)>=0.)*dh*dh/nuclsize
+      nuclsize=dh*dh*COUNT(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)!/1.e6
+      meanoverstress=sum(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs),strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)*dh*dh/nuclsize
       deallocate(strengthexcess1)    
       if (meanoverstress>overstressconstraint) return !mean overstress is too large
 
       nuclOK=0
-      if (minval(peak_xz(:,:nzt-2)-strinix(:,:nzt-2))<=0.) then !nucleation somewhere
+      if (minval(peak_xz(nabc+1:nxt-nabc,nabc+1:nzt-nfs)-strinix(nabc+1:nxt-nabc,nabc+1:nzt-nfs))<=0.) then !nucleation somewhere
 !        print *,'model nucleating'
         x0=0.
         z0=0.
         ncent=0
         !find  center
-        do j=1,nzt-2
-          z=dh*(real(j)-0.5)
-          do i=1,nxt
-            x=dh*(real(i)-0.5)
+        do j=nabc+1,nzt-nfs
+          z=dh*(real(j-nabc)-0.5)
+          do i=nabc+1,nxt-nabc
+            x=dh*(real(i-nabc)-0.5)
             if (peak_xz(i,j)<=strinix(i,j)) then 
               x0=x0+x
               z0=z0+z
@@ -208,10 +209,10 @@
         enddo
         x0=x0/ncent
         z0=z0/ncent
-        do j=1,nzt-2
-          z=dh*(real(j)-0.5)
-          do i=1,nxt
-            x=dh*(real(i)-0.5)
+        do j=nabc+1,nzt-nfs
+          z=dh*(real(j-nabc)-0.5)
+          do i=nabc+1,nxt-nabc
+            x=dh*(real(i-nabc)-0.5)
             rr=sqrt((x-x0)**2+(z-z0)**2)
             if (peak_xz(i,j)<=strinix(i,j) .and. rr>NuclConstraintR) return !nucleations outside 
             if (peak_xz(i,j)<=strinix(i,j) .and. rr<=NuclConstraintR) NuclOK=1 !nucleation is ok
@@ -310,20 +311,21 @@
     USE inversion_com
     USE fd3dparam_com
     USE friction_com
+    USE pml_com
     IMPLICIT NONE
     real,dimension(:),allocatable:: xintrpl,yintrpl,xnew,ynew
     integer i,k,ii,kk
     real DW,DL,dum,xs,zs,t,u
 
 ! Bilinear interpolation
-    DL=dh*nxt/real(NLI-1)
-    DW=dh*(nzt-2)/real(NWI-1)
-    do k=1,nzt-2
-      ZS=dh*(k-1)+dh/2.
+    DL=dh*(nxt-2*nabc)/real(NLI-1)
+    DW=dh*(nzt-nfs-nabc)/real(NWI-1)
+    do k=nabc+1,nzt-nfs
+      ZS=dh*(k-1-nabc)+dh/2.
       kk=int(ZS/DW)+1
       u=(ZS-DW*(kk-1))/DW
-      do i=1,nxt
-        XS=dh*(i-1)+dh/2.
+      do i=nabc+1,nxt-nabc
+        XS=dh*(i-1-nabc)+dh/2.
         ii=int(XS/DL)+1
         t=(XS-DL*(ii-1))/DL
         strinix(i,k)=(1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)
@@ -331,7 +333,7 @@
         Dc(i,k)     =(1.-t)*(1.-u)*DcI(ii,kk)+t*(1.-u)*DcI(ii+1,kk)+t*u*DcI(ii+1,kk+1)+(1.-t)*u*DcI(ii,kk+1)
       enddo
     enddo
-   
+    dyn_xz=0.
 !Custom modification
 !    write(*,*)'Warning! Custom modification applied!!!'
 !    Dc(150:170,40:60)=0.3
@@ -343,16 +345,17 @@
     SUBROUTINE forwardspecial1()
     USE friction_com
     USE fd3dparam_com
+    USE pml_com
     IMPLICIT NONE
     REAL,PARAMETER:: x0=14.e3,z0=6.e3,a=10.e3,b=3.e3,phi=0.
     REAL,PARAMETER:: xn=17.e3,zn=6.e3,rn=1.e3
     real x,z,rr
     integer i,j
     
-    do j = 1,nzt
-      z=dh*(real(j)-0.5)
-      do i = 1,nxt
-        x=dh*(real(i)-0.5)
+    do j = nabc+1,nzt-nfs
+      z=dh*(real(j-nabc)-0.5)
+      do i = nabc+1,nxt-nabc
+        x=dh*(real(i-nabc)-0.5)
         strinix(i,j) = 0.e6  !prestress
         peak_xz(i,j) = 20.e6  !strength
         Dc(i,j)=0.2  !Dc
@@ -365,22 +368,32 @@
         if(rr<rn)strinix(i,j)=peak_xz(i,j)*1.1
       enddo
     enddo
-        
+    dyn_xz=0.
+
     END
     
-
-    SUBROUTINE readinversionresult()
-    USE inversion_com
+	
+    SUBROUTINE forwardspecialTPV5()
+   USE inversion_com
     USE fd3dparam_com
     USE friction_com
     IMPLICIT NONE
     REAL,PARAMETER:: x0=15.e3,z0=6.e3,a=10.e3,b=4.e3,phi=0.,xn=17.e3,zn=6.e3,rn=1.5e3
-    real x,z,rr,DL,DW
-    integer i,j
+    real hx0, hz0, h1x0, h1z0, h2x0, h2z0, hdelta, T0, T0n, sn, mus, mud, d0h
+    real x,z,rr,DL,DW, muso, T0h1, T0h2
+    integer i,j,k, no0
     real dum
-    
-    open(244,FILE='forwardmodel.dat')
-    read(244,*)dum,dum,T0I(:,:),TsI(:,:),DcI(:,:)
+
+    open(244,FILE='scecmodel.dat')
+    read (244,*) no0, hx0, hz0, h1x0, h1z0, h2x0, h2z0  !okraj,stred nukleace, stred leve heterogenity, stred prave heterogenity
+    read (244,*) hdelta ! sirka nukleacni zony
+    read (244,*) T0, T0n, T0h1, T0h2 ! predpeti, predpeti v nukleacni zone
+    read (244,*) sn ! normalove napeti
+    read (244,*) mus, muso !staticke treni, staticke treni na okraji
+    read (244,*) mud !dynamicke treni
+    read (244,*) d0h ! kriticky slip
+
+    !read(244,*)dum,dum,T0I(:,:),TsI(:,:),DcI(:,:)
     close(244)
 
     !DL=dh*nxt/real(NLI-1)
@@ -401,6 +414,67 @@
     !    if(rr<rn)T0I(i,j)=TSI(i,j)*1.1
     !  enddo
     !enddo
+
+    !CALL inversion_modeltofd3d()
+
+    do k=1,nzt-2
+        do i = 1,nxt
+	    strinix(i,k)=T0
+
+            if (((real(i)*dh-hx0>= -hdelta/2.0) .and. (real(i)*dh-hx0 <= hdelta/2.0)) &
+            .and. ((real(k)*dh-hz0>= -hdelta/2.0) .and. (real(k)*dh-hz0 <= hdelta/2.0))) then
+                strinix(i,k)=T0n
+            endif
+            if (((real(i)*dh-h1x0>= -hdelta/2.0) .and. (real(i)*dh-h1x0 <= hdelta/2.0)) &
+            .and. ((real(k)*dh-h1z0>= -hdelta/2.0) .and. (real(k)*dh-h1z0 <= hdelta/2.0))) then
+                strinix(i,k)=T0h1
+            endif
+
+            if (((real(i)*dh-h2x0>= -hdelta/2.0) .and. (real(i)*dh-h2x0 <= hdelta/2.0)) &
+            .and. ((real(k)*dh-h2z0>= -hdelta/2.0) .and. (real(k)*dh-h2z0 <= hdelta/2.0))) then
+                strinix(i,k)=T0h2
+            endif
+
+
+            peak_xz(i,k)=sn*muso
+            dyn_xz(i,k) = sn*mud
+            Dc(i,k)=d0h
+        enddo
+    enddo
+
+    do k=no0+1,nzt-2
+        do i = no0+1,nxt-no0
+
+            peak_xz(i,k)=sn*mus
+
+        enddo
+    enddo
+
+    do i=1,nxt
+      peak_xz(i,nzt-1)=peak_xz(i,nzt-2)
+      dyn_xz(i,nzt-1)=dyn_xz(i,nzt-2)
+      Dc(i,nzt-1)=Dc(i,nzt-2)
+      strinix(i,nzt-1)=strinix(i,nzt-2)
+      peak_xz(i,nzt)=peak_xz(i,nzt-3)
+      dyn_xz(i,nzt)=dyn_xz(i,nzt-3)
+      Dc(i,nzt)=Dc(i,nzt-3)
+      strinix(i,nzt)=strinix(i,nzt-3)
+    enddo
+
+    END
+
+    SUBROUTINE readinversionresult()
+    USE inversion_com
+    USE fd3dparam_com
+    USE friction_com
+    IMPLICIT NONE
+    real x,z,rr,DL,DW
+    integer i,j
+    real dum
+    
+    open(244,FILE='forwardmodel.dat')
+    read(244,*)dum,dum,T0I(:,:),TsI(:,:),DcI(:,:)
+    close(244)
     
     CALL inversion_modeltofd3d()
     
