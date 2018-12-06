@@ -36,7 +36,7 @@ gnuplot << END
 set term postscript color 12
 set output 'friction1.ps'
 set multiplot
-set size 0.5,0.5
+set size 0.4,0.4
 set palette defined ( 0 "white", 2 "skyblue", 3 "light-green", 6 "yellow", 10 "light-red" )
 set xtics out scale .2
 set ytics out scale .2
@@ -52,25 +52,25 @@ set title 'Prestress (MPa)'
 #set cbtics 0.1
 #set cbrange [-2:9]
 plot 'friction.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 0 notitle w image,\
-"aftershocks-onfault.dat" notitle w p ps .5 lc 10
+"aftershocks-onfault.dat" notitle w p ps .2 lc 9
 
 set origin .5,.5
 set title 'Strength (MPa)'
 #set cbtics 0.1
 #set cbrange [0:2.5]
 plot 'friction.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 1 notitle w image,\
-"aftershocks-onfault.dat" notitle w p ps .5 lc 10
+"aftershocks-onfault.dat" notitle w p ps .2 lc 9
 
 set origin 0.,0.2
 set title 'Dc (m)'
 #set cbtics 0.1
 plot 'friction.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 2 notitle w image,\
-"aftershocks-onfault.dat" notitle w p ps .5 lc 10
+"aftershocks-onfault.dat" notitle w p ps .2 lc 9
 
 set origin 0.5,0.2
 set title 'Mu (GPa)'
 #set cbtics 0.1
 plot 'friction.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 3 notitle w image,\
-"aftershocks-onfault.dat" notitle w p ps .5 lc 10
+"aftershocks-onfault.dat" notitle w p ps .2 lc 9
 
 END
