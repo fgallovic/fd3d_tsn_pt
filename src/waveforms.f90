@@ -190,10 +190,12 @@
     deallocate(cirN,cirE,cirZ,staweight)
     close(20)    
    endif
-   if (iwaveform==2 .and. mrank==0) close(222)
+   if (iwaveform==2 .and. mrank==0) then
+     close(222)
+     print *,'file with GFspectr saved' 
+   endif
 #if defined MPI
 call MPI_Barrier(MPI_COMM_WORLD,ierr)
-print *,'file with GFspectr saved'
 #endif    
     allocate(Dsynt(Nseis))
    

@@ -1,3 +1,10 @@
+      MODULE displt_com
+        real,allocatable,dimension(:,:,:):: u1,v1,w1
+      END MODULE
+
+      MODULE strfld_com
+        real,allocatable,dimension(:,:,:):: xx,yy,zz,xy,yz,xz
+      END MODULE
 
     MODULE traction_com
       real,allocatable,dimension(:,:):: tx,tz,v1t,avdx,avdz,RFx,RFz  ! x and z component of traction, v component of velocity at fault
@@ -67,6 +74,8 @@
 !-------------------------------------------------------
 !   initialize arrays
 !-------------------------------------------------------
+      allocate(u1(nxt,nyt,nzt),v1(nxt,nyt,nzt),w1(nxt,nyt,nzt))
+      allocate(xx(nxt,nyt,nzt),yy(nxt,nyt,nzt),zz(nxt,nyt,nzt),xy(nxt,nyt,nzt),yz(nxt,nyt,nzt),xz(nxt,nyt,nzt))
       !pml initialization
       allocate(tx(nxt,nzt),tz(nxt,nzt),v1t(nxt,nzt),avdx(nxt,nzt),avdz(nxt,nzt), RFx(nxt,nzt),RFz(nxt,nzt))
       allocate(etot_out(ntfd), epot_out(ntfd), ekin_out(ntfd), efault_out(ntfd))
@@ -455,9 +464,26 @@
     
       !$ACC END DATA
 
+      deallocate(u1,v1,w1)
+      deallocate(xx,yy,zz,xy,yz,xz)
+      deallocate(tx,tz,v1t,avdx,avdz, RFx,RFz)
+      deallocate(etot_out,epot_out,ekin_out,efault_out)
+      deallocate(omega_pml,omegaR_pml,omega_pmlM,omegaR_pmlM,au1,av1,aw1)
+      deallocate (omegax1,omegay1,omegaz1,omegaxS1)    
+      deallocate (u11,u12,u13,v11,v12,v13,w11,w12,w13)
+      deallocate (xx11,xx12,xx13,yy11,yy12,yy13,zz11,zz12,zz13,xz11,xz12,xy11,xy12,yz11,yz12)
+      deallocate (omegax2,omegay2,omegaz2,omegaxS2)      
+      deallocate (u21,u22,u23,v21,v22,v23,w21,w22,w23)
+      deallocate (xx21,xx22,xx23,yy21,yy22,yy23,zz21,zz22,zz23,xz21,xz22,xy21,xy22,yz21,yz22)  
+      deallocate (omegax3,omegay3,omegaz3,omegaxS3,omegayS3) 
+      deallocate (u31,u32,u33,v31,v32,v33,w31,w32,w33)
+      deallocate (xx31,xx32,xx33,yy31,yy32,yy33,zz31,zz32,zz33,xz31,xz32,xy31,xy32,yz31,yz32)  
+      deallocate (omegax4,omegay4,omegaz4,omegaxS4,omegayS4,omegazS4)
+      deallocate (u41,u42,u43,v41,v42,v43,w41,w42,w43)
+      deallocate (xx41,xx42,xx43,yy41,yy42,yy43,zz41,zz42,zz43,xz41,xz42,xy41,xy42,yz41,yz42)    
+
       CALL CPU_TIME(CPUT2)
       PRINT *,'CPU TIME OF TIME LOOP: ',CPUT2-CPUT1
-      deallocate(tx,tz,v1t,avdx,avdz, RFx,RFz)
 
 
 !-------------------

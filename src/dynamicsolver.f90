@@ -49,9 +49,6 @@
     call inversion_init()  !Reads GFs, observed waveforms
 
 #if defined MPI
-!    call MPI_BCAST(sigmaobs,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)  !BYLO BY HEZKE, KDYBY SI TO VSECHNO PROVEDL JEN PRVNI A OSTATNIM BY SE TO JEN POSLALO BROADCASTEM
-!    call MPI_BCAST(xobs,Nobs,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-!    call MPI_BCAST(yobs,Nobs,MPI_REAL,0,MPI_COMM_WORLD,ierr)
     if(mrank>0 .or. ncpu==1)then
       ifile=1111+mrank
       write(fname,'(a,i3.3)') 'samples',mrank

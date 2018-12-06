@@ -39,8 +39,6 @@
 
     SUBROUTINE fd3d_init()
       USE medium_com
-      USE displt_com
-      USE strfld_com
       USE fd3dparam_com
       USE friction_com
       USE source_com
@@ -75,8 +73,6 @@
 ! Allocate FD module arrays
 !----------------------------
       allocate(lam1(nxt,nyt,nzt),mu1(nxt,nyt,nzt),d1(nxt,nyt,nzt))
-      allocate(u1(nxt,nyt,nzt),v1(nxt,nyt,nzt),w1(nxt,nyt,nzt))
-      allocate(xx(nxt,nyt,nzt),yy(nxt,nyt,nzt),zz(nxt,nyt,nzt),xy(nxt,nyt,nzt),yz(nxt,nyt,nzt),xz(nxt,nyt,nzt))
       allocate(strinix(nxt,nzt),peak_xz(nxt,nzt),Dc(nxt,nzt),dyn_xz(nxt,nzt),gliss(nxt,nzt))
       allocate(ruptime(nxt,nzt),slip(nxt,nzt),rise(nxt,nzt),schange(nxt,nzt),sliprate(nxt,nzt,ntfd),shearstress(nxt,nzt,ntfd))
 
