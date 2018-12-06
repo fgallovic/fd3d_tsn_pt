@@ -464,6 +464,8 @@
     
       !$ACC END DATA
 
+      SCHANGE(:,:)=SCHANGE(:,:)-strinix(:,:)   !stress drop
+      
       deallocate(u1,v1,w1)
       deallocate(xx,yy,zz,xy,yz,xz)
       deallocate(tx,tz,v1t,avdx,avdz, RFx,RFz)
