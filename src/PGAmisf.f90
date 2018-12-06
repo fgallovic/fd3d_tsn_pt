@@ -35,8 +35,9 @@ implicit none
 integer :: i,j,ierr
 real :: dum,dum1
 
-nper=0
 !read coefficients
+ierr=0
+nper=0
 open(unit=1111,file='coeff1.dat',status='old')
  do while (ierr==0)
   read(1111,*,iostat=ierr) dum
