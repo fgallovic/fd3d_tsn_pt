@@ -38,6 +38,7 @@ real :: dum,dum1
 nper=0
 !read coefficients
 open(unit=1111,file='coeff1.dat',status='old')
+ierr=0
  do while (ierr==0)
   read(1111,*,iostat=ierr) dum
   if (ierr==0) nper=nper+1
