@@ -205,11 +205,11 @@
 !     order differences
 !----------------------------------------------------------
 
-      call uxx0 (nabc+1, nxt-nabc, nyt+1, nyt+1, nabc+1, nzt-nfs,dh, dt)
+      call uxx0a (nabc+1, nxt-nabc, nyt+1, nyt+1, nabc+1, nzt-nfs,dh, dt)
 
-      call vyy0 (nabc+1, nxt-nabc, nyt+1, nyt+1, nabc+1, nzt-nfs,dh, dt)
+      call vyy0a (nabc+1, nxt-nabc, nyt+1, nyt+1, nabc+1, nzt-nfs,dh, dt)
 
-      call wzz0 (nabc+1, nxt-nabc, nyt+1, nyt+1, nabc+1, nzt-nfs,dh, dt)
+      call wzz0a (nabc+1, nxt-nabc, nyt+1, nyt+1, nabc+1, nzt-nfs,dh, dt)
       return
       end
 !----------------------------------------------------------
@@ -1192,7 +1192,7 @@
       real dh, dt
       integer :: nxt, nyt, nzt
 
-      call sxz0(nabc+1,nxt-nabc, nyt, nyt, nabc+1,nzt-nfs,dh,dt)
+      call sxz1(nabc+1,nxt-nabc, nyt, nyt, nabc+1,nzt-nfs,dh,dt)
 
     end
 
@@ -1210,9 +1210,10 @@
 !     nzt   nodal points in z dir  (integer)(sent)
 !     dh    spatial discretization (real)   (sent)
 !     dt    temporal discretization(real)   (sent)
-      real    ::  dh, dt, d, dth
+      real    ::  dh, dt, d, dth, diff1, diff2,c1,c2
       integer :: nxt, nyt, nzt
-
+      c1  = 9./8.
+      c2  = -1./24.
       dth = dt/dh
       !$ACC PARALLEL DEFAULT (PRESENT)
       !$ACC LOOP GANG
@@ -1224,22 +1225,30 @@
             a  = xl + 2.*xm
             b  = xl
 
-            v1t(i,k)=v1(i,nyt-1,k) - b*((u1(i+1,nyt,k) - u1(i,nyt,k)) + (w1(i,nyt,k) - w1(i,nyt,k-1)))/(2*a)
+	    diff1=c1*(u1(i+1,nyt,k) - u1(i,nyt,k)) + c2*(u1(i+2,nyt,k) - u1(i-1,nyt,k)) 
+            diff3=c1*(w1(i,nyt,k)   - w1(i,nyt,k-1)) + c2*(w1(i,nyt,k+1) - w1(i,nyt,k-2))
+		!diff1=(u1(i+1,nyt,k) - u1(i,nyt,k))
+		!diff3=(w1(i,nyt,k)   - w1(i,nyt,k-1))
+		
+		
+            v1t(i,k)=v1(i,nyt-1,k) - b*(diff1 + diff3)/(2*a)
 
             xx(i,nyt,k) = xx(i,nyt,k)             +  &
-            dth*a*(u1(i+1,nyt,k) - u1(i,nyt,k))   +  &
-            dth*b*(2*(v1t(i,k)   - v1(i,nyt-1,k))  +  &
-            w1(i,nyt,k)   - w1(i,nyt,k-1))
+            dth*a*(diff1)   +  &
+            dth*b*(2*(v1t(i,k)   - v1(i,nyt-1,k)) +  &
+            diff3)
 
-            yy(i,nyt,k) = yy(i,nyt,k)               +  &
-            dth*a*2*(v1t(i,k)   - v1(i,nyt-1,k)) +  &
-            dth*b*(u1(i+1,nyt,k) - u1(i,nyt,k)    +  &
-            w1(i,nyt,k)   - w1(i,nyt,k-1))
+            yy(i,nyt,k) = yy(i,nyt,k)             +  &
+            dth*a*2*(v1t(i,k)   - v1(i,nyt-1,k))  +  &
+            dth*b*(diff1    +  &
+            diff3)
 
-            zz(i,nyt,k) = zz(i,nyt,k)               +  &
-            dth*a*(w1(i,nyt,k)   - w1(i,nyt,k-1)) +  &
-            dth*b*(u1(i+1,nyt,k) - u1(i,nyt,k)    +  &
+            zz(i,nyt,k) = zz(i,nyt,k)             +  &
+            dth*a*(diff3) +  &
+            dth*b*(diff1    +  &
             2*(v1t(i,k)   - v1(i,nyt-1,k)))
+
+
 
           enddo
       enddo
@@ -1801,7 +1810,7 @@
 			pt = (u21(i2,j2,k2)*(1.-omegax2(i2))  + (dt/d)*(xx(i,j,k) - xx(i-1,j,k))/dh)
 			u21(i2,j2,k2) = pt/(1.+omegax2(i2))
 		
-			pt = (u12(i2,j2,k2)*(1.-omegay2(j2))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh)
+			pt = (u22(i2,j2,k2)*(1.-omegay2(j2))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh)
 			u22(i2,j2,k2) = pt/(1.+omegay2(j2))
 		
 			pt = (u23(i2,j2,k2)*(1.-omegaz2(k2))  + (dt/d)*(xz(i,j,k) - xz(i,j,k-1))/dh)

@@ -52,9 +52,12 @@
       real    :: U1OUT,SLIPRATEOUT(nxt,nzt)
       real    :: CPUT1,CPUT2
 	  REAL :: maxvel,maxvelsave
-      real    :: dht, ek, es, ef
+      real    :: dht, ek, es, ef, c1, c2
       integer :: i,j,it,k, nxe, nxb, nyb, nye, nzb, nze
       real,allocatable,dimension(:)::etot_out, epot_out, ekin_out, efault_out
+
+      c1  = 9./8.
+      c2  = -1./24.
 
 !---------------------------
 ! Write down the input
@@ -184,7 +187,7 @@
         omegaR_pml(nabc-i) = omega_pml(i)
         omega_pmlM(i) = 0.5*dt*omegaM_pml * ((real(i)-0.5)/real((nabc-1)))**4
         omegaR_pmlM(nabc-i) = omega_pmlM(i)
-        !print*, omega_pml(i), omega_pmlM(i)
+       ! print*, omega_pml(i), omega_pmlM(i)
       end do
       
       omegax1=0.;omegax2=0.;omegax3=0.;omegax4=0.
@@ -329,13 +332,20 @@
         do k = nabc+1,nzt-nfs
           !$ACC LOOP VECTOR
           do i = nabc+1,nxt-nabc
-            pdz = (+(xz(i+1,nysc,k) - xz(i,nysc,k))/2 + (zz(i,nysc,k+1) - zz(i,nysc,k))/2 - yz(i,nysc-1,k))
+		!pdz = (+(xz(i+1,nysc,k) - xz(i,nysc,k))/2 + (zz(i,nysc,k+1) - zz(i,nysc,k))/2 - yz(i,nysc-1,k))
+             pdz = (c1*(xz(i+1,nysc,k) - xz(i,nysc,k))   +  c2*(xz(i+2,nysc,k) - xz(i-1,nysc,k)))/2 + &
+	         (c1*(zz(i,nysc,k+1) - zz(i,nysc,k))   +  c2*(zz(i,nysc,k+2) - zz(i,nysc,k-1)))/2 - &
+			 yz(i,nysc-1,k)
+			
             avdz(i,k)= damp_s*(pdz - avdz(i,k))
             RFz(i,k) = pdz + avdz(i,k)
             tz(i,k) = -RFz(i,k) - 0.5*d1(i,nysc,k)*dht*w1(i,nysc,k)
             avdz(i,k) = pdz
 
-            pdx = (+(xx(i,nysc,k) - xx(i-1,nysc,k))/2 + (xz(i,nysc,k) - xz(i,nysc,k-1))/2 - xy(i,nysc-1,k))
+            !pdx = (+(xx(i,nysc,k) - xx(i-1,nysc,k))/2 + (xz(i,nysc,k) - xz(i,nysc,k-1))/2 - xy(i,nysc-1,k))
+			 pdx = (c1*(xx(i,nysc,k)   - xx(i-1,nysc,k)) +  c2*(xx(i+1,nysc,k) - xx(i-2,nysc,k)))/2 + &
+			 (c1*(xz(i,nysc,k)   - xz(i,nysc,k-1)) +  c2*(xz(i,nysc,k+1) - xz(i,nysc,k-2)))/2 - &
+			 xy(i,nysc-1,k)
             avdx(i,k)= damp_s*(pdx - avdx(i,k))
             RFx(i,k) = pdx + avdx(i,k)
             tx(i,k) = -RFx(i,k) - 0.5*d1(i,nysc,k)*dht*u1(i,nysc,k)
@@ -422,32 +432,32 @@
         !$ACC END PARALLEL
 
 !Stress free
-      !  call fres(nxt,nyt,nzt-nfs)
-        !energy
-        ! ek=0.
-        ! es=0.
-		! ef= 0.
-        ! do k = nabc+1,nzt-nfs
-            ! do j = nabc+1,nyt-1
-	    	! do i = nabc+1,nxt-nabc                
-                    ! ek = ek + d1(i,j,k)*(u1(i,j,k)**2+v1(i,j,k)**2+w1(i,j,k)**2)
-                    ! es = es + xx(i,j,k)*(u1(i+1,j,k)-u1(i,j,k)) + yy(i,j,k)*(v1(i,j,k)-v1(i,j-1,k)) + zz(i,j,k)*(w1(i,j,k)-w1(i,j,k-1)) + &
-                        ! xy(i,j,k)*(u1(i,j+1,k)-u1(i,j,k) + v1(i,j,k) - v1(i-1,j,k)) +   &
-                        ! xz(i,j,k)*(u1(i,j,k+1) - u1(i,j,k) + w1(i,j,k) - w1(i-1,j,k)) + &
-                        ! yz(i,j,k)*(v1(i,j,k+1) - v1(i,j,k) + w1(i,j+1,k) - w1(i,j,k))
-                ! enddo
-            ! enddo
-        ! enddo
-        ! do k = nabc+1,nzt-nfs
-	    	! do i = nabc+1,nxt-nabc 
-		    ! ef = ef + (schange(i,k)-dyn_xz(i,k))*slip(i,k)
-                ! enddo
-        ! enddo
+        call fres(nxt,nyt,nzt-nfs)
+     !   energy
+         ! ek=0.
+         ! es=0.
+		 ! ef= 0.
+         ! do k = nabc+1,nzt-nfs
+             ! do j = nabc+1,nyt-1
+	    	 ! do i = nabc+1,nxt-nabc                
+                     ! ek = ek + d1(i,j,k)*(u1(i,j,k)**2+v1(i,j,k)**2+w1(i,j,k)**2)
+                     ! es = es + xx(i,j,k)*(u1(i+1,j,k)-u1(i,j,k)) + yy(i,j,k)*(v1(i,j,k)-v1(i,j-1,k)) + zz(i,j,k)*(w1(i,j,k)-w1(i,j,k-1)) + &
+                         ! xy(i,j,k)*(u1(i,j+1,k)-u1(i,j,k) + v1(i,j,k) - v1(i-1,j,k)) +   &
+                         ! xz(i,j,k)*(u1(i,j,k+1) - u1(i,j,k) + w1(i,j,k) - w1(i-1,j,k)) + &
+                         ! yz(i,j,k)*(v1(i,j,k+1) - v1(i,j,k) + w1(i,j+1,k) - w1(i,j,k))
+                 ! enddo
+             ! enddo
+         ! enddo
+         ! do k = nabc+1,nzt-nfs
+	    	 ! do i = nabc+1,nxt-nabc 
+		     ! ef = ef + (schange(i,k)-dyn_xz(i,k))*slip(i,k)
+                 ! enddo
+         ! enddo
 		
-        ! etot_out(it)=ek + es/dh + ef*dh**2
-        ! epot_out(it)=ek
-		! ekin_out(it)=es/dh
-		! efault_out(it)=ef*dh**2
+         ! etot_out(it)=ek + es/dh + ef*dh**2
+         ! epot_out(it)=ek
+		 ! ekin_out(it)=es/dh
+		 ! efault_out(it)=ef*dh**2
 
         !$ACC END DATA
         sliprate(:,:,it)=sliprateout(:,:)
@@ -469,7 +479,7 @@
       deallocate(u1,v1,w1)
       deallocate(xx,yy,zz,xy,yz,xz)
       deallocate(tx,tz,v1t,avdx,avdz, RFx,RFz)
-      deallocate(etot_out,epot_out,ekin_out,efault_out)
+
       deallocate(omega_pml,omegaR_pml,omega_pmlM,omegaR_pmlM,au1,av1,aw1)
       deallocate (omegax1,omegay1,omegaz1,omegaxS1)    
       deallocate (u11,u12,u13,v11,v12,v13,w11,w12,w13)
@@ -496,7 +506,7 @@
 !       OPEN(24, file='result/disp.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
         OPEN(25, file='result/sliprate.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
         OPEN(26, file='result/shearstress.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
-       ! OPEN(410, file='result/ee.txt',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
+        !OPEN(410, file='result/ee.txt',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
 !        WRITE(25) sliprate(:,:,:)
         do it = 1,ntfd
                WRITE(25) sliprate(nabc+1:nxt-nabc,nabc+1:nzt-nfs,it)
@@ -505,9 +515,9 @@
         enddo
          close(25)
          close(26)
-        ! close(410)
+         !close(410)
        endif
-
+      deallocate(etot_out,epot_out,ekin_out,efault_out)
       do it=1,ntfd           !Saving slip rate at a point on the fault
         time = (it-1)*dt
         write(388,*)time,sliprate(nxt/3,nzt/2,it)
