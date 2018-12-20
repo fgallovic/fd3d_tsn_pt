@@ -2183,9 +2183,9 @@
 !      xz12(:,:,nze-nzb+1) = 0.
       !$ACC PARALLEL DEFAULT (PRESENT)
       !$ACC LOOP GANG
-	  do i=1,nxe-nxb+1
+      do j=1,nye-nyb+1+1
       !$ACC LOOP VECTOR
-        do j=1,nye-nyb+1+1
+        do i=1,nxe-nxb+1
           xz11(i,j,nze-nzb+1) = 0.
           xz12(i,j,nze-nzb+1) = 0.
         enddo
@@ -2197,9 +2197,9 @@
 !      yz12(:,:,nze-nzb+1) = 0.
       !$ACC PARALLEL DEFAULT (PRESENT)
       !$ACC LOOP GANG
-	  do i=1,nxe-nxb+1
+      do j=1,nye-nyb+1
       !$ACC LOOP VECTOR
-        do j=1,nye-nyb+1
+        do i=1,nxe-nxb+1
           yz11(i,j,nze-nzb+1) = 0.
           yz12(i,j,nze-nzb+1) = 0.
         enddo
@@ -2368,9 +2368,9 @@
 !      xz22(:,:,nze-nzb+1) = 0.
       !$ACC PARALLEL DEFAULT (PRESENT)
       !$ACC LOOP GANG
-	  do i=1,nxe-nxb+1
+      do j=1,nye-nyb+1+1
       !$ACC LOOP VECTOR
-        do j=1,nye-nyb+1+1
+        do i=1,nxe-nxb+1
           xz21(i,j,nze-nzb+1) = 0.
           xz22(i,j,nze-nzb+1) = 0.
         enddo
@@ -2382,9 +2382,9 @@
 !      yz22(:,:,nze-nzb+1) = 0.
       !$ACC PARALLEL DEFAULT (PRESENT)
       !$ACC LOOP GANG
-	  do i=1,nxe-nxb+1
+      do j=1,nye-nyb+1
       !$ACC LOOP VECTOR
-        do j=1,nye-nyb+1
+        do i=1,nxe-nxb+1
           yz21(i,j,nze-nzb+1) = 0.
           yz22(i,j,nze-nzb+1) = 0.
         enddo
@@ -2553,9 +2553,9 @@
 !      xz32(:,:,nze-nzb+1) = 0.
       !$ACC PARALLEL DEFAULT (PRESENT)
       !$ACC LOOP GANG
-	  do i=1,nxe-nxb+1
+      do j=1,nye-nyb+1
       !$ACC LOOP VECTOR
-        do j=1,nye-nyb+1
+        do i=1,nxe-nxb+1
           xz31(i,j,nze-nzb+1) = 0.
           xz32(i,j,nze-nzb+1) = 0.
         enddo
@@ -2566,9 +2566,9 @@
 !      yz32(:,:,nze-nzb+1) = 0.
       !$ACC PARALLEL DEFAULT (PRESENT)
       !$ACC LOOP GANG
-	  do i=1,nxe-nxb+1
+      do j=1,nye-nyb+1
       !$ACC LOOP VECTOR
-        do j=1,nye-nyb+1
+        do i=1,nxe-nxb+1
           yz31(i,j,nze-nzb+1) = 0.
           yz32(i,j,nze-nzb+1) = 0.
         enddo
