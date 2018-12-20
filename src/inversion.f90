@@ -52,7 +52,7 @@
     SUBROUTINE AdvanceChain(ichain,T,E,record_mcmc_now,iseed)   ! V E je stary misfit, nahradi se pripadne novym, pokud dojde k prijeti kroku
     USE mod_ctrl, only : ifile
     USE inversion_com
-    USE waveforms_com, only : misfit,VR,iwaveform
+    USE waveforms_com, only : misfit,VR,iwaveform,NRseis,ruptdist,pgaD,mw,MomentRate
     USE source_com
     USE pml_com
     USE fd3dparam_com
@@ -64,7 +64,7 @@
     real*8 newmisfit
     real gasdev
     logical  yn,modelinvalid
-    integer i,j
+    integer i,j,jj
 
     modelinvalid=.true.
     print *,'searching for model'
@@ -124,8 +124,14 @@
       misfit=E
       write(ifile,'(10000E13.5)')misfit,VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain)
       flush(ifile)
-      write(ifile+2)misfit,VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),ruptimeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),slipA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain)
+      write(ifile+2)misfit,VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),ruptimeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),slipA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRate(:)
       flush(ifile+2)
+      if (iwaveform==2) then
+       do jj=1,NRseis
+        write(ifile*10) misfit,mw,ruptdist(jj),pgaD(jj,:)/100.
+       enddo
+       flush(ifile*10)
+      endif
     endif
     
     END
@@ -278,7 +284,7 @@
      write(*,*)'Initial model VR: ',VR,' for shift',Tshift,'s'
 !     call plotseis()
     elseif (iwaveform==2) then
-     call evalmisfit2()
+      call evalmisfit2()
     endif
 
     E=misfit

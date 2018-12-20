@@ -28,7 +28,7 @@ integer ::      nbins = 10              ! Number of temperature bins for diagnos
 integer :: mode,iseed0,nproc,rank
 double precision, allocatable :: modtemp(:)   ! Temperatures of each chain
 integer :: ifile,ierr,mrank
-character(50) :: fname,rname
+character(50) :: fname,rname,dname
 integer :: iprint=10
 integer :: ntemps
 

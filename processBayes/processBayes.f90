@@ -40,12 +40,14 @@
     REAL,ALLOCATABLE,DIMENSION(:):: normalstress,VRs,misfits,meansd,meansl,duration,nuclsize,EG,ER,RE,meanoverstress,M0,meanDc,meanStrengthExcess,meanslip,rupturearea,meanruptvel,meanstrength
     REAL,ALLOCATABLE,DIMENSION(:,:,:):: DcA,TsA,T0A,SEA,ruptime1,slip1,rise1,schange1,es1,strengthexcess1
     REAL,ALLOCATABLE,DIMENSION(:,:):: dum11,dum12,dum13,dum21,dum22,dum23,dum24,ms1
-
+    real, allocatable, dimension(:) :: MRate
+    real, allocatable, dimension(:,:) :: MomentRate
     REAL bestmisfit,misfitaccept,dum
     REAL vr,mf,x0,z0,x,z,slipmax
     INTEGER NM,NTOT
     INTEGER i,j,k,ml(1),ncent
-    
+    integer :: nsr,np
+    real :: T,dtseis
 !--------------------
 ! Read the input file
 !--------------------
@@ -58,6 +60,37 @@
     read(11,*) dip
     close(11)
 
+
+
+    open(10,file='input.dat',action='read')
+    read(10,*)
+    read(10,*) !nfmax
+    read(10,*)
+    read(10,*) T!,dum,T1,T2
+    read(10,*)
+    read(10,*) !artifDT
+    read(10,*)
+    read(10,*) !NRseis
+    read(10,*)
+    read(10,*) !NL,NW
+    read(10,*)
+    read(10,*) !M0aprior
+    read(10,*)
+    read(10,*) !strike,dip
+    read(10,*)
+    read(10,*) !hypodepth
+    read(10,*)
+    read(10,*) !leng,widt
+    read(10,*)
+    read(10,*) !epicL,epicW
+    read(10,*)
+    read(10,*) np
+    close(10)
+
+    dtseis=T/real(np)
+    nSR=int(real(ntfd)/(dtseis/dt))
+    allocate(MRate(nSR))
+
     allocate(lam1(nxt,nyt,nzt),mu1(nxt,nyt,nzt),d1(nxt,nyt,nzt))
     allocate(strinix(nxt,nzt),peak_xz(nxt,nzt),Dc(nxt,nzt))
 
@@ -69,18 +102,15 @@
     
     ALLOCATE(misfits(NMAX),VRs(NMAX))
     ALLOCATE(dum11(NLI,NWI),dum12(NLI,NWI),dum13(NLI,NWI),dum21(nxt,nzt),dum22(nxt,nzt),dum23(nxt,nzt),dum24(nxt,nzt))
-    open(719,FILE='normalstressprofile.dat')
     ALLOCATE(normalstress(nzt))
     do i=1,nzt
-      read(719,*)dum,normalstress(i)
+       normalstress(i)=normstress(i)
     enddo
-    normalstress(:)=normalstress(:)*1.e6
-    close(719)
 
 !------ Learn about misfits
     k=0
     open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
-10  read(101,END=11,ERR=11)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:)
+10  read(101,END=11,ERR=11)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),MRate(:)
     k=k+1
     misfits(k)=mf
     if(k==NMAX)stop 'Increase dimension!'
@@ -108,10 +138,11 @@
     ALLOCATE(meanDc(NM),meanStrengthExcess(NM),meanslip(NM),rupturearea(NM),meanruptvel(NM),meanstrength(NM))
     allocate(DcA(NLI,NWI,NM),TsA(NLI,NWI,NM),T0A(NLI,NWI,NM),SEA(NLI,NWI,NM))
     allocate(ruptime1(nxt,nzt,NM),slip1(nxt,nzt,NM),rise1(nxt,nzt,NM),schange1(nxt,nzt,NM),es1(nxt,nzt,NM),ms1(nxt,nzt),strengthexcess1(nxt,nzt,NM))
+    allocate(MomentRate(nSr,NM))
     open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
     k=0
     do i=1,NTOT
-      read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:)
+      read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),Mrate(:)
       if(mf<=misfitaccept)then
         k=k+1
         misfits(k)=mf
@@ -128,6 +159,7 @@
         slip1(:,:,k)=dum22(:,:)
         rise1(:,:,k)=dum23(:,:)
         schange1(:,:,k)=dum24(:,:)
+        MomentRate(:,k)=Mrate(:)
       endif
     enddo
     close(101)
@@ -384,7 +416,7 @@
     depth=depth*1.e3;vp=vp*1.e3;vs=vs*1.e3;rho=rho*1.e3
     close(10)
     do k=nzt,1,-1
-      dum=(dh*real(nzt-k)+dh/2.)*sin(dip/180.d0*PI)    ! TADY SE TO MUSI OPRAVIT!
+      dum=(dh*real(nzt-k)+dh/2.)*sin(dip/180.d0*PI)
       if(dum>depth(ndepth))then
         vpp=vp(ndepth)
         vss=vs(ndepth)

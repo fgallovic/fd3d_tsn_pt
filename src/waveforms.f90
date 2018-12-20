@@ -2,11 +2,12 @@
 !waveforms for misfit
       integer,allocatable,dimension(:,:):: stainfo
       integer:: NRseis,NSTAcomp,Nseis
-      real,allocatable,dimension(:):: Dsynt,stasigma, ruptdist
+      real,allocatable,dimension(:):: Dsynt,stasigma, ruptdist,MomentRate
       real,allocatable,dimension(:,:):: Dseis, StaDist
       real SigmaData   ! Typically 0.05m
-      real misfit,VR,Tshift,M0
+      real misfit,VR,Tshift,M0,Mw
       integer iwaveform
+      real,allocatable :: pgaM(:,:),pgaD(:,:)
 
 !GFs for synthetic seismograms
       real:: T,T1,T2,artifDT,M0aprior,leng,widt,dL,dW,elem,dtseis,df
@@ -83,6 +84,7 @@
     iT2=T2/dtseis+1
     nT=iT2-iT1+1
     nSR=int(real(ntfd)/(dtseis/dt))
+    allocate(MomentRate(nSR))
 
     if(iwaveform==0)return
     
@@ -215,6 +217,7 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
      close(224)
      close(225)
      call pga_init()
+     allocate(pgaM(nrseis,nper),pgaD(nrseis,nper))
     endif 
     
     END
@@ -270,6 +273,7 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
       write(297,'(1E13.5)')MSR
       close(297)
       open(297,FILE='mtildemomentrate.dat')
+    endif
       dum2=0.
       dum1=0.
       do k=1,nSR
@@ -281,12 +285,13 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
             dum=dum+sum(sliprate(i,j,kfrom:kto))/dble(kto-kfrom+1)*mu1(i,nysc,j)*dh*dh
           enddo
         enddo
-        write(297,*)dtseis*(k-1),dum
+        Momentrate(k)=dum
+        if (ioutput==1) write(297,*)dtseis*(k-1),dum
         dum2=dum2+((dum-dum1)/dtseis)**2;dum1=dum
       enddo
-      close(297)
+      if(ioutput==1)  close(297)
       write(*,*)'Integral of moment acceleration squared: ',dum2*dtseis
-    endif
+!    endif
 
     M0=0
     do j=nabc+1,nzt-nfs
@@ -338,7 +343,7 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
       endif
     endif
 
-    if(iwaveform==1 .or. iwaveform==2)then
+    if((iwaveform==1 .or. iwaveform==2) .and. ioutput==1)then
       open(297,FILE='svseisnez.dat')
       do i=iT1,iT2
         write(297,'(1000E13.5)')dtseis*(i-1)-artifDT,(Dsynt((j-1)*nT+i-iT1+1),j=1,NSTAcomp)
@@ -427,24 +432,28 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     subroutine evalmisfit2() !old type of misfit calculation
     use mod_pgamisf
     use waveforms_com
+    use source_com, only : ioutput
     implicit none
     integer :: jj,k,m,i
-    real,allocatable :: pgaM(:,:),pgaD(:,:)
-    real :: mw,diff,mean,misf
+    real :: diff,mean,misf
     logical :: k1,k2
     logical, allocatable :: kmask(:)
     integer :: nstat,ierr
 
-
+    misfit=1.e30
     misf=0.
     m=0
     nstat=0
     mw=(log10(m0)-9.1)/1.5
     diff=0.
-    allocate(pgaM(nrseis,nper),pgaD(nrseis,nper),kmask(nrseis))
+    allocate(kmask(nrseis))
     kmask=.false.
 
-    open(2223,file='dobliky.dat')
+    pgaM=0.
+    pgaD=0.
+    if (M0<1.e14) return
+
+    if (ioutput==1) open(2223,file='dobliky.dat')
      do jj=1,NRseis
         k1=.false.
         k2=.false.
@@ -462,13 +471,13 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
           do i=1,nper
             call pga_theor(ruptdist(jj),mw,per(i),pgaM(jj,i))
             pgaD(jj,i)=sqrt(sa1(i)*sa2(i))
-            write(2223,*) mw,ruptdist(jj),per(i),exp(pgaM(jj,i))/100.,pgaD(jj,i)/100.
+            if (ioutput==1) write(2223,*) mw,ruptdist(jj),per(i),exp(pgaM(jj,i))/100.,pgaD(jj,i)/100.
           enddo
           kmask(jj)=.true.
           nstat=nstat+1
         endif
       enddo
-      write(2223,*)
+      if (ioutput==1) write(2223,*)
     enddo
     do i=1,nper
      mean=sum(log(pgad(:,i)),mask=kmask)/nstat
@@ -482,8 +491,8 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
      misf=misf-(mean-diff)**2*nstat**2*PGAtau(i)**2/(PGAsigma(i)**2+nstat*PGAtau(i)**2)/PGAsigma(i)**2
     enddo
     misf=misf/2./nper
-    close(2223)
-    deallocate(pgaD,pgaM,kmask)
+    if (ioutput==1) close(2223)
+!    deallocate(pgaD,pgaM,kmask)
     print *,'misfit:',misf
     misfit=misf 
     end subroutine 
