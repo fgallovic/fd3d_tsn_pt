@@ -85,7 +85,7 @@
       allocate(omega_pml(nabc-1), omegaR_pml(nabc-1),omega_pmlM(nabc-1), omegaR_pmlM(nabc-1), au1(nxt,nzt),av1(nxt,nzt),aw1(nxt,nzt))
       u1=0.;v1=0.;w1=0.
       xx=0.;yy=0.;zz=0.;xy=0.;yz=0.;xz=0.
-      ruptime=0.;slip=0.;rise=0.;schange=0.
+      ruptime=0.;slip=0.;rise=0.
       broken=0;incrack=0
       tx=0.;tz=0.;v1t=0.;gliss=0.0
       avdx = 0.; avdz = 0.; RFx = 0.; RFz = 0.
@@ -254,6 +254,7 @@
       do it = 1,ntfd
         time = it*dt
          SLIPRATEOUT(:,:)=0.
+         SCHANGE(:,:)=0.
 !$ACC DATA COPY (SLIPRATEOUT,SCHANGE)
 
 !-------------------------------------------------------------
@@ -516,12 +517,12 @@
          close(25)
          close(26)
          !close(410)
-       endif
+        do it=1,ntfd           !Saving slip rate at a point on the fault
+          time = (it-1)*dt
+          write(388,*)time,sliprate(nxt/3,nzt/2,it)
+        enddo
+      endif
       deallocate(etot_out,epot_out,ekin_out,efault_out)
-      do it=1,ntfd           !Saving slip rate at a point on the fault
-        time = (it-1)*dt
-        write(388,*)time,sliprate(nxt/3,nzt/2,it)
-      enddo
 
       tmax            = -1.
       output_param(1) =  0.
