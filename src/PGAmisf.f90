@@ -96,7 +96,7 @@ END SUBROUTINE
          W=    6.2832/P(IP)
          DELT= P(IP)/10.
          L=    DT/DELT+1.0-1.E-05
-         VERTL=1.0/FLOAT(L)
+         VERTL=1.0/REAL(L)
          DELT= DT*VERTL
          CALL PCN04(DAMP,W,DELT,A,B)
          XIP=    0.0
