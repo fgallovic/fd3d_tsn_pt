@@ -61,7 +61,7 @@ C
          DIMENSION DATA(MAX_NT)
          CHARACTER*2 TYPE, APROTO
          INTEGER NSAMPS, PASSES, IORD
-         REAL*4 TRBNDW, A, FLO, FHI, TS, SN(30), SD(30)
+         REAL TRBNDW, A, FLO, FHI, TS, SN(30), SD(30)
          LOGICAL ZP
 C
 C  Filter designed
@@ -113,8 +113,8 @@ C
 C
        SUBROUTINE APPLY( DATA, NSAMPS, ZP, SN, SD, NSECTS, MAX_NT)
 C
-         REAL*4 SN(1), SD(1), DATA(MAX_NT)
-         REAL*4 OUTPUT
+         REAL SN(1), SD(1), DATA(MAX_NT)
+         REAL OUTPUT
          LOGICAL ZP
 C
          JPTR = 1
@@ -231,7 +231,7 @@ C
          COMPLEX P(10), Z(10)
          CHARACTER*2 TYPE, APROTO
          CHARACTER*3 STYPE(10)
-         REAL*4 SN(1), SD(1)
+         REAL SN(1), SD(1)
 C
 C  Analog prototype selection
 C
@@ -714,7 +714,7 @@ C
 C
          COMPLEX P(*), Z(*)
          CHARACTER*3 RTYPE(*)
-         REAL*4 SN(*), SD(*), DCVALUE
+         REAL SN(*), SD(*), DCVALUE
 C
          IPTR = 1
          DO    1 I = 1, NSECTS
@@ -809,7 +809,7 @@ C
 C
          COMPLEX P(*), Z(*), CTEMP, P1, P2, Z1, Z2, S, H
          CHARACTER*3 RTYPE(*)
-         REAL*4 SN(*), SD(*), DCVALUE
+         REAL SN(*), SD(*), DCVALUE
 C
          PI = 3.14159265
          TWOPI = 2.*PI
@@ -952,7 +952,7 @@ C
 C
          COMPLEX P(*), Z(*), CINV, CTEMP, P1, P2, Z1, Z2
          CHARACTER*3 RTYPE(*)
-         REAL*4 SN(*), SD(*)
+         REAL SN(*), SD(*)
 C
          PI = 3.14159265
          TWOPI = 2.*PI
@@ -1087,7 +1087,7 @@ C
 C
          COMPLEX P(*), Z(*)
          CHARACTER*3 RTYPE(*)
-         REAL*4 SN(*), SD(*), DCVALUE
+         REAL SN(*), SD(*), DCVALUE
 C
          IPTR = 1
          DO    1 I = 1, NSECTS
@@ -1162,7 +1162,7 @@ C
 C
        SUBROUTINE CUTOFFS( SN, SD, NSECTS, F )
 C
-         REAL*4 SN(1), SD(1)
+         REAL SN(1), SD(1)
 C
          SCALE = 2.*3.14159265*F
 C
@@ -1199,7 +1199,7 @@ C
 C
        SUBROUTINE BILIN2( SN, SD, NSECTS )
 C
-         REAL*4 SN(1), SD(1)
+         REAL SN(1), SD(1)
 C
          IPTR = 1
          DO    1 I = 1, NSECTS
