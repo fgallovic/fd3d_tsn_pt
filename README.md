@@ -1,2 +1,2 @@
-# fd3d_pt
+# fd3d_pt in thin fault approximation
 The code is currently under development...
