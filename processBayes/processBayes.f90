@@ -49,8 +49,8 @@
     write(*,*)'Best misfit: ',bestmisfit
     
 !    misfitaccept=maxval(misfits(1:ntot))
-!    misfitaccept=bestmisfit-log(0.02) !Probability threashold (2% for real data)
-    misfitaccept=bestmisfit-log(0.001) !Probability threashold (1%% for inv1)
+    misfitaccept=bestmisfit-log(0.02) !Probability threashold (2% for real data)
+!    misfitaccept=bestmisfit-log(0.001) !Probability threashold (1%% for inv1)
 !   misfitaccept=bestmisfit-log(0.0001) !Probability threashold (.1%% for pga)
     
     NM=0
@@ -157,9 +157,7 @@
       
 !      EG(k)=sum(min(Dc(1:nxt,1:nzt-2),slip1(1:nxt,1:nzt-2,k))*peak_xz(1:nxt,1:nzt-2))/2.*dh*dh   ! Dissipated breakdown work (protoze je tam ten min)
       EG(k)=sum(peak_xz(1:nxt,1:nzt-2)*(Dc(1:nxt,1:nzt-2)-(Dc(1:nxt,1:nzt-2)-slip1(1:nxt,1:nzt-2,k))/Dc(1:nxt,1:nzt-2)*max(0.,Dc(1:nxt,1:nzt-2)-slip1(1:nxt,1:nzt-2,k))))/2.*dh*dh   ! Dissipated breakdown work (protoze je tam ten min)
-!      ER(k)=sum(slip1(1:nxt,1:nzt-2,k)*peak_xz(1:nxt,1:nzt-2)-min(Dc(1:nxt,1:nzt-2),slip1(1:nxt,1:nzt-2,k))*peak_xz(1:nxt,1:nzt-2))/2.*dh*dh
-!      ER(k)=sum(peak_xz(1:nxt,1:nzt-2)*(max(slip1(1:nxt,1:nzt-2,k),Dc(1:nxt,1:nzt-2))-Dc(1:nxt,1:nzt-2)))/2.*dh*dh
-      ER(k)=sum(strinix(1:nxt,1:nzt-2)*slip1(1:nxt,1:nzt-2,k)-peak_xz(1:nxt,1:nzt-2)*(Dc(1:nxt,1:nzt-2)-(max(0.,Dc(1:nxt,1:nzt-2)-slip1(1:nxt,1:nzt-2,k)))**2/Dc(1:nxt,1:nzt-2)))/2.*dh*dh
+      ER(k)=sum((strinix(1:nxt,1:nzt-2)+peak_xz(1:nxt,1:nzt-2)*max(0.,1.-slip1(1:nxt,1:nzt-2,k)/Dc(1:nxt,1:nzt-2)))*slip1(1:nxt,1:nzt-2,k)-peak_xz(1:nxt,1:nzt-2)*(Dc(1:nxt,1:nzt-2)-(max(0.,Dc(1:nxt,1:nzt-2)-slip1(1:nxt,1:nzt-2,k)))**2/Dc(1:nxt,1:nzt-2)))/2.*dh*dh
       RE(k)=ER(k)/(ER(k)+EG(k)) !Radiation efficiency
             
       meansd(k)=-sum(schange1(1:nxt,1:nzt-2,k)*slip1(1:nxt,1:nzt-2,k))/sum(slip1(1:nxt,1:nzt-2,k))/1.e6
