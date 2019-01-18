@@ -223,15 +223,15 @@
       endif
       
 !Rupture velocity
-      do j=2,nzt-3
+      do j=2,nzt-1
         do i=2,nxt-1
           dum21(i,j)=sqrt((ruptime1(i+1,j,k)-ruptime1(i-1,j,k))**2+(ruptime1(i,j+1,k)-ruptime1(i,j-1,k))**2)/2./dh  !slowness
         enddo
       enddo
-      meanruptvel(k)=1./(sum(dum21(2:nxt-1,2:nzt-3)*slip1(2:nxt-1,2:nzt-3,k),ruptime1(2:nxt-1,2:nzt-3,k)>1.)/sum(slip1(2:nxt-1,2:nzt-3,k),ruptime1(2:nxt-1,2:nzt-3,k)>1.))/1.e3
+      meanruptvel(k)=1./(sum(dum21(2:nxt-1,2:nzt-1)*slip1(2:nxt-1,2:nzt-1,k),ruptime1(2:nxt-1,2:nzt-1,k)>1.)/sum(slip1(2:nxt-1,2:nzt-1,k),ruptime1(2:nxt-1,2:nzt-1,k)>1.))/1.e3
       
       EG(k)=sum(peak_xz(:,:)*(Dc(:,:)-(Dc(:,:)-slip1(:,:,k))/Dc(:,:)*max(0.,Dc(:,:)-slip1(:,:,k))))/2.*dh*dh   ! Dissipated breakdown work (protoze je tam ten min)
-      ER(k)=sum(strinix(:,:)*slip1(:,:,k)-peak_xz(:,:)*(Dc(:,:)-(max(0.,Dc(:,:)-slip1(:,:,k)))**2/Dc(:,:)))/2.*dh*dh
+      ER(k)=sum((strinix(:,:)+peak_xz(:,:)*max(0.,1.-slip1(:,:,k)/Dc(:,:)))*slip1(:,:,k)-peak_xz(:,:)*(Dc(:,:)-(max(0.,Dc(:,:)-slip1(:,:,k)))**2/Dc(:,:)))/2.*dh*dh
       RE(k)=ER(k)/(ER(k)+EG(k)) !Radiation efficiency
             
       meansd(k)=-sum(schange1(:,:,k)*slip1(:,:,k))/sum(slip1(:,:,k))/1.e6
