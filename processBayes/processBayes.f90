@@ -226,7 +226,7 @@
       do j=2,nzt-1
         do i=2,nxt-1
           dum21(i,j)=sqrt((ruptime1(i+1,j,k)-ruptime1(i-1,j,k))**2+(ruptime1(i,j+1,k)-ruptime1(i,j-1,k))**2)/2./dh  !slowness
-          rupvel1(i,j,k)=1./dum21(i,j)
+          rupvel1(i,j,k)=1.e-3/dum21(i,j)
         enddo
       enddo
       meanruptvel(k)=1./(sum(dum21(2:nxt-1,2:nzt-1)*slip1(2:nxt-1,2:nzt-1,k),ruptime1(2:nxt-1,2:nzt-1,k)>1.)/sum(slip1(2:nxt-1,2:nzt-1,k),ruptime1(2:nxt-1,2:nzt-1,k)>1.))/1.e3
