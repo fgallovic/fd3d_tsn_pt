@@ -143,6 +143,8 @@
     USE friction_com
     USE frictionconstraints_com
     USE pml_com
+    USE source_com, only: ioutput
+    USE medium_com
     IMPLICIT NONE
     logical  modelinvalid
     real x,z,rr,x0,z0
@@ -193,7 +195,7 @@
 !Constraint on Mean Overstress:   
       allocate(strengthexcess1(nxt,nzt))
       strengthexcess1(:,:)=strinix(:,:)-peak_xz(:,:)
-      nuclsize=dh*dh*COUNT(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)!/1.e6
+      nuclsize=dh*dh*COUNT(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)
       meanoverstress=sum(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs),strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)*dh*dh/nuclsize
       deallocate(strengthexcess1)    
       if (meanoverstress>overstressconstraint) return !mean overstress is too large
@@ -236,7 +238,14 @@
     endif
 !    print *,'nucleation ok'
 
- 
+    if(ioutput==1)then   ! check process zone size
+      open(592,FILE='processzone.dat')
+      do j=nabc+1,nzt-nfs
+        write(592,'(10000E13.5)')(mu1(i,nysc,j)*Dc(i,j)/(peak_xz(i,j)-dyn_xz(i,j))/dh,i=nabc+1,nxt-nabc)
+      enddo
+      close(592)
+    endif
+    
     modelinvalid=.false.   !All passed
     END
     
@@ -343,11 +352,7 @@
       enddo
     enddo
     dyn_xz=0.
-!Custom modification
-!    write(*,*)'Warning! Custom modification applied!!!'
-!    Dc(150:170,40:60)=0.3
-!    peak_xz(150:170,40:60)=peak_xz(150:170,40:60)*.4/.3
-   
+
     END
     
     
