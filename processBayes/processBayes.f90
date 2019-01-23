@@ -38,7 +38,7 @@
     IMPLICIT NONE
     INTEGER,PARAMETER:: NMAX=1e6
     REAL,ALLOCATABLE,DIMENSION(:):: normalstress,VRs,misfits,meansd,meansl,duration,nuclsize,EG,ER,RE,meanoverstress,M0,meanDc,meanStrengthExcess,meanslip,rupturearea,meanruptvel,meanstrength
-    REAL,ALLOCATABLE,DIMENSION(:,:,:):: DcA,TsA,T0A,SEA,ruptime1,slip1,rise1,schange1,es1,strengthexcess1
+    REAL,ALLOCATABLE,DIMENSION(:,:,:):: DcA,TsA,T0A,SEA,ruptime1,slip1,rise1,schange1,es1,strengthexcess1,rupvel1
     REAL,ALLOCATABLE,DIMENSION(:,:):: dum11,dum12,dum13,dum21,dum22,dum23,dum24,ms1
     real, allocatable, dimension(:) :: MRate
     real, allocatable, dimension(:,:) :: MomentRate
@@ -122,8 +122,8 @@
     write(*,*)'Best misfit: ',bestmisfit
     
 !    misfitaccept=maxval(misfits(1:ntot))
-!    misfitaccept=bestmisfit-log(0.02) !Probability threashold (2% for real data)
-    misfitaccept=bestmisfit-log(0.001) !Probability threashold (1%% for inv1)
+    misfitaccept=bestmisfit-log(0.02) !Probability threashold (2% for real data)
+!    misfitaccept=bestmisfit-log(0.001) !Probability threashold (1%% for inv1)
 !   misfitaccept=bestmisfit-log(0.0001) !Probability threashold (.1%% for pga)
     
     NM=0
@@ -137,7 +137,7 @@
     ALLOCATE(misfits(NM),VRs(NM),meansd(NM),meansl(NM),duration(NM),nuclsize(NM),EG(NM),ER(NM),RE(NM),meanoverstress(NM),M0(NM))
     ALLOCATE(meanDc(NM),meanStrengthExcess(NM),meanslip(NM),rupturearea(NM),meanruptvel(NM),meanstrength(NM))
     allocate(DcA(NLI,NWI,NM),TsA(NLI,NWI,NM),T0A(NLI,NWI,NM),SEA(NLI,NWI,NM))
-    allocate(ruptime1(nxt,nzt,NM),slip1(nxt,nzt,NM),rise1(nxt,nzt,NM),schange1(nxt,nzt,NM),es1(nxt,nzt,NM),ms1(nxt,nzt),strengthexcess1(nxt,nzt,NM))
+    allocate(ruptime1(nxt,nzt,NM),slip1(nxt,nzt,NM),rise1(nxt,nzt,NM),schange1(nxt,nzt,NM),es1(nxt,nzt,NM),ms1(nxt,nzt),strengthexcess1(nxt,nzt,NM),rupvel1(nxt,nzt,NM))
     allocate(MomentRate(nSr,NM))
     open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
     k=0
@@ -226,6 +226,7 @@
       do j=2,nzt-1
         do i=2,nxt-1
           dum21(i,j)=sqrt((ruptime1(i+1,j,k)-ruptime1(i-1,j,k))**2+(ruptime1(i,j+1,k)-ruptime1(i,j-1,k))**2)/2./dh  !slowness
+          rupvel1(i,j,k)=1./dum21(i,j)
         enddo
       enddo
       meanruptvel(k)=1./(sum(dum21(2:nxt-1,2:nzt-1)*slip1(2:nxt-1,2:nzt-1,k),ruptime1(2:nxt-1,2:nzt-1,k)>1.)/sum(slip1(2:nxt-1,2:nzt-1,k),ruptime1(2:nxt-1,2:nzt-1,k)>1.))/1.e3
@@ -293,6 +294,7 @@
     CALL meansigma2(schange1(:,:,:),NM)
     CALL meansigma2(rise1(:,:,:),NM)
     CALL meansigma2(ruptime1(:,:,:),NM)
+    CALL meansigma2(rupvel1(:,:,:),NM)
     close(201)
     
     END
