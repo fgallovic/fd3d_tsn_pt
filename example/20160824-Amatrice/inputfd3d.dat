@@ -1,7 +1,7 @@
-300 100 140       \* Number of grid points in x,y,z direction (FD) *\
+300 50 140       \* Number of grid points in x,y,z direction (FD) *\
 100.0             \* Grid size in meters (FD) *\
-5000              \* Number of time step (FD) *\
-0.002             \* Time step in seconds (FD) *\
+3334              \* Number of time step (FD) *\
+0.003             \* Time step in seconds (FD) *\
 45.               \* Dip *\
 10 6000. 25.      \* nabc, vp, pml_fact *\
 0.3               \* damp_s *\
