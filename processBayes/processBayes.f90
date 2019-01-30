@@ -9,7 +9,7 @@
     USE medium_com
     IMPLICIT NONE
     INTEGER,PARAMETER:: NMAX=1e6
-    REAL,ALLOCATABLE,DIMENSION(:):: normalstress,VRs,misfits,meansd,meansl,duration,nuclsize,EG,ER,RE,meanoverstress,M0,meanDc,meanStrengthExcess,meanslip,rupturearea,meanruptvel,meanstrength
+    REAL,ALLOCATABLE,DIMENSION(:):: normalstress,VRs,misfits,meansd,meansl,duration,nuclsize,EG,ER,RE,meanoverstress,M0,meanDc,meanStrengthExcess,meanslip,rupturearea,meanruptvel,meanstrength,EGrate
     REAL,ALLOCATABLE,DIMENSION(:,:,:):: DcA,TsA,T0A,SEA,ruptime1,slip1,rise1,schange1,es1,strengthexcess1,rupvel1
     REAL,ALLOCATABLE,DIMENSION(:,:):: dum11,dum12,dum13,dum21,dum22,dum23,dum24,ms1
 
@@ -61,7 +61,7 @@
     DEALLOCATE(misfits,VRs)
 
 !------ Read accepted models
-    ALLOCATE(misfits(NM),VRs(NM),meansd(NM),meansl(NM),duration(NM),nuclsize(NM),EG(NM),ER(NM),RE(NM),meanoverstress(NM),M0(NM))
+    ALLOCATE(misfits(NM),VRs(NM),meansd(NM),meansl(NM),duration(NM),nuclsize(NM),EG(NM),ER(NM),RE(NM),meanoverstress(NM),M0(NM),EGrate(NM))
     ALLOCATE(meanDc(NM),meanStrengthExcess(NM),meanslip(NM),rupturearea(NM),meanruptvel(NM),meanstrength(NM))
     allocate(DcA(NLI,NWI,NM),TsA(NLI,NWI,NM),T0A(NLI,NWI,NM),SEA(NLI,NWI,NM))
     allocate(ruptime1(nxt,nzt,NM),slip1(nxt,nzt,NM),rise1(nxt,nzt,NM),schange1(nxt,nzt,NM),es1(nxt,nzt,NM),ms1(nxt,nzt),strengthexcess1(nxt,nzt,NM),rupvel1(nxt,nzt,NM))
@@ -141,7 +141,7 @@
       if(mod(k,10)==0)then
         do j=1,nzt-2,10
           do i=1,nxt,10
-            if(slip1(i,j,k)>0.05*slipmax)write(428,*)slip1(i,j,k),Dc(i,j),strengthexcess1(i,j,k)
+            if(slip1(i,j,k)>0.05*slipmax)write(428,'(100E13.5)')slip1(i,j,k),Dc(i,j),strengthexcess1(i,j,k),peak_xz(i,j)
           enddo
         enddo
         write(428,*);write(428,*)
@@ -162,6 +162,8 @@
       RE(k)=ER(k)/(ER(k)+EG(k)) !Radiation efficiency
             
       meansd(k)=-sum(schange1(1:nxt,1:nzt-2,k)*slip1(1:nxt,1:nzt-2,k))/sum(slip1(1:nxt,1:nzt-2,k))/1.e6
+      
+      EGrate(k)=sum((peak_xz(1:nxt,1:nzt-2)*(Dc(1:nxt,1:nzt-2)-(Dc(1:nxt,1:nzt-2)-slip1(1:nxt,1:nzt-2,k))/Dc(1:nxt,1:nzt-2)*max(0.,Dc(1:nxt,1:nzt-2)-slip1(1:nxt,1:nzt-2,k))))*slip1(1:nxt,1:nzt-2,k))/2./sum(slip1(1:nxt,1:nzt-2,k))   ! Dissipated breakdown work rate
      
       meansl(k)=sum(strinix(1:nxt,1:nzt-2)/peak_xz(1:nxt,1:nzt-2)*slip1(1:nxt,1:nzt-2,k))/sum(slip1(1:nxt,1:nzt-2,k)) !Stress level (Eq. 4 in Ripperger et al., 2007)
       
@@ -177,8 +179,8 @@
       
       meanStrengthExcess(k)=-sum(strengthexcess1(1:nxt,1:nzt-2,k)*slip1(1:nxt,1:nzt-2,k),strengthexcess1(1:nxt,1:nzt-2,k)<1.e5)/sum(slip1(1:nxt,1:nzt-2,k),strengthexcess1(1:nxt,1:nzt-2,k)<1.e5)/1.e6
 
-!                               1         2       3         4            5        6    7      8       9             10          11      12             13               14       15 16      17             18            19
-      write(201,'(100E13.5)')misfits(k),VRs(k),meansd(k),duration(k),nuclsize(k),EG(k),ER(k),RE(k),meansl(k),meanoverstress(k),M0(k),meanDc(k),meanStrengthExcess(k),meanslip(k),x0,z0,rupturearea(k),meanruptvel(k),meanstrength(k)
+!                               1         2       3         4            5        6    7      8       9             10          11      12             13               14       15 16      17             18            19             20
+      write(201,'(100E13.5)')misfits(k),VRs(k),meansd(k),duration(k),nuclsize(k),EG(k),ER(k),RE(k),meansl(k),meanoverstress(k),M0(k),meanDc(k),meanStrengthExcess(k),meanslip(k),x0,z0,rupturearea(k),meanruptvel(k),meanstrength(k),Egrate(k)
     enddo
     close(201)
 
