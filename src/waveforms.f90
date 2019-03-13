@@ -315,7 +315,7 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
       close(297)
     endif
    
-    deallocate(MSR,slipGF,sr)
+    deallocate(slipGF,sr)
 
     END    
     
