@@ -31,7 +31,6 @@
 
     MODULE source_com
       REAL,ALLOCATABLE,DIMENSION(:,:):: ruptime,rise,slip,schange
-      real,allocatable,dimension(:,:,:):: sliprate, shearstress
       real    :: output_param(6)
       integer :: ioutput
     END MODULE
@@ -62,8 +61,8 @@
       read(11,*) dip
       read(11,*) nabc, pml_vp,pml_fact   !(pml_fact=-(N+1)*log(0.001), see Komatitsch and Martin, 2007, Geophysics 72)
       read(11,*) damp_s
-	  nxt=nxtT+2*nabc
-	  nyt=nytT+nabc
+      nxt=nxtT+2*nabc
+      nyt=nytT+nabc
       nzt=nztT+nabc+nfs
       nysc=nyt
       omegaM_pml=pml_fact*pml_vp/(2.*dh*(nabc-1))
@@ -74,7 +73,7 @@
 !----------------------------
       allocate(lam1(nxt,nyt,nzt),mu1(nxt,nyt,nzt),d1(nxt,nyt,nzt))
       allocate(strinix(nxt,nzt),peak_xz(nxt,nzt),Dc(nxt,nzt),dyn_xz(nxt,nzt),gliss(nxt,nzt))
-      allocate(ruptime(nxt,nzt),slip(nxt,nzt),rise(nxt,nzt),schange(nxt,nzt),sliprate(nxt,nzt,ntfd),shearstress(nxt,nzt,ntfd))
+      allocate(ruptime(nxt,nzt),slip(nxt,nzt),rise(nxt,nzt),schange(nxt,nzt))
 
       strinix=0.;peak_xz=0.;Dc=0.
 
@@ -117,7 +116,6 @@
     enddo
     depth=depth*1.e3;vp=vp*1.e3;vs=vs*1.e3;rho=rho*1.e3
     close(10)
-!    open(10,FILE='model.new.dat')
     do k=nzt,1,-1
       dum=(dh*real(nzt-nfs-k)+dh/2.)*sin(dip/180.d0*PI)    ! TADY SE TO MUSI OPRAVIT!
       if(dum>depth(ndepth))then
@@ -132,7 +130,6 @@
         vss=vs(j-1)
         dd=rho(j-1)
       endif
-!      write(10,*)vpp,vss,dd
       if (vpp.gt.vpe(2)) vpe(2) = vpp
       if (vpp.lt.vpe(1)) vpe(1) = vpp
       if (vss.gt.vse(2)) vse(2) = vss
@@ -144,7 +141,6 @@
       mu1(1:nxt,1:nyt,k)  = dd*vss**2
       d1(1:nxt,1:nyt,k)   = dd
     enddo
-!    close(10)
     mu_mean = (mu_mean/nzt)
 !    write(*,*)mu_mean
     deallocate(depth,vp,vs,rho)

@@ -151,15 +151,9 @@
     elseif(RUNI==5)then  ! Create mtilde.dat (for plotting) from the latest result
       OPEN(25, file='result/sliprate.res',FORM='UNFORMATTED',ACCESS='STREAM')
       write(*,*)'Reading slip rates...'
-!      read(25)sliprate(:,:,:)
-      do it = 1,ntfd
-!        do k = 1,nzt
-!          do i = 1,nxt
-!            read(25)sliprate(i,k,it)
-            read(25)sliprate(nabc+1:nxt-nabc,nabc+1:nzt-nfs,it)
-!          enddo
-!        enddo
-      enddo
+!      do it = 1,ntfd
+!        read(25)sliprate(nabc+1:nxt-nabc,nabc+1:nzt-nfs,it)   !MUSI SE DOPROGRAMOVAT PREVOD NA MSR
+!      enddo
       close(25)
       ioutput=1
       CALL syntseis()

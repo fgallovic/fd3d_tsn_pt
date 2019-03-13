@@ -2,25 +2,26 @@
 !waveforms for misfit
       integer,allocatable,dimension(:,:):: stainfo
       integer:: NRseis,NSTAcomp,Nseis
-      real,allocatable,dimension(:):: Dsynt,stasigma, ruptdist,MomentRate
+      real,allocatable,dimension(:):: Dsynt,stasigma, ruptdist
       real,allocatable,dimension(:,:):: Dseis, StaDist
       real SigmaData   ! Typically 0.05m
-      real misfit,VR,Tshift,M0,Mw
+      real misfit,VR,Tshift
       integer iwaveform
       real,allocatable :: pgaM(:,:),pgaD(:,:)
 
 !GFs for synthetic seismograms
-      real:: T,T1,T2,artifDT,M0aprior,leng,widt,dL,dW,elem,dtseis,df
+      real:: T,T1,T2,artifDT,M0aprior,leng,widt,elem,df
       real,allocatable,dimension(:,:):: H
       real,allocatable,dimension(:):: fc1,fc2
       integer,allocatable,dimension(:):: fcsta
-      integer:: nfmax,NL,NW,np,nfc,iT1,iT2,nT,nSR
+      integer:: nfmax,np,nfc,iT1,iT2,nT
       character(100) :: GFfile
     END MODULE
 
     
     SUBROUTINE readGFs()
     USE waveforms_com
+    USE SlipRates_com
     USE fd3dparam_com
     USE medium_com
     use mod_pgamisf
@@ -84,7 +85,7 @@
     iT2=T2/dtseis+1
     nT=iT2-iT1+1
     nSR=int(real(ntfd)/(dtseis/dt))
-    allocate(MomentRate(nSR))
+    allocate(MSR(NL*NW*nSR),MomentRate(nSR))
 
     if(iwaveform==0)return
     
@@ -228,44 +229,31 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     USE source_com
     USE fd3dparam_com
     USE medium_com
-    USE pml_com
+    USE SlipRates_com
     IMPLICIT NONE
-    real,allocatable,dimension(:):: MSR,slipGF
+    real,allocatable,dimension(:):: slipGF
     complex, allocatable, dimension(:,:) :: sr,cseis
     integer i,j,k,m, jj,ii,ierr,kk
     integer ifrom,ito,jfrom,jto,kfrom,kto
     real dum,maxslip,dum1,dum2
     COMPLEX,DIMENSION(:),ALLOCATABLE:: seis1
 
-    allocate(MSR(NL*NW*nSR),slipGF(nl*nw),sr(np,nl*nw))
-    slipGF=0.
-    
-    m=0
-    do j=1,NW! Je potreba overit it, ifrom, jto, jfrom !!!!!!!!!!!!!!!!!!!!!!
-      jto=max(1,int(dW/dh*j))+1+nabc   !Upper two rows are modeling the free surface condition
-      jfrom=min(jto,int(dW/dh*(j-1))+1)+1+nabc  ! 2 for free surface
-      do i=1,NL
-        ifrom=int(dL/dh*(i-1))+1+nabc
-        ito=int(dL/dh*i)+nabc
-        jj=(j-1)*NL+i
-        kk=0
-        do k=1,nSR
-          kfrom=int(dtseis/dt*(k-1))+1
-          kto=int(dtseis/dt*k)
-!          kfrom=int(dtseis/dt*(real(k)-1.5))+1
-!          kto=int(dtseis/dt*(real(k)-.5))
-          m=m+1
-          kk=kk+1
-          MSR(m)=sum(sliprate(ifrom:ito,jfrom:jto,kfrom:kto))/dble((ito-ifrom+1)*(jto-jfrom+1)*(kto-kfrom+1))
-!          MSR(m)=sum(sliprate(ifrom:ito,jfrom:jto,max(1,kfrom):max(1,kto)))/dble((ito-ifrom+1)*(jto-jfrom+1)*(kto-kfrom+1))
-          if (iwaveform==2) then
-           sr(kk,jj)=MSR(m)
-!           dum=sum(mu1(int(dL/dh*(i-1))+1:int(dL/dh*i),nysc,int(dW/dh*(j-1))+1:int(dW/dh*j)))/(dL/dh*dW/dh)
-           slipGF(jj)=slipGF(jj)+MSR(m)*dtseis
-          endif  
+    allocate(slipGF(nl*nw),sr(np,nl*nw))
+    slipGF=0.;sr=0.
+
+    if (iwaveform==2) then
+      m=0
+      do j=1,NW
+        do i=1,NL
+          jj=(j-1)*NL+i
+          do k=1,nSR
+            m=m+1
+            sr(k,jj)=MSR(m)
+            slipGF(jj)=slipGF(jj)+MSR(m)*dtseis
+          enddo
         enddo
       enddo
-    enddo
+    endif
  
     if (ioutput.eq.1) then
       open(297,FILE='mtilde.dat',iostat=ierr)
@@ -273,34 +261,11 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
       write(297,'(1E13.5)')MSR
       close(297)
       open(297,FILE='mtildemomentrate.dat')
-    endif
-      dum2=0.
-      dum1=0.
       do k=1,nSR
-        dum=0.
-        do j=nabc+1,nzt-nfs
-          do i=nabc+1,nxt-nabc
-            kfrom=int(dtseis/dt*(k-1))+1
-            kto=int(dtseis/dt*k)
-            dum=dum+sum(sliprate(i,j,kfrom:kto))/dble(kto-kfrom+1)*mu1(i,nysc,j)*dh*dh
-          enddo
-        enddo
-        Momentrate(k)=dum
-        if (ioutput==1) write(297,*)dtseis*(k-1),dum
-        dum2=dum2+((dum-dum1)/dtseis)**2;dum1=dum
+        write(297,*)dtseis*(k-1),Momentrate(k)
       enddo
-      if(ioutput==1)  close(297)
-      write(*,*)'Integral of moment acceleration squared: ',dum2*dtseis
-!    endif
-
-    M0=0
-    do j=nabc+1,nzt-nfs
-      do i=nabc+1,nxt-nabc
-        M0=M0+sum(sliprate(i,j,:))*mu1(i,nysc,j)
-      enddo
-    enddo
-    M0=M0*dt*dh*dh
-    write(*,*)M0
+      close(297)
+    endif
 
     if(M0<1.e14)then
        Dsynt=0.
@@ -322,7 +287,6 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
           ruptdist(jj)=minval(stadist(:,jj),mask=(slipGF>0.1*maxslip))
           do k=1,3
             if(stainfo(k,jj)==0)cycle
-!            if (mrank==0) print *,'reading'
             do i=1,NL*NW
              read(243) cseis(1:np/2+1,i)
             enddo
@@ -395,6 +359,7 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
 
     SUBROUTINE evalmisfit()
     USE waveforms_com
+    USE SlipRates_com
     IMPLICIT NONE
     real,parameter:: maxTshift=2.
     real dumn,dump,normdatn,normdatp
@@ -432,6 +397,7 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     subroutine evalmisfit2() !old type of misfit calculation
     use mod_pgamisf
     use waveforms_com
+    use SlipRates_com
     use source_com, only : ioutput
     implicit none
     integer :: jj,k,m,i
@@ -501,6 +467,7 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     
     SUBROUTINE plotseis()
     USE waveforms_com
+    USE SlipRates_com
     IMPLICIT NONE
     REAL, PARAMETER:: margin=0.05
     CHARACTER*5,ALLOCATABLE,DIMENSION(:):: staname

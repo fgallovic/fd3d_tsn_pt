@@ -32,6 +32,15 @@
       real,allocatable, dimension (:):: omegayS3,omegayS4
       real,allocatable, dimension (:):: omegazS4     
     END MODULE
+    
+    MODULE SlipRates_com
+      INTEGER nSR,NL,NW
+      REAL dL,dW,dtseis
+      REAL M0,Mw
+      REAL,allocatable,dimension(:):: MSR,MomentRate
+
+    END MODULE
+    
 !-------------------------------------------------------
 !   Main routine for the FD dynamic simulation
 !-------------------------------------------------------
@@ -44,6 +53,7 @@
       USE source_com
       USE traction_com
       USE pml_com
+      USE SlipRates_com
       IMPLICIT NONE
 
       real    :: time,tabs,friction,tmax,xmax,ymax,numer,denom,veltest,dd
@@ -55,6 +65,7 @@
       real    :: dht, ek, es, ef, c1, c2
       integer :: i,j,it,k, nxe, nxb, nyb, nye, nzb, nze
       real,allocatable,dimension(:)::etot_out, epot_out, ekin_out, efault_out
+      integer :: ifrom,ito,jfrom,jto,kk
 
       c1  = 9./8.
       c2  = -1./24.
@@ -90,7 +101,7 @@
       tx=0.;tz=0.;v1t=0.;gliss=0.0
       avdx = 0.; avdz = 0.; RFx = 0.; RFz = 0.
       au1=0.; av1=0.;aw1=0 
-	  sliprate=0.      
+      MSR=0.;MomentRate=0.
       
       nxb=2
       nxe=nabc
@@ -226,9 +237,12 @@
 !     Loop over time
 !-------------------------------------------------------
 
+      if(ioutput.eq.1) then
+        OPEN(25, file='result/sliprate.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
+        OPEN(26, file='result/shearstress.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
+      endif
       CALL CPU_TIME(CPUT1)
-
-	  maxvelsave=0.
+      maxvelsave=0.
 
       !$ACC DATA COPYIN (LAM1,MU1,D1) &
       !$ACC      COPYIN (U1,V1,W1) COPYIN (XX,YY,ZZ,XY,YZ,XZ) &
@@ -462,9 +476,27 @@
 		 ! efault_out(it)=ef*dh**2
 
         !$ACC END DATA
-        sliprate(:,:,it)=sliprateout(:,:)
-        shearstress(:,:,it)=SCHANGE(:,:)
-		
+
+      if(ioutput.eq.1) then
+        WRITE(25) sliprateout(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
+        WRITE(26) SCHANGE(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
+      endif
+        
+      k=int(real(it)*dt/dtseis)+1
+      if(k<1.or.k>nSR)write(*,*)'CHYBA!',k
+      do j=1,NW
+        jto=max(1,int(dW/dh*j))+1+nabc
+        jfrom=min(jto,int(dW/dh*(j-1))+1)+1+nabc
+        do i=1,NL
+          ifrom=int(dL/dh*(i-1))+1+nabc
+          ito=int(dL/dh*i)+nabc
+          kk=((j-1)*NL+i-1)*nSR+k
+          MSR(kk)=MSR(kk)+sum(sliprateout(ifrom:ito,jfrom:jto))/dble((ito-ifrom+1)*(jto-jfrom+1)*(dtseis/dt))
+        enddo
+      enddo
+      MomentRate(k)=MomentRate(k)+sum(sliprateout(:,:)*mu1(:,nysc,:))*dh*dh/(dtseis/dt)
+    
+        
         if(mod(it,int(1./dt))==0)then
           maxvel=maxval(sliprateout(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
           write(*,*)'Time: ',time,'Slip rate max: ',maxvel
@@ -504,24 +536,12 @@
 ! Open output files:
 !-------------------
       if(ioutput.eq.1) then
-!       OPEN(23, file='result/ssx3d.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
-!       OPEN(24, file='result/disp.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
-        OPEN(25, file='result/sliprate.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
-        OPEN(26, file='result/shearstress.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
-        !OPEN(410, file='result/ee.txt',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
-!        WRITE(25) sliprate(:,:,:)
+        close(25)
+        close(26)
         do it = 1,ntfd
-               WRITE(25) sliprate(nabc+1:nxt-nabc,nabc+1:nzt-nfs,it)
-               WRITE(26) shearstress(nabc+1:nxt-nabc,nabc+1:nzt-nfs,it)
-               !write(410) etot_out(it),ekin_out(it),epot_out(it),efault_out(it)
+           !write(410) etot_out(it),ekin_out(it),epot_out(it),efault_out(it)
         enddo
-         close(25)
-         close(26)
          !close(410)
-        do it=1,ntfd           !Saving slip rate at a point on the fault
-          time = (it-1)*dt
-          write(388,*)time,sliprate(nxt/3,nzt/2,it)
-        enddo
       endif
       deallocate(etot_out,epot_out,ekin_out,efault_out)
 
@@ -549,14 +569,14 @@
           ! --- Seismic moment:
           output_param(2) = output_param(2) + slip(i,k)*mu1(i,nysc,k)*(dh*dh)
 
-           ! --- Rise time:
-           if (maxval(sliprate(i,k,:)).eq.0) then
-             rise(i,k) = 0.
-           elseif (ruptime(i,k).ne.0.) then
-             rise(i,k) = slip(i,k)/maxval(sliprate(i,k,:))
-           else
-             rise(i,k) = 0.
-           endif
+           ! --- Rise time:  MUSI SE PREDEFINOVAT
+!           if (maxval(sliprate(i,k,:)).eq.0) then
+!             rise(i,k) = 0.
+!           elseif (ruptime(i,k).ne.0.) then
+!             rise(i,k) = slip(i,k)/maxval(sliprate(i,k,:))
+!           else
+!             rise(i,k) = 0.
+!           endif
 
            ! --- Stress drop:
            if (ruptime(i,k).ne.0.) then
@@ -573,24 +593,25 @@
        enddo
        output_param(5) = (1./2.)**sum(peak_xz*Dc)/dble((nxt-2*nabc)*(nzt-nfs-nabc))
        output_param(6) = (1./2.)*output_param(4)*(output_param(2)/(mu_mean*output_param(3)))
+       M0=output_param(2)
 
 !---------------------------
 ! Write down the output
 !---------------------------
        if (ioutput.eq.1) then
-         open(96,file='result/risetime.res')
+!         open(96,file='result/risetime.res')
          open(97,file='result/ruptime.res')
          open(98,file='result/slip.res')
          open(99,file='result/stressdrop.res')
          do k = nabc+1,nzt-nfs
            do i = nabc+1,nxt-nabc
-             write(96,*) rise(i,k)
+!             write(96,*) rise(i,k)
              write(97,*) ruptime(i,k)
              write(98,*) slip(i,k)
              write(99,*) schange(i,k)
            enddo
          enddo
-         close(96)
+!         close(96)
          close(97)
          close(98)
          close(99)

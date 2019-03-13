@@ -52,7 +52,8 @@
     SUBROUTINE AdvanceChain(ichain,T,E,record_mcmc_now,iseed)   ! V E je stary misfit, nahradi se pripadne novym, pokud dojde k prijeti kroku
     USE mod_ctrl, only : ifile
     USE inversion_com
-    USE waveforms_com, only : misfit,VR,iwaveform,NRseis,ruptdist,pgaD,mw,MomentRate
+    USE waveforms_com, only : misfit,VR,iwaveform,NRseis,ruptdist,pgaD
+    USE SlipRates_com, only: Mw,MomentRate
     USE source_com
     USE pml_com
     USE fd3dparam_com
@@ -129,7 +130,7 @@
       flush(ifile+2)
       if (iwaveform==2) then
        do jj=1,NRseis
-        write(ifile*10) misfit,mw,ruptdist(jj),pgaD(jj,:)/100.
+        write(ifile*10) misfit,Mw,ruptdist(jj),pgaD(jj,:)/100.
        enddo
        flush(ifile*10)
       endif
