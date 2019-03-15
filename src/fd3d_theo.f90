@@ -66,7 +66,10 @@
       integer :: i,j,it,k, nxe, nxb, nyb, nye, nzb, nze
       real,allocatable,dimension(:)::etot_out, epot_out, ekin_out, efault_out
       integer :: ifrom,ito,jfrom,jto,kk
-
+	  real :: rup_tresh, rv, cz
+	  
+      rup_tresh=1.e-3
+      
       c1  = 9./8.
       c2  = -1./24.
 
@@ -96,7 +99,7 @@
       allocate(omega_pml(nabc-1), omegaR_pml(nabc-1),omega_pmlM(nabc-1), omegaR_pmlM(nabc-1), au1(nxt,nzt),av1(nxt,nzt),aw1(nxt,nzt))
       u1=0.;v1=0.;w1=0.
       xx=0.;yy=0.;zz=0.;xy=0.;yz=0.;xz=0.
-      ruptime=0.;slip=0.;rise=0.
+      ruptime=1.e4;slip=0.;rise=0.;sliptime=1.e4
       broken=0;incrack=0
       tx=0.;tz=0.;v1t=0.;gliss=0.0
       avdx = 0.; avdz = 0.; RFx = 0.; RFz = 0.
@@ -264,7 +267,7 @@
       !$ACC      COPYIN (omegaxS1,omegaxS2,omegaxS3,omegaxS4) &
       !$ACC      COPYIN (omegayS3,omegayS4,omegazS4) &
       !$ACC      COPYIN (BROKEN,dyn_xz,gliss,STRINIX,PEAK_XZ,DC) &
-      !$ACC      COPY (INCRACK,RUPTIME,SLIP)
+      !$ACC      COPY (INCRACK,RUPTIME,SLIPTIME,SLIP)
       dht = dh/dt
       do it = 1,ntfd
         time = it*dt
@@ -408,9 +411,8 @@
                 endif
               endif
 
-              if (ruptime(i,k).eq.0.) then
-                ruptime(i,k) = time
-              end if
+              if ((ruptime(i,k).eq.1.e4).AND.(- 2*u1out>rup_tresh)) ruptime(i,k) = time
+              
 #if defined DIPSLIP
               !if (u1out .ge. 0.0) then
               if (tabs .ge. friction) then
@@ -436,6 +438,8 @@
               !  gliss(i,k) = 0.0
               endif
 #endif
+
+              if ((sliptime(i,k)==1.e4).AND.(slip(i,k)>Dc(i,k))) sliptime(i,k)=time
             endif
 #if defined DIPSLIP
           SCHANGE(I,K) = tz(i,k) + strinix(i,k)
@@ -496,7 +500,6 @@
       enddo
       MomentRate(k)=MomentRate(k)+sum(sliprateout(:,:)*mu1(:,nysc,:))*dh*dh/(dtseis/dt)
     
-        
         if(mod(it,int(1./dt))==0)then
           maxvel=maxval(sliprateout(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
           write(*,*)'Time: ',time,'Slip rate max: ',maxvel
@@ -615,7 +618,38 @@
          close(97)
          close(98)
          close(99)
+
+         open(501,file='result/contour.res')
+         write(501,*) 'j k t'
+         do k = nabc+1,nzt-nfs
+           do i = nabc+1,nxt-nabc
+             write (501,*) (real(i-nabc-1) - real(nxt-2*nabc)/2.)*dh,real(k-nabc-1)*dh,ruptime(i,k) 
+           enddo
+         enddo		
+         close(501)
+         open(502,file='result/czone.res')
+         open(503,file='result/rvel.res')
+         do k = nabc+1,nzt-nfs
+           do i = nabc+1,nxt-nabc
+             cz=0.
+             rv=0.
+             if ((ruptime(i,k).ne.1.e4).and.(ruptime(i+1,k).ne.1.e4).and.(ruptime(i,k+1).ne.1.e4).and.(ruptime(i-1,k).ne.1.e4).and.(ruptime(i,k-1).ne.1.e4)) then
+               if (sliptime(i,k).ne.1.e4) then
+                 rv = (sqrt((ruptime(i+1,k)-ruptime(i,k))**2+(ruptime(i,k+1)-ruptime(i,k))**2)+sqrt((ruptime(i,k)-ruptime(i-1,k))**2+(ruptime(i,k)-ruptime(i,k-1))**2))
+                 if (rv.ne.0.) then
+                   rv=2*dh/(sqrt((ruptime(i+1,k)-ruptime(i,k))**2+(ruptime(i,k+1)-ruptime(i,k))**2)+sqrt((ruptime(i,k)-ruptime(i-1,k))**2+(ruptime(i,k)-ruptime(i,k-1))**2))
+                 else
+                   rv = 0.
+                 endif
+                 cz=rv*(sliptime(i,k)-ruptime(i,k))
+               endif
+             endif
+             write (502,*) cz
+             write (503,*) rv
+           enddo
+         enddo
+         close(502)
+         close(503)
        endif
 
-      return
-    end
+       END

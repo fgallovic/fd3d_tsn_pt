@@ -398,7 +398,9 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     use mod_pgamisf
     use waveforms_com
     use SlipRates_com
-    use source_com, only : ioutput
+    use source_com, only : ioutput,output_param
+    use fd3dparam_com
+    use pml_com, only: nabc,nfs
     implicit none
     integer :: jj,k,m,i
     real :: diff,mean,misf
@@ -417,7 +419,11 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
 
     pgaM=0.
     pgaD=0.
-    if (M0<1.e14) return
+
+    !do not calculate and discard model if:
+    if (Mw<5.) return !if moment too small - seismograms are zero
+    if (abs(output_param(3)-(nxt-2*nabc)*(nzt-nabc-nfs)*dh*dh)<0.5*dh*dh) return !if whole fault ruptured -->  discard model : rupture may have continued on larger fault
+    if (MomentRate(nSr)>0.) return ! if momentrate function not finished --> discard model, as the rupture may have continued
 
     if (ioutput==1) open(2223,file='dobliky.dat')
      do jj=1,NRseis

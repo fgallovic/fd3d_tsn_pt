@@ -3,6 +3,7 @@
       REAL,ALLOCATABLE,DIMENSION(:,:):: DcI,TsI,T0I     !Test variables (for which misfit is calculated)
       real,allocatable,dimension(:,:,:):: DcA,TsA,T0A   !Array of variables in MC chains:
       REAL,ALLOCATABLE,DIMENSION(:,:,:):: ruptimeA,riseA,slipA,schangeA
+      REAL,ALLOCATABLE :: pgaA(:,:,:),mwA(:),ruptdistA(:,:),MomentRateA(:,:)
       real,allocatable,dimension(:):: VRA
       INTEGER randseed,StepType
       REAL StepSizeT0,StepSizeTs,StepSizeD
@@ -23,6 +24,8 @@
     USE waveforms_com
     USE fd3dparam_com
     USE source_com
+    USE mod_pgamisf, only : nper
+    USE SlipRates_com
     IMPLICIT NONE
     
     open(10,FILE='inputinv.dat')
@@ -43,9 +46,12 @@
     allocate(ruptimeA(nxt,nzt,nchains),riseA(nxt,nzt,nchains),slipA(nxt,nzt,nchains),schangeA(nxt,nzt,nchains),VRA(nchains))
     
     !Read GFs and seismograms
-      CALL readGFs()
-      if(iwaveform==1)CALL readwaveforms()
-      
+    CALL readGFs()
+    if(iwaveform==1)CALL readwaveforms()
+
+    allocate(MomentRateA(nSr,nchains))
+    if (iwaveform==2) allocate(MwA(nchains),ruptdistA(NRseis,nchains),pgaA(NRseis,nper,nchains))
+
     END
 
 
@@ -117,6 +123,12 @@
       riseA(:,:,ichain)=rise(:,:)
       slipA(:,:,ichain)=slip(:,:)
       schangeA(:,:,ichain)=schange(:,:)
+      MomentRateA(:,ichain)=MomentRate(:)
+      if (iwaveform==2) then
+        ruptdistA(:,ichain)=ruptdist(:)
+        MwA(ichain)=mw
+        pgaA(:,:,ichain)=pgaD(:,:)
+      endif
       VRA(ichain)=VR
     endif
 
@@ -129,10 +141,8 @@
           & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRate(:)
       flush(ifile+2)
       if (iwaveform==2) then
-       do jj=1,NRseis
-        write(ifile*10) misfit,Mw,ruptdist(jj),pgaD(jj,:)/100.
-       enddo
-       flush(ifile*10)
+        write(ifile*10) (misfit,mwA(ichain),ruptdistA(jj,ichain),pgaA(jj,:,ichain)/100., jj=1,nrseis)
+        flush(ifile*10)
       endif
     endif
     
@@ -199,7 +209,11 @@
       nuclsize=dh*dh*COUNT(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)
       meanoverstress=sum(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs),strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)*dh*dh/nuclsize
       deallocate(strengthexcess1)    
-      if (meanoverstress>overstressconstraint) return !mean overstress is too large
+      if (meanoverstress>overstressconstraint) then
+!        print *,'meanoverstress:',meanoverstress
+        return !mean overstress is too large
+      endif
+
 
       nuclOK=0
       if (minval(peak_xz(nabc+1:nxt-nabc,nabc+1:nzt-nfs)-strinix(nabc+1:nxt-nabc,nabc+1:nzt-nfs))<=0.) then !nucleation somewhere
@@ -226,7 +240,10 @@
           do i=nabc+1,nxt-nabc
             x=dh*(real(i-nabc)-0.5)
             rr=sqrt((x-x0)**2+(z-z0)**2)
-            if (peak_xz(i,j)<=strinix(i,j) .and. rr>NuclConstraintR) return !nucleations outside 
+            if (peak_xz(i,j)<=strinix(i,j) .and. rr>NuclConstraintR) then
+ !             print *,'nucleation zone:',x0,z0,x,z
+              return !nucleations outside 
+            endif
             if (peak_xz(i,j)<=strinix(i,j) .and. rr<=NuclConstraintR) NuclOK=1 !nucleation is ok
           enddo
         enddo
@@ -254,8 +271,9 @@
     SUBROUTINE InitiateChain(ichain,E,iseed) !Set all initial models
     USE mod_ctrl, only: nchains,rname,ierr,ifile
     USE inversion_com
-    USE waveforms_com, only : misfit,VR,Tshift,iwaveform
+    USE waveforms_com, only : misfit,VR,Tshift,iwaveform,ruptdist,pgaD
     USE source_com
+    USE SlipRates_com
     IMPLICIT NONE
     real*8 E
     real dum
@@ -307,7 +325,12 @@
     slipA(:,:,ichain)=slip(:,:)
     schangeA(:,:,ichain)=schange(:,:)
     VRA(ichain)=VR
-
+    MomentRateA(:,ichain)=MomentRate(:)
+    if (iwaveform==2) then
+      ruptdistA(:,ichain)=ruptdist(:)
+      MwA(ichain)=mw
+      pgaA(:,:,ichain)=pgaD(:,:)
+    endif
     
     END
 
@@ -389,15 +412,17 @@
     
 	
     SUBROUTINE forwardspecialTPV5()
-   USE inversion_com
+    USE inversion_com
     USE fd3dparam_com
     USE friction_com
+    USE medium_com
     IMPLICIT NONE
     REAL,PARAMETER:: x0=15.e3,z0=6.e3,a=10.e3,b=4.e3,phi=0.,xn=17.e3,zn=6.e3,rn=1.5e3
     real hx0, hz0, h1x0, h1z0, h2x0, h2z0, hdelta, T0, T0n, sn, mus, mud, d0h
     real x,z,rr,DL,DW, muso, T0h1, T0h2
-    integer i,j,k, no0
+    integer i,j,k,no0,j2
     real dum
+    real d_zone, vlow_zone
 
     open(244,FILE='scecmodel.dat')
     read (244,*) no0, hx0, hz0, h1x0, h1z0, h2x0, h2z0  !okraj,stred nukleace, stred leve heterogenity, stred prave heterogenity
@@ -407,6 +432,7 @@
     read (244,*) mus, muso !staticke treni, staticke treni na okraji
     read (244,*) mud !dynamicke treni
     read (244,*) d0h ! kriticky slip
+    read (244,*) d_zone, vlow_zone ! sirka zlomove zony, pokles elastickeho modulu ve zlomove zone
 
     !read(244,*)dum,dum,T0I(:,:),TsI(:,:),DcI(:,:)
     close(244)
@@ -436,20 +462,19 @@
         do i = 1,nxt
 	    strinix(i,k)=T0
 
-            if (((real(i)*dh-hx0>= -hdelta/2.0) .and. (real(i)*dh-hx0 <= hdelta/2.0)) &
-            .and. ((real(k)*dh-hz0>= -hdelta/2.0) .and. (real(k)*dh-hz0 <= hdelta/2.0))) then
+           if ((((real(i)-1.)*dh-hx0>= -hdelta/2.0) .and. ((real(i)-1.)*dh-hx0 <= hdelta/2.0)) &
+            .and. (((real(k)-1.)*dh-hz0>= -hdelta/2.0) .and. ((real(k)-1.)*dh-hz0 <= hdelta/2.0))) then
                 strinix(i,k)=T0n
             endif
-            if (((real(i)*dh-h1x0>= -hdelta/2.0) .and. (real(i)*dh-h1x0 <= hdelta/2.0)) &
-            .and. ((real(k)*dh-h1z0>= -hdelta/2.0) .and. (real(k)*dh-h1z0 <= hdelta/2.0))) then
+            if ((((real(i)-1.)*dh-h1x0>= -hdelta/2.0) .and. ((real(i)-1.)*dh-h1x0 <= hdelta/2.0)) &
+            .and. (((real(k)-1.)*dh-h1z0>= -hdelta/2.0) .and. ((real(k)-1.)*dh-h1z0 <= hdelta/2.0))) then
                 strinix(i,k)=T0h1
             endif
 
-            if (((real(i)*dh-h2x0>= -hdelta/2.0) .and. (real(i)*dh-h2x0 <= hdelta/2.0)) &
-            .and. ((real(k)*dh-h2z0>= -hdelta/2.0) .and. (real(k)*dh-h2z0 <= hdelta/2.0))) then
+            if ((((real(i)-1.)*dh-h2x0>= -hdelta/2.0) .and. ((real(i)-1.)*dh-h2x0 <= hdelta/2.0)) &
+            .and. (((real(k)-1.)*dh-h2z0>= -hdelta/2.0) .and. ((real(k)-1.)*dh-h2z0 <= hdelta/2.0))) then
                 strinix(i,k)=T0h2
             endif
-
 
             peak_xz(i,k)=sn*muso
             dyn_xz(i,k) = sn*mud
@@ -474,6 +499,19 @@
       dyn_xz(i,nzt)=dyn_xz(i,nzt-3)
       Dc(i,nzt)=Dc(i,nzt-3)
       strinix(i,nzt)=strinix(i,nzt-3)
+    enddo
+
+    !Zlomova zona
+    j2=0
+    do while (j2*dh<d_zone)
+      j=nyt-j2
+      do k=1,nzt-2
+        do i=1,nxt
+          lam1(i,j,k)=(1-vlow_zone)**2*lam1(i,j,k)
+          mu1(i,j,k)=(1-vlow_zone)**2*mu1(i,j,k)
+        enddo
+      enddo
+    j2=j2+1
     enddo
 
     END

@@ -30,7 +30,7 @@
     END MODULE
 
     MODULE source_com
-      REAL,ALLOCATABLE,DIMENSION(:,:):: ruptime,rise,slip,schange
+      REAL,ALLOCATABLE,DIMENSION(:,:):: ruptime,rise,slip,schange,sliptime
       real    :: output_param(6)
       integer :: ioutput
     END MODULE
@@ -73,7 +73,7 @@
 !----------------------------
       allocate(lam1(nxt,nyt,nzt),mu1(nxt,nyt,nzt),d1(nxt,nyt,nzt))
       allocate(strinix(nxt,nzt),peak_xz(nxt,nzt),Dc(nxt,nzt),dyn_xz(nxt,nzt),gliss(nxt,nzt))
-      allocate(ruptime(nxt,nzt),slip(nxt,nzt),rise(nxt,nzt),schange(nxt,nzt))
+      allocate(ruptime(nxt,nzt),slip(nxt,nzt),rise(nxt,nzt),schange(nxt,nzt),sliptime(nxt,nzt))
 
       strinix=0.;peak_xz=0.;Dc=0.
 
