@@ -486,7 +486,7 @@
         WRITE(26) SCHANGE(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
       endif
         
-      k=int(real(it)*dt/dtseis)+1
+      k=int(real(it-1)*dt/dtseis)+1
       if(k<1.or.k>nSR)write(*,*)'CHYBA!',k
       do j=1,NW
         jto=max(1,int(dW/dh*j))+1+nabc
