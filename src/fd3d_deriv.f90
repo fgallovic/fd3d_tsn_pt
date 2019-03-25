@@ -1043,27 +1043,17 @@
 
       !$ACC PARALLEL DEFAULT (PRESENT)
       !$ACC LOOP GANG
-      do j=2,nyt-1 !mozna nyt 
+      do j=2,nyt !mozna nyt 
       !$ACC LOOP VECTOR
          do i=2,nxt-2
             xl=lam1(i,j,nzt+1)
             xm=mu1(i,j,nzt+1)
             a=2.*xl
             b=xl+2.*xm
-            w1(i,j,nzt+1)=w1(i,j,nzt)-(a/b)*(u1(i+1,j,nzt+1)-u1(i,j,nzt+1)+v1(i,j,nzt+1)-v1(i,j-1,nzt+1))
+            w1(i,j,nzt+1)=w1(i,j,nzt-1)-(a/b)*(u1(i+1,j,nzt)-u1(i,j,nzt)+u1(i+1,j,nzt+1)-u1(i,j,nzt+1) &
+                          +v1(i,j,nzt)-v1(i,j-1,nzt)+v1(i,j,nzt+1)-v1(i,j-1,nzt+1))
          enddo
       enddo
-      !$ACC END PARALLEL
-
-      !$ACC PARALLEL DEFAULT (PRESENT)
-      !$ACC LOOP VECTOR
-         do i=2,nxt-2
-            xl=lam1(i,nyt,nzt+1)
-            xm=mu1(i,nyt,nzt+1)
-            a=2.*xl
-            b=xl+2.*xm
-            w1(i,nyt,nzt+1)=w1(i,nyt,nzt)-(a/b)*(u1(i+1,nyt,nzt+1)-u1(i,nyt,nzt+1))
-         enddo
       !$ACC END PARALLEL
 
     end
@@ -1704,10 +1694,8 @@
       USE strfld_com
       USE traction_com
       USE pml_com
-      IMPLICIT NONE
 
-      real    ::  dh, dt, d, dth
-      real    :: pt1,pt2,pt3
+      real    ::  dh, dt, d, dth,pt
       integer :: nxt, nyt, nzt, nxb, nxe, nyb, nye, nzb, nze
 	  integer :: i,j,k,i2,j2,k2
 
@@ -1729,28 +1717,28 @@
 			i2=1-nxb+i
 			d = d1(i,j,k)
 					
-			pt1 = ((u11(i2,j2,k2)*(1.-omegax1(i2))  + (dt/d)*(xx(i,j,k) - xx(i-1,j,k))/dh))/(1.+omegax1(i2))
-			u11(i2,j2,k2) = pt1
+			pt = (u11(i2,j2,k2)*(1.-omegax1(i2))  + (dt/d)*(xx(i,j,k) - xx(i-1,j,k))/dh)
+			u11(i2,j2,k2) = pt/(1.+omegax1(i2))
 		
-			pt2 = ((u12(i2,j2,k2)*(1.-omegay1(j2))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh))/(1.+omegay1(j2))
-			u12(i2,j2,k2) = pt2
+			pt = (u12(i2,j2,k2)*(1.-omegay1(j2))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh)
+			u12(i2,j2,k2) = pt/(1.+omegay1(j2))
 		
-			pt3 = ((u13(i2,j2,k2)*(1.-omegaz1(k2))  + (dt/d)*(xz(i,j,k) - xz(i,j,k-1))/dh))/(1.+omegaz1(k2))
-			u13(i2,j2,k2) = pt3
+			pt = (u13(i2,j2,k2)*(1.-omegaz1(k2))  + (dt/d)*(xz(i,j,k) - xz(i,j,k-1))/dh)
+			u13(i2,j2,k2) = pt/(1.+omegaz1(k2))
 		
-			u1(i,j,k) = pt1+pt2+pt3
+			u1(i,j,k) = u11(i2,j2,k2) + u12(i2,j2,k2) + u13(i2,j2,k2)
 			
 			
-			pt1 = (w11(i2,j2,k2)*(1.-omegaxS1(i2))  + (dt/d)*(xz(i+1,j,k) - xz(i,j,k))/dh)/(1.+omegaxS1(i2))
-			w11(i2,j2,k2) = pt1
+			pt = w11(i2,j2,k2)*(1.-omegaxS1(i2))  + (dt/d)*(xz(i+1,j,k) - xz(i,j,k))/dh
+			w11(i2,j2,k2) = pt/(1.+omegaxS1(i2))
 
-			pt2 = (w12(i2,j2,k2)*(1.-omegay1(j2))  + (dt/d)*(yz(i,j,k) - yz(i,j-1,k))/dh)/(1.+omegay1(j2))
-			w12(i2,j2,k2) = pt2
+			pt = w12(i2,j2,k2)*(1.-omegay1(j2))  + (dt/d)*(yz(i,j,k) - yz(i,j-1,k))/dh
+			w12(i2,j2,k2) = pt/(1.+omegay1(j2))
 
-			pt3 = (w13(i2,j2,k2)*(1.-omegaz1(k2))  + (dt/d)*(zz(i,j,k+1) - zz(i,j,k))/dh)/(1.+omegaz1(k2))
-			w13(i2,j2,k2) = pt3
+			pt = w13(i2,j2,k2)*(1.-omegaz1(k2))  + (dt/d)*(zz(i,j,k+1) - zz(i,j,k))/dh
+			w13(i2,j2,k2) = pt/(1.+omegaz1(k2))
 
-			w1(i,j,k) = pt1 + pt2 + pt3
+			w1(i,j,k) = w11(i2,j2,k2) + w12(i2,j2,k2) + w13(i2,j2,k2)
 			
           enddo
         enddo
@@ -1768,16 +1756,16 @@
 			d         = d1(i,j,k)
 			i2=1-nxb+i
 		
-			pt1 = (v11(i2,j2,k2)*(1.-omegaxS1(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh)/(1.+omegaxS1(i2))
-			v11(i2,j2,k2) = pt1
+			pt = v11(i2,j2,k2)*(1.-omegaxS1(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh
+			v11(i2,j2,k2) = pt/(1.+omegaxS1(i2))
 
-			pt2 = (v12(i2,j2,k2)*(1.-omegay1(j2))  + (dt/d)*(yy(i,j+1,k) - yy(i,j,k))/dh)/(1.+omegay1(j2))
-			v12(i2,j2,k2) = pt2
+			pt = v12(i2,j2,k2)*(1.-omegay1(j2))  + (dt/d)*(yy(i,j+1,k) - yy(i,j,k))/dh
+			v12(i2,j2,k2) = pt/(1.+omegay1(j2))
 
-			pt3 = (v13(i2,j2,k2)*(1.-omegaz1(k2))  + (dt/d)*(yz(i,j,k) - yz(i,j,k-1))/dh)/(1.+omegaz1(k2))
-			v13(i2,j2,k2) = pt3
+			pt = v13(i2,j2,k2)*(1.-omegaz1(k2))  + (dt/d)*(yz(i,j,k) - yz(i,j,k-1))/dh
+			v13(i2,j2,k2) = pt/(1.+omegaz1(k2))
 
-			v1(i,j,k) = pt1 + pt2 + pt3
+			v1(i,j,k) = v11(i2,j2,k2) + v12(i2,j2,k2) + v13(i2,j2,k2)
 			enddo
 		enddo
       enddo
@@ -1809,28 +1797,28 @@
 			d = d1(i,j,k)
 			i2=1-nxb+i
 		
-			pt1 = (u21(i2,j2,k2)*(1.-omegax2(i2))  + (dt/d)*(xx(i,j,k) - xx(i-1,j,k))/dh)/(1.+omegax2(i2))
-			u21(i2,j2,k2) = pt1
+			pt = (u21(i2,j2,k2)*(1.-omegax2(i2))  + (dt/d)*(xx(i,j,k) - xx(i-1,j,k))/dh)
+			u21(i2,j2,k2) = pt/(1.+omegax2(i2))
 		
-			pt2 = (u22(i2,j2,k2)*(1.-omegay2(j2))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh)/(1.+omegay2(j2))
-			u22(i2,j2,k2) = pt2
+			pt = (u22(i2,j2,k2)*(1.-omegay2(j2))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh)
+			u22(i2,j2,k2) = pt/(1.+omegay2(j2))
 		
-			pt3 = (u23(i2,j2,k2)*(1.-omegaz2(k2))  + (dt/d)*(xz(i,j,k) - xz(i,j,k-1))/dh)/(1.+omegaz2(k2))
-			u23(i2,j2,k2) = pt3
+			pt = (u23(i2,j2,k2)*(1.-omegaz2(k2))  + (dt/d)*(xz(i,j,k) - xz(i,j,k-1))/dh)
+			u23(i2,j2,k2) = pt/(1.+omegaz2(k2))
 		
-			u1(i,j,k) = pt1+pt2+pt3
+			u1(i,j,k) = u21(i2,j2,k2) + u22(i2,j2,k2) + u23(i2,j2,k2)
 			
 			
-			pt1 = (w21(i2,j2,k2)*(1.-omegaxS2(i2))  + (dt/d)*(xz(i+1,j,k) - xz(i,j,k))/dh)/(1.+omegaxS2(i2))
-			w21(i2,j2,k2) = pt1
+			pt = w21(i2,j2,k2)*(1.-omegaxS2(i2))  + (dt/d)*(xz(i+1,j,k) - xz(i,j,k))/dh
+			w21(i2,j2,k2) = pt/(1.+omegaxS2(i2))
 
-			pt2 = (w22(i2,j2,k2)*(1.-omegay2(j2))  + (dt/d)*(yz(i,j,k) - yz(i,j-1,k))/dh)/(1.+omegay2(j2))
-			w22(i2,j2,k2) = pt2
+			pt = w22(i2,j2,k2)*(1.-omegay2(j2))  + (dt/d)*(yz(i,j,k) - yz(i,j-1,k))/dh
+			w22(i2,j2,k2) = pt/(1.+omegay2(j2))
 
-			pt3 = (w23(i2,j2,k2)*(1.-omegaz2(k2))  + (dt/d)*(zz(i,j,k+1) - zz(i,j,k))/dh)/(1.+omegaz2(k2))
-			w23(i2,j2,k2) = pt3
+			pt = w23(i2,j2,k2)*(1.-omegaz2(k2))  + (dt/d)*(zz(i,j,k+1) - zz(i,j,k))/dh
+			w23(i2,j2,k2) = pt/(1.+omegaz2(k2))
 
-			w1(i,j,k) = pt1 + pt2 + pt3
+			w1(i,j,k) = w21(i2,j2,k2) + w22(i2,j2,k2) + w23(i2,j2,k2)
 			
 			enddo
         enddo
@@ -1848,16 +1836,16 @@
 			d         = d1(i,j,k)
 			i2=1-nxb+i
 		
-			pt1 = (v21(i2,j2,k2)*(1.-omegaxS2(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh)/(1.+omegaxS2(i2))
-			v21(i2,j2,k2) = pt1
+			pt = v21(i2,j2,k2)*(1.-omegaxS2(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh
+			v21(i2,j2,k2) = pt/(1.+omegaxS2(i2))
 
-			pt2 = (v22(i2,j2,k2)*(1.-omegay2(j2))  + (dt/d)*(yy(i,j+1,k) - yy(i,j,k))/dh)/(1.+omegay2(j2))
-			v22(i2,j2,k2) = pt2
+			pt = v22(i2,j2,k2)*(1.-omegay2(j2))  + (dt/d)*(yy(i,j+1,k) - yy(i,j,k))/dh
+			v22(i2,j2,k2) = pt/(1.+omegay2(j2))
 
-			pt3 = (v23(i2,j2,k2)*(1.-omegaz2(k2))  + (dt/d)*(yz(i,j,k) - yz(i,j,k-1))/dh)/(1.+omegaz2(k2))
-			v23(i2,j2,k2) = pt3
+			pt = v23(i2,j2,k2)*(1.-omegaz2(k2))  + (dt/d)*(yz(i,j,k) - yz(i,j,k-1))/dh
+			v23(i2,j2,k2) = pt/(1.+omegaz2(k2))
 
-			v1(i,j,k) = pt1 + pt2 + pt3
+			v1(i,j,k) = v21(i2,j2,k2) + v22(i2,j2,k2) + v23(i2,j2,k2)
 			enddo
 		enddo
       enddo
@@ -1887,40 +1875,40 @@
 			d = d1(i,j,k)
 			i2=1-nxb+i
 		
-			pt1 = (u31(i2,j2,k2)*(1.-omegax3(i2))  + (dt/d)*(xx(i,j,k) - xx(i-1,j,k))/dh)/(1.+omegax3(i2))
-			u31(i2,j2,k2) = pt1
+			pt = (u31(i2,j2,k2)*(1.-omegax3(i2))  + (dt/d)*(xx(i,j,k) - xx(i-1,j,k))/dh)
+			u31(i2,j2,k2) = pt/(1.+omegax3(i2))
 		
-			pt2 = (u32(i2,j2,k2)*(1.-omegay3(j2))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh)/(1.+omegay3(j2))
-			u32(i2,j2,k2) = pt2
+			pt = (u32(i2,j2,k2)*(1.-omegay3(j2))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh)
+			u32(i2,j2,k2) = pt/(1.+omegay3(j2))
 		
-			pt3 = (u33(i2,j2,k2)*(1.-omegaz3(k2))  + (dt/d)*(xz(i,j,k) - xz(i,j,k-1))/dh)/(1.+omegaz3(k2))
-			u33(i2,j2,k2) = pt3
+			pt = (u33(i2,j2,k2)*(1.-omegaz3(k2))  + (dt/d)*(xz(i,j,k) - xz(i,j,k-1))/dh)
+			u33(i2,j2,k2) = pt/(1.+omegaz3(k2))
 		
-			u1(i,j,k) = pt1 + pt2 + pt3
+			u1(i,j,k) = u31(i2,j2,k2) + u32(i2,j2,k2) + u33(i2,j2,k2)
 			
 					
-			pt1 = (v31(i2,j2,k2)*(1.-omegaxS3(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh)/(1.+omegaxS3(i2))
-			v31(i2,j2,k2) = pt1
+			pt = v31(i2,j2,k2)*(1.-omegaxS3(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh
+			v31(i2,j2,k2) = pt/(1.+omegaxS3(i2))
 
-			pt2 = (v32(i2,j2,k2)*(1.-omegay3(j2))  + (dt/d)*(yy(i,j+1,k) - yy(i,j,k))/dh)/(1.+omegay3(j2))
-			v32(i2,j2,k2) = pt2
+			pt = v32(i2,j2,k2)*(1.-omegay3(j2))  + (dt/d)*(yy(i,j+1,k) - yy(i,j,k))/dh
+			v32(i2,j2,k2) = pt/(1.+omegay3(j2))
 
-			pt3 = (v33(i2,j2,k2)*(1.-omegaz3(k2))  + (dt/d)*(yz(i,j,k) - yz(i,j,k-1))/dh)/(1.+omegaz3(k2))
-			v33(i2,j2,k2) = pt3
+			pt = v33(i2,j2,k2)*(1.-omegaz3(k2))  + (dt/d)*(yz(i,j,k) - yz(i,j,k-1))/dh
+			v33(i2,j2,k2) = pt/(1.+omegaz3(k2))
 
-			v1(i,j,k) = pt1 + pt2 + pt3
+			v1(i,j,k) = v31(i2,j2,k2) + v32(i2,j2,k2) + v33(i2,j2,k2)
 
 			
-			pt1 = (w31(i2,j2,k2)*(1.-omegaxS3(i2))  + (dt/d)*(xz(i+1,j,k) - xz(i,j,k))/dh)/(1.+omegaxS3(i2))
-			w31(i2,j2,k2) = pt1
+			pt = w31(i2,j2,k2)*(1.-omegaxS3(i2))  + (dt/d)*(xz(i+1,j,k) - xz(i,j,k))/dh
+			w31(i2,j2,k2) = pt/(1.+omegaxS3(i2))
 
-			pt2 = (w32(i2,j2,k2)*(1.-omegay3(j2))  + (dt/d)*(yz(i,j,k) - yz(i,j-1,k))/dh)/(1.+omegay3(j2))
-			w32(i2,j2,k2) = pt2
+			pt = w32(i2,j2,k2)*(1.-omegay3(j2))  + (dt/d)*(yz(i,j,k) - yz(i,j-1,k))/dh
+			w32(i2,j2,k2) = pt/(1.+omegay3(j2))
 
-			pt3 = (w33(i2,j2,k2)*(1.-omegaz3(k2))  + (dt/d)*(zz(i,j,k+1) - zz(i,j,k))/dh)/(1.+omegaz3(k2))
-			w33(i2,j2,k2) = pt3
+			pt = w33(i2,j2,k2)*(1.-omegaz3(k2))  + (dt/d)*(zz(i,j,k+1) - zz(i,j,k))/dh
+			w33(i2,j2,k2) = pt/(1.+omegaz3(k2))
 
-			w1(i,j,k) = pt1 + pt2 + pt3
+			w1(i,j,k) = w31(i2,j2,k2) + w32(i2,j2,k2) + w33(i2,j2,k2)
 			
 			enddo
 		enddo	  
@@ -1952,28 +1940,28 @@
 			d = d1(i,j,k)
 			i2=1-nxb+i
 		
-			pt1 = (u41(i2,j2,k2)*(1.-omegax4(i2))  + (dt/d)*(xx(i,j,k) - xx(i-1,j,k))/dh)/(1.+omegax4(i2))
-			u41(i2,j2,k2) = pt1
+			pt = (u41(i2,j2,k2)*(1.-omegax4(i2))  + (dt/d)*(xx(i,j,k) - xx(i-1,j,k))/dh)
+			u41(i2,j2,k2) = pt/(1.+omegax4(i2))
 		
-			pt2 = (u42(i2,j2,k2)*(1.-omegay4(j2))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh)/(1.+omegay4(j2))
-			u42(i2,j2,k2) = pt2
+			pt = (u42(i2,j2,k2)*(1.-omegay4(j2))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh)
+			u42(i2,j2,k2) = pt/(1.+omegay4(j2))
 		
-			pt3 = (u43(i2,j2,k2)*(1.-omegaz4(k2))  + (dt/d)*(xz(i,j,k) - xz(i,j,k-1))/dh)/(1.+omegaz4(k2))
-			u43(i2,j2,k2) = pt3
+			pt = (u43(i2,j2,k2)*(1.-omegaz4(k2))  + (dt/d)*(xz(i,j,k) - xz(i,j,k-1))/dh)
+			u43(i2,j2,k2) = pt/(1.+omegaz4(k2))
 		
-			u1(i,j,k) = pt1 + pt2 + pt3
+			u1(i,j,k) = u41(i2,j2,k2) + u42(i2,j2,k2) + u43(i2,j2,k2)
 			
 			
-			pt1 = (w41(i2,j2,k2)*(1.-omegaxS4(i2))  + (dt/d)*(xz(i+1,j,k) - xz(i,j,k))/dh)/(1.+omegaxS4(i2))
-			w41(i2,j2,k2) = pt1
+			pt = w41(i2,j2,k2)*(1.-omegaxS4(i2))  + (dt/d)*(xz(i+1,j,k) - xz(i,j,k))/dh
+			w41(i2,j2,k2) = pt/(1.+omegaxS4(i2))
 
-			pt2 = (w42(i2,j2,k2)*(1.-omegay4(j2))  + (dt/d)*(yz(i,j,k) - yz(i,j-1,k))/dh)/(1.+omegay4(j2))
-			w42(i2,j2,k2) = pt2
+			pt = w42(i2,j2,k2)*(1.-omegay4(j2))  + (dt/d)*(yz(i,j,k) - yz(i,j-1,k))/dh
+			w42(i2,j2,k2) = pt/(1.+omegay4(j2))
 
-			pt3 = (w43(i2,j2,k2)*(1.-omegaz4(k2))  + (dt/d)*(zz(i,j,k+1) - zz(i,j,k))/dh)/(1.+omegaz4(k2))
-			w43(i2,j2,k2) = pt3
+			pt = w43(i2,j2,k2)*(1.-omegaz4(k2))  + (dt/d)*(zz(i,j,k+1) - zz(i,j,k))/dh
+			w43(i2,j2,k2) = pt/(1.+omegaz4(k2))
 
-			w1(i,j,k) = pt1 + pt2 + pt3
+			w1(i,j,k) = w41(i2,j2,k2) + w42(i2,j2,k2) + w43(i2,j2,k2)
 			
 			enddo
         enddo
@@ -1991,16 +1979,16 @@
 			d         = d1(i,j,k)
 			i2=1-nxb+i
 		
-			pt1 = (v41(i2,j2,k2)*(1.-omegaxS4(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh)/(1.+omegaxS4(i2))
-			v41(i2,j2,k2) = pt1
+			pt = v41(i2,j2,k2)*(1.-omegaxS4(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh
+			v41(i2,j2,k2) = pt/(1.+omegaxS4(i2))
 
-			pt2 = (v42(i2,j2,k2)*(1.-omegay4(j2))  + (dt/d)*(yy(i,j+1,k) - yy(i,j,k))/dh)/(1.+omegay4(j2))
-			v42(i2,j2,k2) = pt2
+			pt = v42(i2,j2,k2)*(1.-omegay4(j2))  + (dt/d)*(yy(i,j+1,k) - yy(i,j,k))/dh
+			v42(i2,j2,k2) = pt/(1.+omegay4(j2))
 
-			pt3 = (v43(i2,j2,k2)*(1.-omegaz4(k2))  + (dt/d)*(yz(i,j,k) - yz(i,j,k-1))/dh)/(1.+omegaz4(k2))
-			v43(i2,j2,k2) = pt3
+			pt = v43(i2,j2,k2)*(1.-omegaz4(k2))  + (dt/d)*(yz(i,j,k) - yz(i,j,k-1))/dh
+			v43(i2,j2,k2) = pt/(1.+omegaz4(k2))
 
-			v1(i,j,k) = pt1 + pt2 + pt3
+			v1(i,j,k) = v41(i2,j2,k2) + v42(i2,j2,k2) + v43(i2,j2,k2)
 			enddo
 		enddo
       enddo
@@ -2019,8 +2007,7 @@
       USE traction_com
       USE pml_com
 
-      real    :: dh, dt,a,b,diff1,diff2,diff3,xl,xm
-      real    :: pt1, pt2, pt3
+      real    :: dh, dt,a,b,diff1,diff2,diff3,xl,xm,pt
       integer :: nxt, nyt, nzt, nxb, nxe, nyb, nye, nzb, nze
 
 
@@ -2052,42 +2039,40 @@
 		
 !       Find xx stress
         
-        pt1 = (xx11(i2,j2,k2)*(1.-omegaxS1(i2)) + dt*a*diff1/dh)/(1.+omegaxS1(i2))
-        xx11(i2,j2,k2) = pt1
+        pt = xx11(i2,j2,k2)*(1.-omegaxS1(i2)) + dt*a*diff1/dh
+        xx11(i2,j2,k2) = pt/(1.+omegaxS1(i2))
 
-        pt2 = (xx12(i2,j2,k2)*(1.-omegay1(j2)) + dt*b*diff2/dh)/(1.+omegay1(j2))
-        xx12(i2,j2,k2) = pt2
+        pt = xx12(i2,j2,k2)*(1.-omegay1(j2)) + dt*b*diff2/dh
+        xx12(i2,j2,k2) = pt/(1.+omegay1(j2))
 
-        pt3 = (xx13(i2,j2,k2)*(1.-omegaz1(k2)) + dt*b*diff3/dh)/(1.+omegaz1(k2))
-        xx13(i2,j2,k2) = pt3
+        pt = xx13(i2,j2,k2)*(1.-omegaz1(k2)) + dt*b*diff3/dh
+        xx13(i2,j2,k2) = pt/(1.+omegaz1(k2))
 
-        xx(i,j,k)= pt1 + pt2 + pt3
+        xx(i,j,k)= xx11(i2,j2,k2) + xx12(i2,j2,k2) + xx13(i2,j2,k2)
 
 !       Find yy stress
 
-        pt1 = (yy11(i2,j2,k2)*(1.-omegaxS1(i2)) + dt*b*diff1/dh)/(1.+omegaxS1(i2))
-        yy11(i2,j2,k2) = pt1
+        pt = yy11(i2,j2,k2)*(1.-omegaxS1(i2)) + dt*b*diff1/dh
+        yy11(i2,j2,k2) = pt/(1.+omegaxS1(i2))
 
-        pt2 = (yy12(i2,j2,k2)*(1.-omegay1(j2)) + dt*a*diff2/dh)/(1.+omegay1(j2))
-        yy12(i2,j2,k2) = pt2
+        pt = yy12(i2,j2,k2)*(1.-omegay1(j2)) + dt*a*diff2/dh
+        yy12(i2,j2,k2) = pt/(1.+omegay1(j2))
 
-        pt3 = (yy13(i2,j2,k2)*(1.-omegaz1(k2)) + dt*b*diff3/dh)/(1.+omegaz1(k2))
-        yy13(i2,j2,k2) = pt3
+        pt = yy13(i2,j2,k2)*(1.-omegaz1(k2)) + dt*b*diff3/dh
+        yy13(i2,j2,k2) = pt/(1.+omegaz1(k2))
 
-        yy(i,j,k)= pt1 + pt2 + pt3
-        
+        yy(i,j,k)= yy11(i2,j2,k2) + yy12(i2,j2,k2) + yy13(i2,j2,k2)
 !       Find zz stress
-        
-        pt1 = (zz11(i2,j2,k2)*(1.-omegaxS1(i2)) + dt*b*diff1/dh)/(1.+omegaxS1(i2))
-        zz11(i2,j2,k2) = pt1
+        pt = zz11(i2,j2,k2)*(1.-omegaxS1(i2)) + dt*b*diff1/dh
+        zz11(i2,j2,k2) = pt/(1.+omegaxS1(i2))
 
-        pt2 = (zz12(i2,j2,k2)*(1.-omegay1(j2)) + dt*b*diff2/dh)/(1.+omegay1(j2))
-        zz12(i2,j2,k2) = pt2
+        pt = zz12(i2,j2,k2)*(1.-omegay1(j2)) + dt*b*diff2/dh
+        zz12(i2,j2,k2) = pt/(1.+omegay1(j2))
 
-        pt3 = (zz13(i2,j2,k2)*(1.-omegaz1(k2)) + dt*a*diff3/dh)/(1.+omegaz1(k2))
-        zz13(i2,j2,k2) = pt3
+        pt = zz13(i2,j2,k2)*(1.-omegaz1(k2)) + dt*a*diff3/dh
+        zz13(i2,j2,k2) = pt/(1.+omegaz1(k2))
 
-        zz(i,j,k)= pt1 + pt2 + pt3
+        zz(i,j,k)= zz11(i2,j2,k2) + zz12(i2,j2,k2) + zz13(i2,j2,k2)
 
       enddo
       enddo
@@ -2109,13 +2094,13 @@
         xm2 = mu1(i,j+1,k)
         xmu = (xm1+xm2)/2.
 
-        pt1 = (xy11(i2,j2,k2)*(1.-omegay1(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh)/(1.+omegay1(j2))
-        xy11(i2,j2,k2) = pt1
+        pt = xy11(i2,j2,k2)*(1.-omegay1(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
+        xy11(i2,j2,k2) = pt/(1.+omegay1(j2))
 
-        pt2 = (xy12(i2,j2,k2)*(1.-omegax1(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh)/(1.+omegax1(i2))
-        xy12(i2,j2,k2) = pt2
+        pt = xy12(i2,j2,k2)*(1.-omegax1(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh
+        xy12(i2,j2,k2) = pt/(1.+omegax1(i2))
 
-        xy(i,j,k)= pt1 + pt2
+        xy(i,j,k)= xy11(i2,j2,k2) + xy12(i2,j2,k2)
 
       enddo
       enddo
@@ -2137,13 +2122,13 @@
         xm2 = mu1(i,j,k+1)
         xmu = (xm1+xm2)/2.
 
-        pt1 = (xz11(i2,j2,k2)*(1.-omegaz1(k2)) + dt*xmu*(u1(i,j,k+1) - u1(i,j,k))/dh)/(1.+omegaz1(k2))
-        xz11(i2,j2,k2) = pt1
+        pt = xz11(i2,j2,k2)*(1.-omegaz1(k2)) + dt*xmu*(u1(i,j,k+1) - u1(i,j,k))/dh
+        xz11(i2,j2,k2) = pt/(1.+omegaz1(k2))
 
-        pt2 = (xz12(i2,j2,k2)*(1.-omegax1(i2)) + dt*xmu*(w1(i,j,k) - w1(i-1,j,k))/dh)/(1.+omegax1(i2))
-        xz12(i2,j2,k2) = pt2
+        pt = xz12(i2,j2,k2)*(1.-omegax1(i2)) + dt*xmu*(w1(i,j,k) - w1(i-1,j,k))/dh
+        xz12(i2,j2,k2) = pt/(1.+omegax1(i2))
 
-        xz(i,j,k)= pt1 + pt2
+        xz(i,j,k)= xz11(i2,j2,k2) + xz12(i2,j2,k2)
 
       enddo
       enddo
@@ -2165,13 +2150,13 @@
          xm2 = mu1(i+1,j+1,k+1)
          xmu = (xm1+xm2)/2.
 
-        pt1 = (yz11(i2,j2,k2)*(1.-omegaz1(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh)/(1.+omegaz1(k2))
-        yz11(i2,j2,k2) = pt1
+        pt = yz11(i2,j2,k2)*(1.-omegaz1(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
+        yz11(i2,j2,k2) = pt/(1.+omegaz1(k2))
 
-        pt2 = (yz12(i2,j2,k2)*(1.-omegay1(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh)/(1.+omegay1(j2))
-        yz12(i2,j2,k2) = pt2
+        pt = yz12(i2,j2,k2)*(1.-omegay1(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh
+        yz12(i2,j2,k2) = pt/(1.+omegay1(j2))
 
-        yz(i,j,k)= pt1 + pt2
+        yz(i,j,k)= yz11(i2,j2,k2) + yz12(i2,j2,k2)
 
       enddo
       enddo
@@ -2188,9 +2173,9 @@
 !      xz12(:,:,nze-nzb+1) = 0.
       !$ACC PARALLEL DEFAULT (PRESENT)
       !$ACC LOOP GANG
-      do j=1,nye-nyb+1+1
+	  do i=1,nxe-nxb+1
       !$ACC LOOP VECTOR
-        do i=1,nxe-nxb+1
+        do j=1,nye-nyb+1+1
           xz11(i,j,nze-nzb+1) = 0.
           xz12(i,j,nze-nzb+1) = 0.
         enddo
@@ -2202,9 +2187,9 @@
 !      yz12(:,:,nze-nzb+1) = 0.
       !$ACC PARALLEL DEFAULT (PRESENT)
       !$ACC LOOP GANG
-      do j=1,nye-nyb+1
+	  do i=1,nxe-nxb+1
       !$ACC LOOP VECTOR
-        do i=1,nxe-nxb+1
+        do j=1,nye-nyb+1
           yz11(i,j,nze-nzb+1) = 0.
           yz12(i,j,nze-nzb+1) = 0.
         enddo
@@ -2240,40 +2225,40 @@
 		
 !       Find xx stress
         
-        pt1 = (xx21(i2,j2,k2)*(1.-omegaxS2(i2)) + dt*a*diff1/dh)/(1.+omegaxS2(i2))
-        xx21(i2,j2,k2) = pt1
+        pt = xx21(i2,j2,k2)*(1.-omegaxS2(i2)) + dt*a*diff1/dh
+        xx21(i2,j2,k2) = pt/(1.+omegaxS2(i2))
 
-        pt2 = (xx22(i2,j2,k2)*(1.-omegay2(j2)) + dt*b*diff2/dh)/(1.+omegay2(j2))
-        xx22(i2,j2,k2) = pt2
+        pt = xx22(i2,j2,k2)*(1.-omegay2(j2)) + dt*b*diff2/dh
+        xx22(i2,j2,k2) = pt/(1.+omegay2(j2))
 
-        pt3 = (xx23(i2,j2,k2)*(1.-omegaz2(k2)) + dt*b*diff3/dh)/(1.+omegaz2(k2))
-        xx23(i2,j2,k2) = pt3
+        pt = xx23(i2,j2,k2)*(1.-omegaz2(k2)) + dt*b*diff3/dh
+        xx23(i2,j2,k2) = pt/(1.+omegaz2(k2))
 
-        xx(i,j,k)= pt1 + pt2 + pt3
+        xx(i,j,k)= xx21(i2,j2,k2) + xx22(i2,j2,k2) + xx23(i2,j2,k2)
 
 !       Find yy stress
 
-        pt1 = (yy21(i2,j2,k2)*(1.-omegaxS2(i2)) + dt*b*diff1/dh)/(1.+omegaxS2(i2))
-        yy21(i2,j2,k2) = pt1
+        pt = yy21(i2,j2,k2)*(1.-omegaxS2(i2)) + dt*b*diff1/dh
+        yy21(i2,j2,k2) = pt/(1.+omegaxS2(i2))
 
-        pt2 = (yy22(i2,j2,k2)*(1.-omegay2(j2)) + dt*a*diff2/dh)/(1.+omegay2(j2))
-        yy22(i2,j2,k2) = pt2
+        pt = yy22(i2,j2,k2)*(1.-omegay2(j2)) + dt*a*diff2/dh
+        yy22(i2,j2,k2) = pt/(1.+omegay2(j2))
 
-        pt3 = (yy23(i2,j2,k2)*(1.-omegaz2(k2)) + dt*b*diff3/dh)/(1.+omegaz2(k2))
-        yy23(i2,j2,k2) = pt3
+        pt = yy23(i2,j2,k2)*(1.-omegaz2(k2)) + dt*b*diff3/dh
+        yy23(i2,j2,k2) = pt/(1.+omegaz2(k2))
 
-        yy(i,j,k)= pt1 + pt2 + pt3
+        yy(i,j,k)= yy21(i2,j2,k2) + yy22(i2,j2,k2) + yy23(i2,j2,k2)
 !       Find zz stress
-        pt1 = (zz21(i2,j2,k2)*(1.-omegaxS2(i2)) + dt*b*diff1/dh)/(1.+omegaxS2(i2))
-        zz21(i2,j2,k2) = pt1
+        pt = zz21(i2,j2,k2)*(1.-omegaxS2(i2)) + dt*b*diff1/dh
+        zz21(i2,j2,k2) = pt/(1.+omegaxS2(i2))
 
-        pt2 = (zz22(i2,j2,k2)*(1.-omegay2(j2)) + dt*b*diff2/dh)/(1.+omegay2(j2))
-        zz22(i2,j2,k2) = pt2
+        pt = zz22(i2,j2,k2)*(1.-omegay2(j2)) + dt*b*diff2/dh
+        zz22(i2,j2,k2) = pt/(1.+omegay2(j2))
 
-        pt3 = (zz23(i2,j2,k2)*(1.-omegaz2(k2)) + dt*a*diff3/dh)/(1.+omegaz2(k2))
-        zz23(i2,j2,k2) = pt3
+        pt = zz23(i2,j2,k2)*(1.-omegaz2(k2)) + dt*a*diff3/dh
+        zz23(i2,j2,k2) = pt/(1.+omegaz2(k2))
 
-        zz(i,j,k)= pt1 + pt2 + pt3
+        zz(i,j,k)= zz21(i2,j2,k2) + zz22(i2,j2,k2) + zz23(i2,j2,k2)
 
       enddo
       enddo
@@ -2295,13 +2280,13 @@
         xm2 = mu1(i,j+1,k)
         xmu = (xm1+xm2)/2.
 
-        pt1 = (xy21(i2,j2,k2)*(1.-omegay2(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh)/(1.+omegay2(j2))
-        xy21(i2,j2,k2) = pt1
+        pt = xy21(i2,j2,k2)*(1.-omegay2(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
+        xy21(i2,j2,k2) = pt/(1.+omegay2(j2))
 
-        pt2 = (xy22(i2,j2,k2)*(1.-omegax2(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh)/(1.+omegax2(i2))
-        xy22(i2,j2,k2) = pt2
+        pt = xy22(i2,j2,k2)*(1.-omegax2(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh
+        xy22(i2,j2,k2) = pt/(1.+omegax2(i2))
 
-        xy(i,j,k)= pt1 + pt2
+        xy(i,j,k)= xy21(i2,j2,k2) + xy22(i2,j2,k2)
 
       enddo
       enddo
@@ -2323,13 +2308,13 @@
         xm2 = mu1(i,j,k+1)
         xmu = (xm1+xm2)/2.
 
-        pt1 = (xz21(i2,j2,k2)*(1.-omegaz2(k2)) + dt*xmu*(u1(i,j,k+1) - u1(i,j,k))/dh)/(1.+omegaz2(k2))
-        xz21(i2,j2,k2) = pt1
+        pt = xz21(i2,j2,k2)*(1.-omegaz2(k2)) + dt*xmu*(u1(i,j,k+1) - u1(i,j,k))/dh
+        xz21(i2,j2,k2) = pt/(1.+omegaz2(k2))
 
-        pt2 = (xz22(i2,j2,k2)*(1.-omegax2(i2)) + dt*xmu*(w1(i,j,k) - w1(i-1,j,k))/dh)/(1.+omegax2(i2))
-        xz22(i2,j2,k2) = pt2
+        pt = xz22(i2,j2,k2)*(1.-omegax2(i2)) + dt*xmu*(w1(i,j,k) - w1(i-1,j,k))/dh
+        xz22(i2,j2,k2) = pt/(1.+omegax2(i2))
 
-        xz(i,j,k)= pt1 + pt2
+        xz(i,j,k)= xz21(i2,j2,k2) + xz22(i2,j2,k2)
 
       enddo
       enddo
@@ -2351,13 +2336,13 @@
          xm2 = mu1(i+1,j+1,k+1)
          xmu = (xm1+xm2)/2.
 
-        pt1 = (yz21(i2,j2,k2)*(1.-omegaz2(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh)/(1.+omegaz2(k2))
-        yz21(i2,j2,k2) = pt1
+        pt = yz21(i2,j2,k2)*(1.-omegaz2(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
+        yz21(i2,j2,k2) = pt/(1.+omegaz2(k2))
 
-        pt2 = (yz22(i2,j2,k2)*(1.-omegay2(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh)/(1.+omegay2(j2))
-        yz22(i2,j2,k2) = pt2
+        pt = yz22(i2,j2,k2)*(1.-omegay2(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh
+        yz22(i2,j2,k2) = pt/(1.+omegay2(j2))
 
-        yz(i,j,k)= pt1 + pt2
+        yz(i,j,k)= yz21(i2,j2,k2) + yz22(i2,j2,k2)
 
       enddo
       enddo
@@ -2373,9 +2358,9 @@
 !      xz22(:,:,nze-nzb+1) = 0.
       !$ACC PARALLEL DEFAULT (PRESENT)
       !$ACC LOOP GANG
-      do j=1,nye-nyb+1+1
+	  do i=1,nxe-nxb+1
       !$ACC LOOP VECTOR
-        do i=1,nxe-nxb+1
+        do j=1,nye-nyb+1+1
           xz21(i,j,nze-nzb+1) = 0.
           xz22(i,j,nze-nzb+1) = 0.
         enddo
@@ -2387,9 +2372,9 @@
 !      yz22(:,:,nze-nzb+1) = 0.
       !$ACC PARALLEL DEFAULT (PRESENT)
       !$ACC LOOP GANG
-      do j=1,nye-nyb+1
+	  do i=1,nxe-nxb+1
       !$ACC LOOP VECTOR
-        do i=1,nxe-nxb+1
+        do j=1,nye-nyb+1
           yz21(i,j,nze-nzb+1) = 0.
           yz22(i,j,nze-nzb+1) = 0.
         enddo
@@ -2430,42 +2415,40 @@
 		
 !       Find xx stress
         
-        pt1 = (xx31(i2,j2,k2)*(1.-omegaxS3(i2)) + dt*a*diff1/dh)/(1.+omegaxS3(i2))
-        xx31(i2,j2,k2) = pt1
+        pt = xx31(i2,j2,k2)*(1.-omegaxS3(i2)) + dt*a*diff1/dh
+        xx31(i2,j2,k2) = pt/(1.+omegaxS3(i2))
 
-        pt2 = (xx32(i2,j2,k2)*(1.-omegay3(j2)) + dt*b*diff2/dh)/(1.+omegay3(j2))
-        xx32(i2,j2,k2) = pt2
+        pt = xx32(i2,j2,k2)*(1.-omegay3(j2)) + dt*b*diff2/dh
+        xx32(i2,j2,k2) = pt/(1.+omegay3(j2))
 
-        pt3 = (xx33(i2,j2,k2)*(1.-omegaz3(k2)) + dt*b*diff3/dh)/(1.+omegaz3(k2))
-        xx33(i2,j2,k2) = pt3
+        pt = xx33(i2,j2,k2)*(1.-omegaz3(k2)) + dt*b*diff3/dh
+        xx33(i2,j2,k2) = pt/(1.+omegaz3(k2))
 
-        xx(i,j,k)= pt1 + pt2 + pt3
+        xx(i,j,k)= xx31(i2,j2,k2) + xx32(i2,j2,k2) + xx33(i2,j2,k2)
 
 !       Find yy stress
 
-        pt1 = (yy31(i2,j2,k2)*(1.-omegaxS3(i2)) + dt*b*diff1/dh)/(1.+omegaxS3(i2))
-        yy31(i2,j2,k2) = pt1
+        pt = yy31(i2,j2,k2)*(1.-omegaxS3(i2)) + dt*b*diff1/dh
+        yy31(i2,j2,k2) = pt/(1.+omegaxS3(i2))
 
-        pt2 = (yy32(i2,j2,k2)*(1.-omegay3(j2)) + dt*a*diff2/dh)/(1.+omegay3(j2))
-        yy32(i2,j2,k2) = pt2
+        pt = yy32(i2,j2,k2)*(1.-omegay3(j2)) + dt*a*diff2/dh
+        yy32(i2,j2,k2) = pt/(1.+omegay3(j2))
 
-        pt3 = (yy33(i2,j2,k2)*(1.-omegaz3(k2)) + dt*b*diff3/dh)/(1.+omegaz3(k2))
-        yy33(i2,j2,k2) = pt3
+        pt = yy33(i2,j2,k2)*(1.-omegaz3(k2)) + dt*b*diff3/dh
+        yy33(i2,j2,k2) = pt/(1.+omegaz3(k2))
 
-        yy(i,j,k)= pt1 + pt2 + pt3
-        
+        yy(i,j,k)= yy31(i2,j2,k2) + yy32(i2,j2,k2) + yy33(i2,j2,k2)
 !       Find zz stress
-        
-        pt1 = (zz31(i2,j2,k2)*(1.-omegaxS3(i2)) + dt*b*diff1/dh)/(1.+omegaxS3(i2))
-        zz31(i2,j2,k2) = pt1
+        pt = zz31(i2,j2,k2)*(1.-omegaxS3(i2)) + dt*b*diff1/dh
+        zz31(i2,j2,k2) = pt/(1.+omegaxS3(i2))
 
-        pt2 = (zz32(i2,j2,k2)*(1.-omegay3(j2)) + dt*b*diff2/dh)/(1.+omegay3(j2))
-        zz32(i2,j2,k2) = pt2
+        pt = zz32(i2,j2,k2)*(1.-omegay3(j2)) + dt*b*diff2/dh
+        zz32(i2,j2,k2) = pt/(1.+omegay3(j2))
 
-        pt3 = (zz33(i2,j2,k2)*(1.-omegaz3(k2)) + dt*a*diff3/dh)/(1.+omegaz3(k2))
-        zz33(i2,j2,k2) = pt3
+        pt = zz33(i2,j2,k2)*(1.-omegaz3(k2)) + dt*a*diff3/dh
+        zz33(i2,j2,k2) = pt/(1.+omegaz3(k2))
 
-        zz(i,j,k)= pt1 + pt2 + pt3
+        zz(i,j,k)= zz31(i2,j2,k2) + zz32(i2,j2,k2) + zz33(i2,j2,k2)
 
       enddo
       enddo
@@ -2487,13 +2470,13 @@
         xm2 = mu1(i,j+1,k)
         xmu = (xm1+xm2)/2.
 
-        pt1 = (xy31(i2,j2,k2)*(1.-omegayS3(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh)/(1.+omegayS3(j2))
-        xy31(i2,j2,k2) = pt1
+        pt = xy31(i2,j2,k2)*(1.-omegayS3(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
+        xy31(i2,j2,k2) = pt/(1.+omegayS3(j2))
 
-        pt2 = (xy32(i2,j2,k2)*(1.-omegax3(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh)/(1.+omegax3(i2))
-        xy32(i2,j2,k2) = pt2
+        pt = xy32(i2,j2,k2)*(1.-omegax3(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh
+        xy32(i2,j2,k2) = pt/(1.+omegax3(i2))
 
-        xy(i,j,k)= pt1 + pt2
+        xy(i,j,k)= xy31(i2,j2,k2) + xy32(i2,j2,k2)
 
       enddo
       enddo
@@ -2515,13 +2498,13 @@
         xm2 = mu1(i,j,k+1)
         xmu = (xm1+xm2)/2.
 
-        pt1 = (xz31(i2,j2,k2)*(1.-omegaz3(k2)) + dt*xmu*(u1(i,j,k+1) - u1(i,j,k))/dh)/(1.+omegaz3(k2))
-        xz31(i2,j2,k2) = pt1
+        pt = xz31(i2,j2,k2)*(1.-omegaz3(k2)) + dt*xmu*(u1(i,j,k+1) - u1(i,j,k))/dh
+        xz31(i2,j2,k2) = pt/(1.+omegaz3(k2))
 
-        pt2 = (xz32(i2,j2,k2)*(1.-omegax3(i2)) + dt*xmu*(w1(i,j,k) - w1(i-1,j,k))/dh)/(1.+omegax3(i2))
-        xz32(i2,j2,k2) = pt2
+        pt = xz32(i2,j2,k2)*(1.-omegax3(i2)) + dt*xmu*(w1(i,j,k) - w1(i-1,j,k))/dh
+        xz32(i2,j2,k2) = pt/(1.+omegax3(i2))
 
-        xz(i,j,k)= pt1 + pt2
+        xz(i,j,k)= xz31(i2,j2,k2) + xz32(i2,j2,k2)
 
       enddo
       enddo
@@ -2543,13 +2526,13 @@
          xm2 = mu1(i+1,j+1,k+1)
          xmu = (xm1+xm2)/2.
 
-        pt1 = (yz31(i2,j2,k2)*(1.-omegaz3(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh)/(1.+omegaz3(k2))
-        yz31(i2,j2,k2) = pt1
+        pt = yz31(i2,j2,k2)*(1.-omegaz3(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
+        yz31(i2,j2,k2) = pt/(1.+omegaz3(k2))
 
-        pt2 = (yz32(i2,j2,k2)*(1.-omegayS3(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh)/(1.+omegayS3(j2))
-        yz32(i2,j2,k2) = pt2
+        pt = yz32(i2,j2,k2)*(1.-omegayS3(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh
+        yz32(i2,j2,k2) = pt/(1.+omegayS3(j2))
 
-        yz(i,j,k)= pt1 + pt2
+        yz(i,j,k)= yz31(i2,j2,k2) + yz32(i2,j2,k2)
 
       enddo
       enddo
@@ -2560,9 +2543,9 @@
 !      xz32(:,:,nze-nzb+1) = 0.
       !$ACC PARALLEL DEFAULT (PRESENT)
       !$ACC LOOP GANG
-      do j=1,nye-nyb+1
+	  do i=1,nxe-nxb+1
       !$ACC LOOP VECTOR
-        do i=1,nxe-nxb+1
+        do j=1,nye-nyb+1
           xz31(i,j,nze-nzb+1) = 0.
           xz32(i,j,nze-nzb+1) = 0.
         enddo
@@ -2573,9 +2556,9 @@
 !      yz32(:,:,nze-nzb+1) = 0.
       !$ACC PARALLEL DEFAULT (PRESENT)
       !$ACC LOOP GANG
-      do j=1,nye-nyb+1
+	  do i=1,nxe-nxb+1
       !$ACC LOOP VECTOR
-        do i=1,nxe-nxb+1
+        do j=1,nye-nyb+1
           yz31(i,j,nze-nzb+1) = 0.
           yz32(i,j,nze-nzb+1) = 0.
         enddo
@@ -2609,42 +2592,40 @@
 		
 !       Find xx stress
         
-        pt1 = (xx41(i2,j2,k2)*(1.-omegaxS4(i2)) + dt*a*diff1/dh)/(1.+omegaxS4(i2))
-        xx41(i2,j2,k2) = pt1
+        pt = xx41(i2,j2,k2)*(1.-omegaxS4(i2)) + dt*a*diff1/dh
+        xx41(i2,j2,k2) = pt/(1.+omegaxS4(i2))
 
-        pt2 = (xx42(i2,j2,k2)*(1.-omegay4(j2)) + dt*b*diff2/dh)/(1.+omegay4(j2))
-        xx42(i2,j2,k2) = pt2
+        pt = xx42(i2,j2,k2)*(1.-omegay4(j2)) + dt*b*diff2/dh
+        xx42(i2,j2,k2) = pt/(1.+omegay4(j2))
 
-        pt3 = (xx43(i2,j2,k2)*(1.-omegaz4(k2)) + dt*b*diff3/dh)/(1.+omegaz4(k2))
-        xx43(i2,j2,k2) = pt3
+        pt = xx43(i2,j2,k2)*(1.-omegaz4(k2)) + dt*b*diff3/dh
+        xx43(i2,j2,k2) = pt/(1.+omegaz4(k2))
 
-        xx(i,j,k)= pt1 + pt2 + pt3
+        xx(i,j,k)= xx41(i2,j2,k2) + xx42(i2,j2,k2) + xx43(i2,j2,k2)
 
 !       Find yy stress
 
-        pt1 = (yy41(i2,j2,k2)*(1.-omegaxS4(i2)) + dt*b*diff1/dh)/(1.+omegaxS4(i2))
-        yy41(i2,j2,k2) = pt1
+        pt = yy41(i2,j2,k2)*(1.-omegaxS4(i2)) + dt*b*diff1/dh
+        yy41(i2,j2,k2) = pt/(1.+omegaxS4(i2))
 
-        pt2 = (yy42(i2,j2,k2)*(1.-omegay4(j2)) + dt*a*diff2/dh)/(1.+omegay4(j2))
-        yy42(i2,j2,k2) = pt2
+        pt = yy42(i2,j2,k2)*(1.-omegay4(j2)) + dt*a*diff2/dh
+        yy42(i2,j2,k2) = pt/(1.+omegay4(j2))
 
-        pt3 = (yy43(i2,j2,k2)*(1.-omegaz4(k2)) + dt*b*diff3/dh)/(1.+omegaz4(k2))
-        yy43(i2,j2,k2) = pt3
+        pt = yy43(i2,j2,k2)*(1.-omegaz4(k2)) + dt*b*diff3/dh
+        yy43(i2,j2,k2) = pt/(1.+omegaz4(k2))
 
-        yy(i,j,k)= pt1 + pt2 + pt3
-        
+        yy(i,j,k)= yy41(i2,j2,k2) + yy42(i2,j2,k2) + yy43(i2,j2,k2)
 !       Find zz stress
-        
-        pt1 = (zz41(i2,j2,k2)*(1.-omegaxS4(i2)) + dt*b*diff1/dh)/(1.+omegaxS4(i2))
-        zz41(i2,j2,k2) = pt1
+        pt = zz41(i2,j2,k2)*(1.-omegaxS4(i2)) + dt*b*diff1/dh
+        zz41(i2,j2,k2) = pt/(1.+omegaxS4(i2))
 
-        pt2 = (zz42(i2,j2,k2)*(1.-omegay4(j2)) + dt*b*diff2/dh)/(1.+omegay4(j2))
-        zz42(i2,j2,k2) = pt2
+        pt = zz42(i2,j2,k2)*(1.-omegay4(j2)) + dt*b*diff2/dh
+        zz42(i2,j2,k2) = pt/(1.+omegay4(j2))
 
-        pt3 = (zz43(i2,j2,k2)*(1.-omegaz4(k2)) + dt*a*diff3/dh)/(1.+omegaz4(k2))
-        zz43(i2,j2,k2) = pt3
+        pt = zz43(i2,j2,k2)*(1.-omegaz4(k2)) + dt*a*diff3/dh
+        zz43(i2,j2,k2) = pt/(1.+omegaz4(k2))
 
-        zz(i,j,k)= pt1 + pt2 + pt3
+        zz(i,j,k)= zz41(i2,j2,k2) + zz42(i2,j2,k2) + zz43(i2,j2,k2)
 
       enddo
       enddo
@@ -2666,13 +2647,13 @@
         xm2 = mu1(i,j+1,k)
         xmu = (xm1+xm2)/2.
 
-        pt1 = (xy41(i2,j2,k2)*(1.-omegayS4(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh)/(1.+omegayS4(j2))
-        xy41(i2,j2,k2) = pt1
+        pt = xy41(i2,j2,k2)*(1.-omegayS4(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
+        xy41(i2,j2,k2) = pt/(1.+omegayS4(j2))
 
-        pt2 = (xy42(i2,j2,k2)*(1.-omegax4(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh)/(1.+omegax4(i2))
-        xy42(i2,j2,k2) = pt2
+        pt = xy42(i2,j2,k2)*(1.-omegax4(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh
+        xy42(i2,j2,k2) = pt/(1.+omegax4(i2))
 
-        xy(i,j,k)= pt1 + pt2
+        xy(i,j,k)= xy41(i2,j2,k2) + xy42(i2,j2,k2)
 
       enddo
       enddo
@@ -2694,13 +2675,13 @@
         xm2 = mu1(i,j,k+1)
         xmu = (xm1+xm2)/2.
 
-        pt1 = (xz41(i2,j2,k2)*(1.-omegazS4(k2)) + dt*xmu*(u1(i,j,k+1) - u1(i,j,k))/dh)/(1.+omegazS4(k2))
-        xz41(i2,j2,k2) = pt1
+        pt = xz41(i2,j2,k2)*(1.-omegazS4(k2)) + dt*xmu*(u1(i,j,k+1) - u1(i,j,k))/dh
+        xz41(i2,j2,k2) = pt/(1.+omegazS4(k2))
 
-        pt2 = (xz42(i2,j2,k2)*(1.-omegax4(i2)) + dt*xmu*(w1(i,j,k) - w1(i-1,j,k))/dh)/(1.+omegax4(i2))
-        xz42(i2,j2,k2) = pt2
+        pt = xz42(i2,j2,k2)*(1.-omegax4(i2)) + dt*xmu*(w1(i,j,k) - w1(i-1,j,k))/dh
+        xz42(i2,j2,k2) = pt/(1.+omegax4(i2))
 
-        xz(i,j,k)= pt1 + pt2
+        xz(i,j,k)= xz41(i2,j2,k2) + xz42(i2,j2,k2)
 
       enddo
       enddo
@@ -2722,13 +2703,13 @@
          xm2 = mu1(i+1,j+1,k+1)
          xmu = (xm1+xm2)/2.
 
-        pt1 = (yz41(i2,j2,k2)*(1.-omegazS4(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh)/(1.+omegazS4(k2))
-        yz41(i2,j2,k2) = pt1
+        pt = yz41(i2,j2,k2)*(1.-omegazS4(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
+        yz41(i2,j2,k2) = pt/(1.+omegazS4(k2))
 
-        pt2 = (yz42(i2,j2,k2)*(1.-omegayS4(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh)/(1.+omegayS4(j2))
-        yz42(i2,j2,k2) = pt2
+        pt = yz42(i2,j2,k2)*(1.-omegayS4(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh
+        yz42(i2,j2,k2) = pt/(1.+omegayS4(j2))
 
-        yz(i,j,k)= pt1 + pt2
+        yz(i,j,k)= yz41(i2,j2,k2) + yz42(i2,j2,k2)
 
       enddo
       enddo
