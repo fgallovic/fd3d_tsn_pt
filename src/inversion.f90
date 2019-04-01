@@ -193,11 +193,11 @@
         do i=nabc+1,nxt-nabc
           x=dh*(real(i-nabc)-0.5)
           rr=(x-NuclConstraintL)**2+(z-NuclConstraintW)**2
-          if(rr>NuclConstraintR**2.and.peak_xz(i,j)<=strinix(i,j))then
+          if(rr>NuclConstraintR**2.and.peak_xz(i,j)+coh(i,j)<=strinix(i,j))then
 !            write(*,*)'Nucl',x,z,peak_xz(i,j)-strinix(i,j)
             return    !nucleation outside the nucleation zone
           endif
-          if(rr<=NuclConstraintR**2.and.peak_xz(i,j)<=strinix(i,j))nuclOK=1
+          if(rr<=NuclConstraintR**2.and.peak_xz(i,j)+coh(i,j)<=strinix(i,j))nuclOK=1
         enddo
       enddo
       if(nuclOK==0)return
@@ -205,7 +205,7 @@
 !      print *,'checking nucleation constraint 2'
 !Constraint on Mean Overstress:   
       allocate(strengthexcess1(nxt,nzt))
-      strengthexcess1(:,:)=strinix(:,:)-peak_xz(:,:)
+      strengthexcess1(:,:)=strinix(:,:)-(peak_xz(:,:)+coh(i,j))
       nuclsize=dh*dh*COUNT(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)
       meanoverstress=sum(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs),strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)*dh*dh/nuclsize
       deallocate(strengthexcess1)    
@@ -216,7 +216,7 @@
 
 
       nuclOK=0
-      if (minval(peak_xz(nabc+1:nxt-nabc,nabc+1:nzt-nfs)-strinix(nabc+1:nxt-nabc,nabc+1:nzt-nfs))<=0.) then !nucleation somewhere
+      if (minval(peak_xz(nabc+1:nxt-nabc,nabc+1:nzt-nfs)+coh(nabc+1:nxt-nabc,nabc+1:nzt-nfs)-strinix(nabc+1:nxt-nabc,nabc+1:nzt-nfs))<=0.) then !nucleation somewhere
 !        print *,'model nucleating'
         x0=0.
         z0=0.
@@ -226,7 +226,7 @@
           z=dh*(real(j-nabc)-0.5)
           do i=nabc+1,nxt-nabc
             x=dh*(real(i-nabc)-0.5)
-            if (peak_xz(i,j)<=strinix(i,j)) then 
+            if (peak_xz(i,j)+coh(i,j)<=strinix(i,j)) then 
               x0=x0+x
               z0=z0+z
               ncent=ncent+1
@@ -240,11 +240,11 @@
           do i=nabc+1,nxt-nabc
             x=dh*(real(i-nabc)-0.5)
             rr=sqrt((x-x0)**2+(z-z0)**2)
-            if (peak_xz(i,j)<=strinix(i,j) .and. rr>NuclConstraintR) then
+            if (peak_xz(i,j)+coh(i,j)<=strinix(i,j) .and. rr>NuclConstraintR) then
  !             print *,'nucleation zone:',x0,z0,x,z
               return !nucleations outside 
             endif
-            if (peak_xz(i,j)<=strinix(i,j) .and. rr<=NuclConstraintR) NuclOK=1 !nucleation is ok
+            if (peak_xz(i,j)+coh(i,j)<=strinix(i,j) .and. rr<=NuclConstraintR) NuclOK=1 !nucleation is ok
           enddo
         enddo
 !        open(1122,file='nuclcenter',access='append',status='unknown')
@@ -376,6 +376,7 @@
       enddo
     enddo
     dyn_xz=0.
+    coh=0.2e6
 
     END
     
@@ -407,6 +408,7 @@
       enddo
     enddo
     dyn_xz=0.
+	coh=0.
 
     END
     
@@ -513,7 +515,8 @@
       enddo
     j2=j2+1
     enddo
-
+	coh=0.
+	
     END
 
     SUBROUTINE readinversionresult()

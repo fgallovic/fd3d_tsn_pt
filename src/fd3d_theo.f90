@@ -266,8 +266,8 @@
       !$ACC      COPYIN (omegaz1,omegaz2,omegaz3,omegaz4) &
       !$ACC      COPYIN (omegaxS1,omegaxS2,omegaxS3,omegaxS4) &
       !$ACC      COPYIN (omegayS3,omegayS4,omegazS4) &
-      !$ACC      COPYIN (BROKEN,dyn_xz,gliss,STRINIX,PEAK_XZ,DC) &
-      !$ACC      COPY (INCRACK,RUPTIME,SLIPTIME,SLIP)
+      !$ACC      COPYIN (BROKEN,dyn_xz,gliss,STRINIX,PEAK_XZ,DC,coh) &
+      !$ACC      COPY (INCRACK,RUPTIME,SLIPTIME,SLIP,RISE)
       dht = dh/dt
       do it = 1,ntfd
         time = it*dt
@@ -395,7 +395,7 @@
 !   Classical slip weakening law
 !----------------------------------------------------------------------------
 
-            if (tabs.gt.peak_xz(i,k)) then
+            if (tabs.gt.peak_xz(i,k)+coh(i,k)) then
               broken(i,k)  = 1
               incrack(i,k) = 1
             endif
@@ -405,14 +405,15 @@
                 dd = 0.
               else
                 if (gliss(i,k).le.Dc(i,k)) then
-                  friction = peak_xz(i,k) * (1.0 - gliss(i,k)/Dc(i,k)) + dyn_xz(i,k)*gliss(i,k)/Dc(i,k)
+                  friction = peak_xz(i,k) * (1.0 - gliss(i,k)/Dc(i,k)) + dyn_xz(i,k)*gliss(i,k)/Dc(i,k) + coh(i,k)
                 else
-                  friction = dyn_xz(i,k)
+                  friction = dyn_xz(i,k) + coh(i,k)
                 endif
               endif
-
-              if ((ruptime(i,k).eq.1.e4).AND.(- 2*u1out>rup_tresh)) ruptime(i,k) = time
-              
+			  if (-2*u1out>rup_tresh) then
+			    if (ruptime(i,k).ne.1.e4) rise(i,k)=time
+			    if (ruptime(i,k).eq.1.e4) ruptime(i,k) = time
+              endif
 #if defined DIPSLIP
               !if (u1out .ge. 0.0) then
               if (tabs .ge. friction) then
@@ -547,7 +548,9 @@
          !close(410)
       endif
       deallocate(etot_out,epot_out,ekin_out,efault_out)
-
+	  
+	  rise=rise-ruptime
+	  
       tmax            = -1.
       output_param(1) =  0.
       nsurf           =  0
@@ -556,65 +559,47 @@
       denom           =  0.
       do k = nabc+1,nzt-nfs	
         do i = nabc+1,nxt-nabc
-          ! --- Average rupture speed:
-          if (ruptime(i,k).gt.tmax) then
-            xmax            = dh/2. + (i-1)*dh
-            ymax            = dh/2. + (nzt-(k-1))*dh
-!            dist            = sqrt((xmax-estk)**2 + (ymax-edip)**2) !nefunguje, nezna hypocentrum
-            tmax            = ruptime(i,k)
-!            output_param(1) = dist/tmax !nefunguje, nezna hypocentrum
-          endif
-
           ! --- Surface of rupture:
           if (incrack(i,k).eq.1) nsurf = nsurf + 1
-          output_param(3) = nsurf * (dh*dh)
-
+          
+		  output_param(3) = nsurf * (dh*dh)
           ! --- Seismic moment:
           output_param(2) = output_param(2) + slip(i,k)*mu1(i,nysc,k)*(dh*dh)
-
-           ! --- Rise time:  MUSI SE PREDEFINOVAT
-!           if (maxval(sliprate(i,k,:)).eq.0) then
-!             rise(i,k) = 0.
-!           elseif (ruptime(i,k).ne.0.) then
-!             rise(i,k) = slip(i,k)/maxval(sliprate(i,k,:))
-!           else
-!             rise(i,k) = 0.
-!           endif
-
-           ! --- Stress drop:
-           if (ruptime(i,k).ne.0.) then
-             numer = numer + schange(i,k)*slip(i,k)
-             denom = denom + slip(i,k)
-           endif
-           if (denom .ne. 0.0) then
-             output_param(4) = -(numer/denom)
-           else
-             output_param(4) = 0.0
-           endif
-
-         enddo
-       enddo
-       output_param(5) = (1./2.)**sum(peak_xz*Dc)/dble((nxt-2*nabc)*(nzt-nfs-nabc))
-       output_param(6) = (1./2.)*output_param(4)*(output_param(2)/(mu_mean*output_param(3)))
-       M0=output_param(2)
+          ! --- Stress drop:
+          
+		  if (ruptime(i,k).ne.0.) then
+            numer = numer + schange(i,k)*slip(i,k)
+            denom = denom + slip(i,k)
+          endif
+          if (denom .ne. 0.0) then
+            output_param(4) = -(numer/denom)
+          else
+            output_param(4) = 0.0
+          endif
+        enddo
+      enddo
+      output_param(5) = (1./2.)**sum(peak_xz*Dc)/dble((nxt-2*nabc)*(nzt-nfs-nabc))
+      output_param(6) = (1./2.)*output_param(4)*(output_param(2)/(mu_mean*output_param(3)))
+      M0=output_param(2)
 
 !---------------------------
 ! Write down the output
 !---------------------------
        if (ioutput.eq.1) then
-!         open(96,file='result/risetime.res')
+         open(96,file='result/risetime.res')
          open(97,file='result/ruptime.res')
          open(98,file='result/slip.res')
          open(99,file='result/stressdrop.res')
          do k = nabc+1,nzt-nfs
            do i = nabc+1,nxt-nabc
-!             write(96,*) rise(i,k)
+		   
+             write(96,*) rise(i,k)
              write(97,*) ruptime(i,k)
              write(98,*) slip(i,k)
              write(99,*) schange(i,k)
            enddo
          enddo
-!         close(96)
+         close(96)
          close(97)
          close(98)
          close(99)

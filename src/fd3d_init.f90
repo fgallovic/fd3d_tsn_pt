@@ -11,7 +11,7 @@
     MODULE friction_com
       USE fd3dparam_com
       USE pml_com
-      real,allocatable,dimension(:,:):: strinix,peak_xz,Dc,dyn_xz,gliss
+      real,allocatable,dimension(:,:):: strinix,peak_xz,Dc,dyn_xz,gliss,coh
 
       real:: dip
       real,parameter:: pi=3.1415926535
@@ -72,10 +72,10 @@
 ! Allocate FD module arrays
 !----------------------------
       allocate(lam1(nxt,nyt,nzt),mu1(nxt,nyt,nzt),d1(nxt,nyt,nzt))
-      allocate(strinix(nxt,nzt),peak_xz(nxt,nzt),Dc(nxt,nzt),dyn_xz(nxt,nzt),gliss(nxt,nzt))
+      allocate(strinix(nxt,nzt),peak_xz(nxt,nzt),Dc(nxt,nzt),dyn_xz(nxt,nzt),gliss(nxt,nzt),coh(nxt,nzt))
       allocate(ruptime(nxt,nzt),slip(nxt,nzt),rise(nxt,nzt),schange(nxt,nzt),sliptime(nxt,nzt))
 
-      strinix=0.;peak_xz=0.;Dc=0.
+     ! strinix=0.;peak_xz=0.;Dc=0.
 
 !------------------------------------------------------------
 ! Read the velocity model
