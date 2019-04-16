@@ -276,9 +276,13 @@
     close(201)
     close(202)
 
-    open(201,FILE='smaz.txt')
-    do j=1,nzt
-      write(201,'(10000E13.5)')(strengthexcess1(i,j,10),i=1,nxt)
+    open(201,FILE='processBayes.MomentRates.dat')
+    do k=1,NM
+      do j=1,nSR
+        write(201,'(10000E13.5)')dtseis*(j-1),MomentRate(j,k)
+      enddo
+      write(201,*)
+      write(201,*)
     enddo
     close(201)
     
