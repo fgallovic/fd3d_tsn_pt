@@ -48,31 +48,33 @@
     call fd3d_init()  !Reads FD parameters
     call inversion_init()  !Reads GFs, observed waveforms
 
+    if(RUNI==1.or.RUNI==2)then
 #if defined MPI
-    if(mrank>0 .or. ncpu==1)then
+      if(mrank>0 .or. ncpu==1)then
+        ifile=1111+mrank
+        write(fname,'(a,i3.3)') 'samples',mrank
+        open(unit=ifile,file=trim(fname),iostat=ierr,STATUS='REPLACE')
+        write(fname,'(a,i3.3)') 'sampls',mrank
+        open(unit=ifile+2,file=trim(fname),iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
+        write(rname,'(a,i3.3)') 'restart',mrank
+        if (iwaveform==2) then
+         write(dname,'(a,i3.3)') 'SA', mrank
+         open(unit=ifile*10,file=trim(dname),iostat=ierr,access='STREAM',STATUS='REPLACE')
+        endif
+      endif
+#else
       ifile=1111+mrank
       write(fname,'(a,i3.3)') 'samples',mrank
-      open(unit=ifile,file=trim(fname),iostat=ierr)
+      open(unit=ifile,file=trim(fname),iostat=ierr,STATUS='REPLACE')
       write(fname,'(a,i3.3)') 'sampls',mrank
-      open(unit=ifile+2,file=trim(fname),iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
+      open(unit=ifile+2,file=trim(fname),iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
       write(rname,'(a,i3.3)') 'restart',mrank
       if (iwaveform==2) then
-       write(dname,'(a,i3.3)') 'SA', mrank
-       open(unit=ifile*10,file=trim(dname),iostat=ierr,access='stream')
-      endif
-    endif
-#else
-    ifile=1111+mrank
-    write(fname,'(a,i3.3)') 'samples',mrank
-    open(unit=ifile,file=trim(fname),iostat=ierr)
-    write(fname,'(a,i3.3)') 'sampls',mrank
-    open(unit=ifile+2,file=trim(fname),iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
-    write(rname,'(a,i3.3)') 'restart',mrank
-      if (iwaveform==2) then
-       write(dname,'(a,i3.3)') 'SA', mrank
-       open(unit=ifile*10,file=trim(dname),iostat=ierr,access='stream')
+        write(dname,'(a,i3.3)') 'SA', mrank
+        open(unit=ifile*10,file=trim(dname),iostat=ierr,access='STREAM',STATUS='REPLACE')
       endif
 #endif
+    endif
     
     if(RUNI==0.or.RUNI==10)then !    Call the forward modelling only
       write(*,*)'Running forward modeling:'
