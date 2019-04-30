@@ -7,6 +7,7 @@
     USE mod_pt
     USE mod_ctrl
     USE pml_com
+    USE SlipRates_com
 #if defined GPUMPI
     USE openacc
 #endif
@@ -120,10 +121,18 @@
         write(594,'(10000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:)
         close(594)
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
-        write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(:,:),slip(:,:),rise(:,:),schange(:,:)
+        write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slip(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schange(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:)
         close(594)
       elseif (iwaveform==2) then
-       call evalmisfit2()
+        call evalmisfit2()
+        open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
+        write(594,'(10000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:)
+        close(594)
+        open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
+        write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slip(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schange(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:)
+        close(594)
       endif
       
     elseif(RUNI==1)then  ! Inversion from an initial model
