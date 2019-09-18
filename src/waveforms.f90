@@ -85,7 +85,7 @@
     iT2=T2/dtseis+1
     nT=iT2-iT1+1
     nSR=int(real(ntfd)/(dtseis/dt))
-    allocate(MSR(NL*NW*nSR),MomentRate(nSR))
+    allocate(MSRX(NL*NW*nSR),MSRZ(NL*NW*nSR),MomentRate(nSR))
 
     if(iwaveform==0)return
     
@@ -222,8 +222,7 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     endif 
     
     END
-    
-   
+
     SUBROUTINE syntseis()
     USE waveforms_com
     USE source_com
@@ -248,8 +247,13 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
           jj=(j-1)*NL+i
           do k=1,nSR
             m=m+1
-            sr(k,jj)=MSR(m)
-            slipGF(jj)=slipGF(jj)+MSR(m)*dtseis
+#if defined DIPSLIP 
+            sr(k,jj)=MSRZ(m)
+            slipGF(jj)=slipGF(jj)+MSRZ(m)*dtseis
+#else
+            sr(k,jj)=MSRX(m)
+            slipGF(jj)=slipGF(jj)+MSRX(m)*dtseis			
+#endif			
           enddo
         enddo
       enddo
@@ -258,7 +262,11 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     if (ioutput.eq.1) then
       open(297,FILE='mtilde.dat',iostat=ierr)
 !      if (ierr/=0) print *,'error while opening file mtilde.dat'
-      write(297,'(1E13.5)')MSR
+#if defined DIPSLIP 
+      write(297,'(1E13.5)')MSRZ
+#else
+      write(297,'(1E13.5)')MSRX
+#endif	  
       close(297)
       open(297,FILE='mtildemomentrate.dat')
       do k=1,nSR
@@ -271,7 +279,11 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
        Dsynt=0.
     else
       if(iwaveform==1)then
-        Dsynt=matmul(H,MSR)*dtseis
+#if defined DIPSLIP 
+        Dsynt=matmul(H,MSRZ)*dtseis
+#else	
+        Dsynt=matmul(H,MSRX)*dtseis
+#endif
       elseif(iwaveform==2) then
         allocate(cseis(np,nl*nw),seis1(np))
         maxslip=maxval(slipGF)

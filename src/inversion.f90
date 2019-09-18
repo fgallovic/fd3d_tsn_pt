@@ -121,8 +121,8 @@
       DcA(:,:,ichain)=DcI(:,:)
       ruptimeA(:,:,ichain)=ruptime(:,:)
       riseA(:,:,ichain)=rise(:,:)
-      slipA(:,:,ichain)=slip(:,:)
-      schangeA(:,:,ichain)=schange(:,:)
+      slipA(:,:,ichain)=slipZ(:,:)
+      schangeA(:,:,ichain)=schangeZ(:,:)
       MomentRateA(:,ichain)=MomentRate(:)
       if (iwaveform==2) then
         ruptdistA(:,ichain)=ruptdist(:)
@@ -173,8 +173,13 @@
 !          write(*,*)'Dc',i,j,Dc(i,j),Dcmin,DcMax
           return
         endif
-        if(strinix(i,j)<strinixMin.or.strinix(i,j)>strinixMax)then
-!          write(*,*)'Strinix',i,j,strinix(i,j),strinixMin,strinixMax
+#if defined DIPSLIP
+        if(striniZ(i,j)<strinixMin.or.striniZ(i,j)>strinixMax)then
+!          write(*,*)'Strinix',i,j,striniZ(i,j),strinixMin,strinixMax
+#else
+        if(striniX(i,j)<strinixMin.or.striniX(i,j)>strinixMax)then
+!          write(*,*)'Strinix',i,j,striniX(i,j),strinixMin,strinixMax
+#endif
           return
         endif
         if(peak_xz(i,j)/normstress(j)<peak_xzMin.or.peak_xz(i,j)/normstress(j)>peak_xzMax)then
@@ -193,11 +198,19 @@
         do i=nabc+1,nxt-nabc
           x=dh*(real(i-nabc)-0.5)
           rr=(x-NuclConstraintL)**2+(z-NuclConstraintW)**2
-          if(rr>NuclConstraintR**2.and.peak_xz(i,j)+coh(i,j)<=strinix(i,j))then
-!            write(*,*)'Nucl',x,z,peak_xz(i,j)-strinix(i,j)
+#if defined DIPSLIP
+          if(rr>NuclConstraintR**2.and.peak_xz(i,j)+coh(i,j)<=striniZ(i,j))then
+!            write(*,*)'Nucl',x,z,peak_xz(i,j)-striniZ(i,j)
             return    !nucleation outside the nucleation zone
           endif
-          if(rr<=NuclConstraintR**2.and.peak_xz(i,j)+coh(i,j)<=strinix(i,j))nuclOK=1
+          if(rr<=NuclConstraintR**2.and.peak_xz(i,j)+coh(i,j)<=striniZ(i,j))nuclOK=1
+#else
+          if(rr>NuclConstraintR**2.and.peak_xz(i,j)+coh(i,j)<=striniX(i,j))then
+!            write(*,*)'Nucl',x,z,peak_xz(i,j)-striniX(i,j)
+            return    !nucleation outside the nucleation zone
+          endif
+          if(rr<=NuclConstraintR**2.and.peak_xz(i,j)+coh(i,j)<=striniX(i,j))nuclOK=1
+#endif
         enddo
       enddo
       if(nuclOK==0)return
@@ -205,7 +218,11 @@
 !      print *,'checking nucleation constraint 2'
 !Constraint on Mean Overstress:   
       allocate(strengthexcess1(nxt,nzt))
-      strengthexcess1(:,:)=strinix(:,:)-(peak_xz(:,:)+coh(i,j))
+#if defined DIPSLIP
+      strengthexcess1(:,:)=striniZ(:,:)-(peak_xz(:,:)+coh(i,j))
+#else
+      strengthexcess1(:,:)=striniX(:,:)-(peak_xz(:,:)+coh(i,j))
+#endif
       nuclsize=dh*dh*COUNT(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)
       meanoverstress=sum(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs),strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)*dh*dh/nuclsize
       deallocate(strengthexcess1)    
@@ -214,9 +231,12 @@
         return !mean overstress is too large
       endif
 
-
       nuclOK=0
-      if (minval(peak_xz(nabc+1:nxt-nabc,nabc+1:nzt-nfs)+coh(nabc+1:nxt-nabc,nabc+1:nzt-nfs)-strinix(nabc+1:nxt-nabc,nabc+1:nzt-nfs))<=0.) then !nucleation somewhere
+#if defined DIPSLIP
+      if (minval(peak_xz(nabc+1:nxt-nabc,nabc+1:nzt-nfs)+coh(nabc+1:nxt-nabc,nabc+1:nzt-nfs)-striniZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs))<=0.) then !nucleation somewhere
+#else
+      if (minval(peak_xz(nabc+1:nxt-nabc,nabc+1:nzt-nfs)+coh(nabc+1:nxt-nabc,nabc+1:nzt-nfs)-striniX(nabc+1:nxt-nabc,nabc+1:nzt-nfs))<=0.) then !nucleation somewhere
+#endif
 !        print *,'model nucleating'
         x0=0.
         z0=0.
@@ -226,7 +246,11 @@
           z=dh*(real(j-nabc)-0.5)
           do i=nabc+1,nxt-nabc
             x=dh*(real(i-nabc)-0.5)
-            if (peak_xz(i,j)+coh(i,j)<=strinix(i,j)) then 
+#if defined DIPSLIP
+            if (peak_xz(i,j)+coh(i,j)<=striniZ(i,j)) then 
+#else
+            if (peak_xz(i,j)+coh(i,j)<=striniX(i,j)) then 
+#endif
               x0=x0+x
               z0=z0+z
               ncent=ncent+1
@@ -240,11 +264,19 @@
           do i=nabc+1,nxt-nabc
             x=dh*(real(i-nabc)-0.5)
             rr=sqrt((x-x0)**2+(z-z0)**2)
-            if (peak_xz(i,j)+coh(i,j)<=strinix(i,j) .and. rr>NuclConstraintR) then
+#if defined DIPSLIP
+            if (peak_xz(i,j)+coh(i,j)<=striniZ(i,j) .and. rr>NuclConstraintR) then
  !             print *,'nucleation zone:',x0,z0,x,z
               return !nucleations outside 
             endif
-            if (peak_xz(i,j)+coh(i,j)<=strinix(i,j) .and. rr<=NuclConstraintR) NuclOK=1 !nucleation is ok
+            if (peak_xz(i,j)+coh(i,j)<=striniZ(i,j) .and. rr<=NuclConstraintR) NuclOK=1 !nucleation is ok
+#else
+            if (peak_xz(i,j)+coh(i,j)<=striniX(i,j) .and. rr>NuclConstraintR) then
+ !             print *,'nucleation zone:',x0,z0,x,z
+              return !nucleations outside 
+            endif
+            if (peak_xz(i,j)+coh(i,j)<=striniX(i,j) .and. rr<=NuclConstraintR) NuclOK=1 !nucleation is ok
+#endif
           enddo
         enddo
 !        open(1122,file='nuclcenter',access='append',status='unknown')
@@ -322,8 +354,8 @@
     DcA(:,:,ichain)=DcI(:,:)
     ruptimeA(:,:,ichain)=ruptime(:,:)
     riseA(:,:,ichain)=rise(:,:)
-    slipA(:,:,ichain)=slip(:,:)
-    schangeA(:,:,ichain)=schange(:,:)
+    slipA(:,:,ichain)=slipZ(:,:)
+    schangeA(:,:,ichain)=schangeZ(:,:)
     VRA(ichain)=VR
     MomentRateA(:,ichain)=MomentRate(:)
     if (iwaveform==2) then
@@ -370,155 +402,26 @@
         XS=dh*(i-1-nabc)+dh/2.
         ii=int(XS/DL)+1
         t=(XS-DL*(ii-1))/DL
-        strinix(i,k)=(1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)
+#if defined DIPSLIP
+        striniZ(i,k)=(1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)
+        striniX(i,k)=0.
+#else
+        striniX(i,k)=(1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)
+        striniZ(i,k)=0.
+#endif
         peak_xz(i,k)=((1.-t)*(1.-u)*TsI(ii,kk)+t*(1.-u)*TsI(ii+1,kk)+t*u*TsI(ii+1,kk+1)+(1.-t)*u*TsI(ii,kk+1))*normstress(k)
         Dc(i,k)     =(1.-t)*(1.-u)*DcI(ii,kk)+t*(1.-u)*DcI(ii+1,kk)+t*u*DcI(ii+1,kk+1)+(1.-t)*u*DcI(ii,kk+1)
       enddo
     enddo
     dyn_xz=0.
-    coh=0.2e6
+    coh=0.e6
 
     END
     
     
-    SUBROUTINE forwardspecial1()
-    USE friction_com
-    USE fd3dparam_com
-    USE pml_com
-    IMPLICIT NONE
-    REAL,PARAMETER:: x0=14.e3,z0=6.e3,a=10.e3,b=3.e3,phi=0.
-    REAL,PARAMETER:: xn=17.e3,zn=6.e3,rn=1.e3
-    real x,z,rr
-    integer i,j
-    
-    do j = nabc+1,nzt-nfs
-      z=dh*(real(j-nabc)-0.5)
-      do i = nabc+1,nxt-nabc
-        x=dh*(real(i-nabc)-0.5)
-        strinix(i,j) = 0.e6  !prestress
-        peak_xz(i,j) = 20.e6  !strength
-        Dc(i,j)=0.2  !Dc
-        rr=sqrt((x-x0)**2/a**2+(z-z0)**2/b**2)
-        if(rr<1.)then
-          peak_xz(i,j) = 8.e6
-          strinix(i,j)=peak_xz(i,j)*0.9
-        endif
-        rr=sqrt((x-xn)**2+(z-zn)**2)
-        if(rr<rn)strinix(i,j)=peak_xz(i,j)*1.1
-      enddo
-    enddo
-    dyn_xz=0.
-	coh=0.
-
-    END
-    
+  
 	
-    SUBROUTINE forwardspecialTPV5()
-    USE inversion_com
-    USE fd3dparam_com
-    USE friction_com
-    USE medium_com
-    IMPLICIT NONE
-    REAL,PARAMETER:: x0=15.e3,z0=6.e3,a=10.e3,b=4.e3,phi=0.,xn=17.e3,zn=6.e3,rn=1.5e3
-    real hx0, hz0, h1x0, h1z0, h2x0, h2z0, hdelta, T0, T0n, sn, mus, mud, d0h
-    real x,z,rr,DL,DW, muso, T0h1, T0h2
-    integer i,j,k,no0,j2
-    real dum
-    real d_zone, vlow_zone
-
-    open(244,FILE='scecmodel.dat')
-    read (244,*) no0, hx0, hz0, h1x0, h1z0, h2x0, h2z0  !okraj,stred nukleace, stred leve heterogenity, stred prave heterogenity
-    read (244,*) hdelta ! sirka nukleacni zony
-    read (244,*) T0, T0n, T0h1, T0h2 ! predpeti, predpeti v nukleacni zone
-    read (244,*) sn ! normalove napeti
-    read (244,*) mus, muso !staticke treni, staticke treni na okraji
-    read (244,*) mud !dynamicke treni
-    read (244,*) d0h ! kriticky slip
-    read (244,*) d_zone, vlow_zone ! sirka zlomove zony, pokles elastickeho modulu ve zlomove zone
-
-    !read(244,*)dum,dum,T0I(:,:),TsI(:,:),DcI(:,:)
-    close(244)
-
-    !DL=dh*nxt/real(NLI-1)
-    !DW=dh*nzt/real(NWI-1)
-    !do j = 1,NWI
-    !  z=DW*(real(j)-0.5)
-    !  do i = 1,NLI
-    !    x=DL*(real(i)-0.5)
-    !    T0I(i,j) = 0.e6  !prestress
-    !    TSI(i,j) = 50.e6  !strength
-    !    DCI(i,j)=0.2  !Dc
-    !    rr=sqrt((x-x0)**2/a**2+(z-z0)**2/b**2)
-    !    if(rr<1.)then
-    !      TSI(i,j) = 8.e6
-    !      T0I(i,j)=TSI(i,j)*0.9
-    !    endif
-    !    rr=sqrt((x-xn)**2+(z-zn)**2)
-    !    if(rr<rn)T0I(i,j)=TSI(i,j)*1.1
-    !  enddo
-    !enddo
-
-    !CALL inversion_modeltofd3d()
-
-    do k=1,nzt-2
-        do i = 1,nxt
-	    strinix(i,k)=T0
-
-           if ((((real(i)-1.)*dh-hx0>= -hdelta/2.0) .and. ((real(i)-1.)*dh-hx0 <= hdelta/2.0)) &
-            .and. (((real(k)-1.)*dh-hz0>= -hdelta/2.0) .and. ((real(k)-1.)*dh-hz0 <= hdelta/2.0))) then
-                strinix(i,k)=T0n
-            endif
-            if ((((real(i)-1.)*dh-h1x0>= -hdelta/2.0) .and. ((real(i)-1.)*dh-h1x0 <= hdelta/2.0)) &
-            .and. (((real(k)-1.)*dh-h1z0>= -hdelta/2.0) .and. ((real(k)-1.)*dh-h1z0 <= hdelta/2.0))) then
-                strinix(i,k)=T0h1
-            endif
-
-            if ((((real(i)-1.)*dh-h2x0>= -hdelta/2.0) .and. ((real(i)-1.)*dh-h2x0 <= hdelta/2.0)) &
-            .and. (((real(k)-1.)*dh-h2z0>= -hdelta/2.0) .and. ((real(k)-1.)*dh-h2z0 <= hdelta/2.0))) then
-                strinix(i,k)=T0h2
-            endif
-
-            peak_xz(i,k)=sn*muso
-            dyn_xz(i,k) = sn*mud
-            Dc(i,k)=d0h
-        enddo
-    enddo
-
-    do k=no0+1,nzt-2
-        do i = no0+1,nxt-no0
-
-            peak_xz(i,k)=sn*mus
-
-        enddo
-    enddo
-
-    do i=1,nxt
-      peak_xz(i,nzt-1)=peak_xz(i,nzt-2)
-      dyn_xz(i,nzt-1)=dyn_xz(i,nzt-2)
-      Dc(i,nzt-1)=Dc(i,nzt-2)
-      strinix(i,nzt-1)=strinix(i,nzt-2)
-      peak_xz(i,nzt)=peak_xz(i,nzt-3)
-      dyn_xz(i,nzt)=dyn_xz(i,nzt-3)
-      Dc(i,nzt)=Dc(i,nzt-3)
-      strinix(i,nzt)=strinix(i,nzt-3)
-    enddo
-
-    !Zlomova zona
-    j2=0
-    do while (j2*dh<d_zone)
-      j=nyt-j2
-      do k=1,nzt-2
-        do i=1,nxt
-          lam1(i,j,k)=(1-vlow_zone)**2*lam1(i,j,k)
-          mu1(i,j,k)=(1-vlow_zone)**2*mu1(i,j,k)
-        enddo
-      enddo
-    j2=j2+1
-    enddo
-	coh=0.
-	
-    END
-
+    
     SUBROUTINE readinversionresult()
     USE inversion_com
     USE fd3dparam_com

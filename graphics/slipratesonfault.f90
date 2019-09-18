@@ -157,7 +157,7 @@
       write(211,*)kk-1,' notitle w l lt -1 lw 1, \'
       write(211,*)'"slipratesonfault.grid.dat" u 1:2:(0) index \'
       write(211,*)kk-1,' notitle w l lt 0 lw 1,\'
-      write(211,*)'"aftershocks-onfault.dat" u 1:2:(0) notitle w p ps .5 lc 9,\'
+      write(211,*)'"aftershocks-onfault.dat" u 1:2:(0) notitle w p ps .2 lc 9,\'
       write(211,*)'"epic.dat" u 1:2:(0) index ',kk-1,' notitle w p pt 3 lc 3 ps 2.'
 
       deallocate(mtilde,CM,cumulmtilde,rupttime,risetime,peaktime)

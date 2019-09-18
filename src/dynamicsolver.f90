@@ -25,11 +25,6 @@
     call system_clock(iseed)
     iseed=-iseed
     call alloc_temp(iseed)
-#if defined DIPSLIP
-    write(*,*)'This is DIP-SLIP version.'
-#else
-    write(*,*)'This is STRIKE-SLIP version.'
-#endif
 
 #if defined MPI
     call MPI_COMM_RANK(MPI_COMM_WORLD,mrank,ierr)
@@ -79,13 +74,27 @@
     
     if(RUNI==0.or.RUNI==10)then !    Call the forward modelling only
       write(*,*)'Running forward modeling:'
-!      CALL forwardspecial1()
-!      CALL forwardspecialTPV5()
+
+#if defined TPV5
+		CALL forwardspecialTPV5()
+#endif
+#if defined TPV8
+		CALL forwardspecialTPV8()
+#endif
+#if defined TPV9
+		CALL forwardspecialTPV9()
+#endif
+#if defined TPV104
+		CALL forwardspecialTPV104()
+#endif
+#if defined circle
+        CALL forwardspecial1()
+#endif
       CALL readinversionresult()
       ioutput=1
       if(iwaveform==0)write(*,*)'Note: No seismogram calculation.'
       if(RUNI==10)then
-        CALL randomdynmod(nxt,nzt,dh,strinix,peak_xz,Dc)
+        CALL randomdynmod(nxt,nzt,dh,striniZ,peak_xz,Dc)
       endif
       if(RUNI==0)then
         write(*,*)'Note: Saving normal stress profile.'
@@ -96,7 +105,11 @@
         close(719)
       endif
       write(*,*)'Running dynamic rupture simulation...'
-      CALL validatefd3dmodel(err)
+#if defined FVW
+	err=.false.
+#else
+    CALL validatefd3dmodel(err)  
+#endif
       if(err)then
         write(*,*)'Forward model violates constraints!'
       else
@@ -108,9 +121,9 @@
       print *,'Seismic moment:      ',output_param(2)
       print *,'Surface of rupture:  ',output_param(3)
       print *,'Average stress drop: ',output_param(4)
-      print *,'Energy release rate: ',output_param(5)
-      print *,'Available energy:    ',output_param(6)
-      print *,'kappa:               ',output_param(6)/output_param(5)
+ !     print *,'Energy release rate: ',output_param(5)
+ !     print *,'Available energy:    ',output_param(6)
+ !     print *,'kappa:               ',output_param(6)/output_param(5)
       print *,'-----------------------------------------------------'
       call syntseis()
       if(iwaveform==1)then
@@ -121,8 +134,8 @@
         write(594,'(10000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:)
         close(594)
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
-        write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slip(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
-          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schange(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:)
+        write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:)
         close(594)
       elseif (iwaveform==2) then
         call evalmisfit2()
@@ -130,8 +143,8 @@
         write(594,'(10000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:)
         close(594)
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
-        write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slip(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
-          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schange(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:)
+        write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:)
         close(594)
       endif
       
@@ -194,9 +207,9 @@
         print *,'Seismic moment:      ',output_param(2)
         print *,'Surface of rupture:  ',output_param(3)
         print *,'Average stress drop: ',output_param(4)
-        print *,'Energy release rate: ',output_param(5)
-        print *,'Available energy:    ',output_param(6)
-        print *,'kappa:               ',output_param(6)/output_param(5)
+!        print *,'Energy release rate: ',output_param(5)
+!        print *,'Available energy:    ',output_param(6)
+!        print *,'kappa:               ',output_param(6)/output_param(5)
         print *,'-----------------------------------------------------'
         call syntseis()
         call evalmisfit()

@@ -8,9 +8,11 @@ f=open('input.dat','r').readlines()
 L,W=float(f[17].split()[0])/1000.,float(f[17].split()[1])/1000.
 
 fricpar=loadtxt('result/friction.inp')
-T0=fricpar[:,0].reshape((nzt,nxt))/1.e6
-Ts=fricpar[:,1].reshape((nzt,nxt))/1.e6
-Dc=fricpar[:,2].reshape((nzt,nxt))
+T0x=fricpar[:,0].reshape((nzt,nxt))/1.e6
+T0z=fricpar[:,1].reshape((nzt,nxt))/1.e6
+T0=T0x
+Ts=fricpar[:,2].reshape((nzt,nxt))/1.e6
+Dc=fricpar[:,3].reshape((nzt,nxt))
 f=open('friction.gnuplot.dat','w')
 for j in range(nzt):
   f.write(' '.join([str(T0[j,i]) for i in range(nxt)])+'\n')
@@ -52,25 +54,25 @@ set title 'Prestress (MPa)'
 #set cbtics 0.1
 #set cbrange [-2:9]
 plot 'friction.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 0 notitle w image,\
-"aftershocks-onfault.dat" notitle w p ps .2 lc 9
+"aftershocks-onfault.dat" notitle w p ps .5 lc 10
 
 set origin .5,.5
 set title 'Strength (MPa)'
 #set cbtics 0.1
 #set cbrange [0:2.5]
 plot 'friction.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 1 notitle w image,\
-"aftershocks-onfault.dat" notitle w p ps .2 lc 9
+"aftershocks-onfault.dat" notitle w p ps .5 lc 10
 
 set origin 0.,0.2
 set title 'Dc (m)'
 #set cbtics 0.1
 plot 'friction.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 2 notitle w image,\
-"aftershocks-onfault.dat" notitle w p ps .2 lc 9
+"aftershocks-onfault.dat" notitle w p ps .5 lc 10
 
 set origin 0.5,0.2
 set title 'Mu (GPa)'
 #set cbtics 0.1
 plot 'friction.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 3 notitle w image,\
-"aftershocks-onfault.dat" notitle w p ps .2 lc 9
+"aftershocks-onfault.dat" notitle w p ps .5 lc 10
 
 END

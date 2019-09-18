@@ -1,3 +1,21 @@
+!-------------------------------------------------------
+! Finite difference formulas (2nd and 4th order in space) including
+! modified differences near fault boundary, perfectly matched layers 
+!(including initialization of the fields),
+! free surface and Newton method solution of the nonlinear equation 
+! in fvw friction.
+!-------------------------------------------------------
+! Authors: Jan Premus and Frantisek Gallovic (8/2019)
+! Charles University in Prague, Faculty of Mathematics and Physics
+
+! This code is published under the GNU General Public License. To any
+! licensee is given permission to modify the work, as well as to copy
+! and redistribute the work or any derivative version. Still we would
+! like to kindly ask you to acknowledge the authors and don't remove
+! their names from the code. This code is distributed in the hope
+! that it will be useful, but WITHOUT ANY WARRANTY.
+! ------------------------------------------------------
+
       subroutine dvel(nxt,nyt,nzt,dt,dh)
          USE pml_com
 !----------------------------------------------------------
@@ -189,8 +207,9 @@
          USE displt_com
          USE strfld_com
 !----------------------------------------------------------
-!     bnd2d finds 2nd-order differencing of wave eq at bnd
-!     to obtain the velocity values
+!     bnd2d finds 2nd-order differencing of wave eq at fault bnd
+!     to obtain the velocity values and applies along the fault 
+!     symmetry to the normal component of velocity
 !     nxt   nodal points in x dir          (integer)(sent)
 !     nyt   nodal points in y dir          (integer)(sent)
 !     nzt   nodal points in z dir          (integer)(sent)
@@ -199,17 +218,25 @@
 !----------------------------------------------------------
       integer :: nxt,nyt,nzt
       real    :: dh,dt
-
  !----------------------------------------------------------
 !     Find displacement fields at time t+1/2 at y=nysc-1 2nd
 !     order differences
 !----------------------------------------------------------
 
-      call uxx0a (nabc+1, nxt-nabc, nyt+1, nyt+1, nabc+1, nzt-nfs,dh, dt)
-
-      call vyy0a (nabc+1, nxt-nabc, nyt+1, nyt+1, nabc+1, nzt-nfs,dh, dt)
-
-      call wzz0a (nabc+1, nxt-nabc, nyt+1, nyt+1, nabc+1, nzt-nfs,dh, dt)
+      call uxx0a(nabc+1, nxt-nabc, nyt-1, nyt-1, nabc+1, nzt-nfs,dh, dt)
+      call vyy0a(nabc+1, nxt-nabc, nyt-1, nyt-1, nabc+1, nzt-nfs,dh, dt)
+      call wzz0a(nabc+1, nxt-nabc, nyt-1, nyt-1, nabc+1, nzt-nfs,dh, dt)
+	  		 
+	  !$ACC PARALLEL DEFAULT (PRESENT)
+      !$ACC LOOP GANG
+      do i = 1,nxt
+      !$ACC LOOP VECTOR
+        do k = 1,nzt
+            v1(i,nyt,k)=v1(i,nyt-1,k) 
+        enddo
+      enddo
+      !$ACC END PARALLEL
+	  
       return
       end
 !----------------------------------------------------------
@@ -610,7 +637,8 @@
       enddo
       !$ACC END PARALLEL
 
-
+		!call sxy1(nabc+1,(nxt-nabc),nyt+1,nyt+1,nabc+1,(nzt-nfs))
+		!call syz1(nabc+1,(nxt-nabc),nyt+1,nyt+1,nabc+1,(nzt-nfs))
 
       return
       end
@@ -775,7 +803,10 @@
 !----------------------------------------------------------
 !----------------------------------------------------------
       subroutine strbnd(nxt,nyt,nzt,dh,dt)
-         USE pml_com
+        
+		USE pml_com
+		USE displt_com
+	    USE strfld_com
 !----------------------------------------------------------
 !     2th order finite-difference of stresses at boundaries
 !     nxt   nodal points in x dir  (integer)(sent)
@@ -791,10 +822,21 @@
 !     compute all stresses at y = nysc-1 with 2nd order difference operator
 !----------------------------------------------------------
 
-      call sxx (nabc+1,nxt-nabc, nyt+1, nyt+1, nabc+1,nzt-nfs,dh,dt)
-      call sxy0(nabc+1,nxt-nabc, nyt+1, nyt+1, nabc+1,nzt-nfs,dh,dt)
-      call sxz0(nabc+1,nxt-nabc, nyt+1, nyt+1, nabc+1,nzt-nfs,dh,dt)
-      call syz0(nabc+1,nxt-nabc, nyt+1, nyt+1, nabc+1,nzt-nfs,dh,dt)
+      call sxx (nabc+1,nxt-nabc, nyt-1, nyt-1, nabc+1,nzt-nfs,dh,dt)
+      call sxy0(nabc+1,nxt-nabc, nyt-1, nyt-1, nabc+1,nzt-nfs,dh,dt)
+      call sxz0(nabc+1,nxt-nabc, nyt-1, nyt-1, nabc+1,nzt-nfs,dh,dt)
+      call syz0(nabc+1,nxt-nabc, nyt-1, nyt-1, nabc+1,nzt-nfs,dh,dt)
+	  
+	  !$ACC PARALLEL DEFAULT (PRESENT)
+      !$ACC LOOP GANG
+      do i = 1,nxt
+        !$ACC LOOP VECTOR
+        do k = 1,nzt
+          xy(i,nyt,k)=xy(i,nyt-1,k)
+          yz(i,nyt,k)=yz(i,nyt-1,k)
+        enddo
+      enddo
+      !$ACC END PARALLEL
 
       return
       end
@@ -1014,9 +1056,10 @@
      subroutine fuvw(nxt,nyt,nzt)
       USE medium_com
       USE displt_com
+	  USE traction_com
 
 !     free-surface B.C. for velocities
-
+		real temp
 !     nxt   nodal points in x dir (integer)(sent)
 !     nyt   nodal points in y dir (integer)(sent)
 !     nzt   nodal points in z dir (integer)(sent)
@@ -1043,18 +1086,21 @@
 
       !$ACC PARALLEL DEFAULT (PRESENT)
       !$ACC LOOP GANG
-      do j=2,nyt !mozna nyt 
+      do j=2,nyt
       !$ACC LOOP VECTOR
          do i=2,nxt-2
+			
             xl=lam1(i,j,nzt+1)
             xm=mu1(i,j,nzt+1)
             a=2.*xl
             b=xl+2.*xm
-            w1(i,j,nzt+1)=w1(i,j,nzt-1)-(a/b)*(u1(i+1,j,nzt)-u1(i,j,nzt)+u1(i+1,j,nzt+1)-u1(i,j,nzt+1) &
-                          +v1(i,j,nzt)-v1(i,j-1,nzt)+v1(i,j,nzt+1)-v1(i,j-1,nzt+1))
+            w1(i,j,nzt+1)=+(w1(i,j,nzt-1)-(a/b)*(u1(i+1,j,nzt)-u1(i,j,nzt)+u1(i+1,j,nzt+1)-u1(i,j,nzt+1) &
+            +v1(i,j,nzt)-v1(i,j-1,nzt)+v1(i,j,nzt+1)-v1(i,j-1,nzt+1)))
+
          enddo
       enddo
       !$ACC END PARALLEL
+	  
 
     end
 
@@ -1108,6 +1154,9 @@
       USE strfld_com
       USE traction_com
       USE pml_com
+#if defined FVW
+	  USE friction_com, only: Sn, psiX, v0, uini,wini, aX,striniZ,striniX,wX, tabsX
+#endif
 !u component at the fault
 
 !     nxt   nodal points in x dir  (integer)(sent)
@@ -1118,6 +1167,12 @@
 
       real    ::  dh, dt, d, dth
       integer :: nxt, nyt, nzt
+#if defined FVW
+	  real :: u2, uc, uw1, fw, dfw, ferr, sr, vtilde, cdelta
+	  integer :: j,jmax
+
+#endif	  	  
+
 
       dth = dt/dh
 
@@ -1127,7 +1182,31 @@
       !$ACC LOOP VECTOR
           do i = nabc+1,nxt-nabc
             d         = d1(i,nyt,k)
-            u1(i,nyt,k) = u1(i,nyt,k) + (dth/d)*(2*(tx(i,k) + RFx(i,k)))
+#if defined FVW
+			d         = d1(i,nyt,k)
+			sr = sqrt((2.*(wX(i,k)-wini))**2+(2.*(u1(i,nyt,k)-uini))**2)
+			cdelta = 2.*(dth/d)*Sn*aX(i,k)
+			uw = asinh(exp(psiX(i,k)/aX(i,k))*sr/(2*v0))
+			vtilde=-sqrt((wX(i,k) + 2.*(dth/d)*((RFz(i,k)+RFz(i-1,k)+RFz(i,k-1)+RFz(i-1,k-1))/4.-striniZ(i,k)))**2+(u1(i,nyt,k) +2.*(dth/d)*(RFx(i,k)-striniX(i,k)))**2)
+			ferr = 10.
+			j = 0
+			jmax=100
+			do while (ferr>1e-5)
+				j = j+1
+				fw =  vtilde + cdelta*uw + sinh(uw)*v0*exp(-psiX(i,k)/aX(i,k))
+				dfw = cdelta + cosh(uw)*v0*exp(-psiX(i,k)/aX(i,k))
+				ferr = fw/dfw
+				uw = uw - ferr
+				if (jmax<j)then
+				print*, 'newton error?', uw, ferr
+				!pause
+				endif
+			enddo
+
+			u1(i,nyt,k)= (tx(i,k) + striniX(i,k))*(-sinh(uw))*v0*exp(-psiX(i,k)/aX(i,k))/tabsX(i,k) - uini
+#else
+            u1(i,nyt,k) = u1(i,nyt,k) + (dth/d)*2*(tx(i,k) + RFx(i,k))
+#endif
           enddo
       enddo
       !$ACC END PARALLEL
@@ -1141,6 +1220,9 @@
       USE strfld_com
       USE traction_com
       USE pml_com
+#if defined FVW
+	  USE friction_com, only: Sn, psiZ, v0, wini, uini,aZ,striniZ,striniX,uZ,tabsZ
+#endif
 !w component at the fault
 
 !     nxt   nodal points in x dir  (integer)(sent)
@@ -1150,7 +1232,10 @@
 !     dt    temporal discretization(real)   (sent)
       real    ::  dh, dt, d, dth
       integer :: nxt, nyt, nzt
-
+#if defined FVW
+	  real :: u2, uc, uw1, fw, dfw, ferr, sr, vtilde, cdelta
+	  integer :: j,jmax
+#endif
       dth = dt/dh
       !$ACC PARALLEL DEFAULT (PRESENT)
       !$ACC LOOP GANG
@@ -1158,7 +1243,30 @@
       !$ACC LOOP VECTOR
           do i = nabc+1,nxt-nabc
             d         = d1(i,nyt,k)
+#if defined FVW
+			d         = d1(i,nyt,k)
+			sr = sqrt((2.*(w1(i,nyt,k)-wini))**2+(2.*(uZ(i,k)-uini))**2)
+			cdelta = 2.*(dth/d)*Sn*aZ(i,k)
+			uw = asinh(exp(psiZ(i,k)/aZ(i,k))*sr/(2*v0))
+			vtilde=-sqrt((w1(i,nyt,k) + 2.*(dth/d)*(RFz(i,k)-striniZ(i,k)))**2+(uZ(i,k) +2.*(dth/d)*((RFx(i,k)+RFx(i+1,k)+RFx(i,k+1)+RFx(i+1,k+1))/4.-striniX(i,k)))**2)
+			ferr = 10.
+			j = 0
+			jmax=100
+			do while (ferr>1e-5)
+				j = j+1
+				fw =  vtilde + cdelta*uw + sinh(uw)*v0*exp(-psiZ(i,k)/aZ(i,k))
+				dfw = cdelta + cosh(uw)*v0*exp(-psiZ(i,k)/aZ(i,k))
+				ferr = fw/dfw
+				uw = uw - ferr
+				if (jmax<j)then
+				print*, 'newton error?', uw, ferr
+				!pause
+				endif
+			enddo
+			w1(i,nyt,k)= (tz(i,k) + striniZ(i,k))*(- sinh(uw)*v0*exp(-psiZ(i,k)/aZ(i,k)))/tabsZ(i,k) - wini
+#else
             w1(i,nyt,k) = w1(i,nyt,k) + (dth/d)*(2*(tz(i,k) + RFz(i,k)))
+#endif
           enddo
       enddo
       !$ACC END PARALLEL
@@ -1216,9 +1324,9 @@
             b  = xl
 
 	    diff1=c1*(u1(i+1,nyt,k) - u1(i,nyt,k)) + c2*(u1(i+2,nyt,k) - u1(i-1,nyt,k)) 
-            diff3=c1*(w1(i,nyt,k)   - w1(i,nyt,k-1)) + c2*(w1(i,nyt,k+1) - w1(i,nyt,k-2))
+        diff3=c1*(w1(i,nyt,k)   - w1(i,nyt,k-1)) + c2*(w1(i,nyt,k+1) - w1(i,nyt,k-2))
 		!diff1=(u1(i+1,nyt,k) - u1(i,nyt,k))
-		!diff3=(w1(i,nyt,k)   - w1(i,nyt,k-1))
+		!diff3=(w1(i,nyt,k)   - w1(i,nyt,k-1))!*4./3.
 		
 		
             v1t(i,k)=v1(i,nyt-1,k) - b*(diff1 + diff3)/(2*a)
@@ -1235,16 +1343,146 @@
 
             zz(i,nyt,k) = zz(i,nyt,k)             +  &
             dth*a*(diff3) +  &
-            dth*b*(diff1    +  &
+            dth*b*(diff1  +  &
             2*(v1t(i,k)   - v1(i,nyt-1,k)))
-
-
 
           enddo
       enddo
       !$ACC END PARALLEL
-
     end
+	
+	 subroutine init_pml()
+	 USE pml_com
+	 USE fd3dparam_com
+	 integer nxe, nxb, nyb, nye, nzb, nze
+	 
+	  nxb=2
+      nxe=nabc
+      nyb=nabc+1
+      nye=nyt-1
+      nzb=nabc+1
+      nze=nzt-nfs
+      allocate (omegax1(nxe-nxb+1),omegay1(nye-nyb+1+1),omegaz1(nze-nzb+1))      
+      allocate (omegaxS1(nxe-nxb+1))    
+      allocate (u11(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),u12(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),u13(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (v11(nxe-nxb+1,nye-nyb+1,nze-nzb+1),v12(nxe-nxb+1,nye-nyb+1,nze-nzb+1),v13(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (w11(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),w12(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),w13(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (xx11(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xx12(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xx13(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (yy11(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),yy12(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),yy13(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (zz11(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),zz12(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),zz13(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (xz11(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xz12(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (xy11(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xy12(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (yz11(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yz12(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      
+      u11=0.;u12=0.;u13=0.;v11=0.;v12=0.;v13=0.;w11=0.;w12=0.;w13=0.
+      xx11=0.;xx12=0.;xx13=0.;yy11=0.;yy12=0.;yy13=0.;zz11=0.;zz12=0.;zz13=0.
+      xy11=0.;xy12=0.;xz11=0.;xz12=0.;yz11=0.;yz12=0.
+      
+      nxb=nxt-nabc+1
+      nxe=nxt-1
+      nyb=nabc+1
+      nye=nyt-1
+      nzb=nabc+1
+      nze=nzt-nfs
+      allocate (omegax2(nxe-nxb+1),omegay2(nye-nyb+1+1),omegaz2(nze-nzb+1))  
+      allocate (omegaxS2(nxe-nxb+1))      
+      allocate (u21(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),u22(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),u23(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (v21(nxe-nxb+1,nye-nyb+1,nze-nzb+1),v22(nxe-nxb+1,nye-nyb+1,nze-nzb+1),v23(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (w21(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),w22(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),w23(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (xx21(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xx22(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xx23(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (yy21(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),yy22(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),yy23(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (zz21(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),zz22(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),zz23(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (xz21(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xz22(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (xy21(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xy22(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (yz21(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yz22(nxe-nxb+1,nye-nyb+1,nze-nzb+1))  
+      
+      
+      u21=0.;u22=0.;u23=0.;v21=0.;v22=0.;v23=0.;w21=0.;w22=0.;w23=0.
+      xx21=0.;xx22=0.;xx23=0.;yy21=0.;yy22=0.;yy23=0.;zz21=0.;zz22=0.;zz23=0.
+      xy21=0.;xy22=0.;xz21=0.;xz22=0.;yz21=0.;yz22=0.
+      
+      nxb=2
+      nxe=nxt-1
+      nyb=2
+      nye=nabc
+      nzb=nabc+1
+      nze=nzt-nfs
+      allocate (omegax3(nxe-nxb+1),omegay3(nye-nyb+1),omegaz3(nze-nzb+1)) 
+      allocate (omegaxS3(nxe-nxb+1),omegayS3(nye-nyb+1)) 
+      allocate (u31(nxe-nxb+1,nye-nyb+1,nze-nzb+1),u32(nxe-nxb+1,nye-nyb+1,nze-nzb+1),u33(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (v31(nxe-nxb+1,nye-nyb+1,nze-nzb+1),v32(nxe-nxb+1,nye-nyb+1,nze-nzb+1),v33(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (w31(nxe-nxb+1,nye-nyb+1,nze-nzb+1),w32(nxe-nxb+1,nye-nyb+1,nze-nzb+1),w33(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (xx31(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xx32(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xx33(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (yy31(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yy32(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yy33(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (zz31(nxe-nxb+1,nye-nyb+1,nze-nzb+1),zz32(nxe-nxb+1,nye-nyb+1,nze-nzb+1),zz33(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (xz31(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xz32(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (xy31(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xy32(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (yz31(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yz32(nxe-nxb+1,nye-nyb+1,nze-nzb+1))  
+      
+      u31=0.;u32=0.;u33=0.;v31=0.;v32=0.;v33=0.;w31=0.;w32=0.;w33=0.
+      xx31=0.;xx32=0.;xx33=0.;yy31=0.;yy32=0.;yy33=0.;zz31=0.;zz32=0.;zz33=0.
+      xy31=0.;xy32=0.;xz31=0.;xz32=0.;yz31=0.;yz32=0.
+      
+      nxb=2
+      nxe=nxt-1
+      nyb=2
+      nye=nyt-1
+      nzb=2
+      nze=nabc
+      allocate (omegax4(nxe-nxb+1),omegay4(nye-nyb+1+1),omegaz4(nze-nzb+1))  
+      allocate (omegaxS4(nxe-nxb+1),omegayS4(nye-nyb+1+1),omegazS4(nze-nzb+1))  
+      allocate (u41(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),u42(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),u43(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (v41(nxe-nxb+1,nye-nyb+1,nze-nzb+1),v42(nxe-nxb+1,nye-nyb+1,nze-nzb+1),v43(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (w41(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),w42(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),w43(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (xx41(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xx42(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xx43(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (yy41(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),yy42(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),yy43(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (zz41(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),zz42(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),zz43(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (xz41(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xz42(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (xy41(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xy42(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (yz41(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yz42(nxe-nxb+1,nye-nyb+1,nze-nzb+1))    
+
+      u41=0.;u42=0.;u43=0.;v41=0.;v42=0.;v43=0.;w41=0.;w42=0.;w43=0.
+      xx41=0.;xx42=0.;xx43=0.;yy41=0.;yy42=0.;yy43=0.;zz41=0.;zz42=0.;zz43=0.
+      xy41=0.;xy42=0.;xz41=0.;xz42=0.;yz41=0.;yz42=0.
+	  	  do i = 1,nabc-1
+        omega_pml(i) = 0.5*dt*omegaM_pml * (real(i)/real((nabc-1)))**4
+        omegaR_pml(nabc-i) = omega_pml(i)
+        omega_pmlM(i) = 0.5*dt*omegaM_pml * ((real(i)-0.5)/real((nabc-1)))**4
+        omegaR_pmlM(nabc-i) = omega_pmlM(i)
+      end do
+      
+      omegax1=0.;omegax2=0.;omegax3=0.;omegax4=0.
+      omegay1=0.;omegay2=0.;omegay3=0.;omegay4=0.
+      omegaz1=0.;omegaz2=0.;omegaz3=0.;omegaz4=0.
+      omegaxS1=0.;omegaxS2=0.;omegaxS3=0.;omegaxS4=0.
+      omegayS3=0.;omegayS4=0.
+      omegazS4=0.
+      do i=1,nabc-1
+        omegax1(i)= omegaR_pml(i)
+        omegaxS1(i)= omegaR_pmlM(i)
+        
+        omegax2(i)= omega_pml(i)
+        omegaxS2(i)= omega_pmlM(i)
+        
+        omegay3(i)= omegaR_pml(i)
+        omegax3(i)= omegaR_pml(i)
+        omegax3(nxt-i-1)= omega_pmlM(i)   
+        omegayS3(i)= omegaR_pmlM(i)
+        omegaxS3(i)= omegaR_pmlM(i)
+        omegaxS3(nxt-i-1)= omega_pml(i)  
+        
+        omegaz4(i)= omegaR_pml(i)
+        omegax4(i)= omegaR_pml(i)
+        omegax4(nxt-i-1)= omega_pmlM(i)
+        omegay4(i)= omegaR_pml(i)
+        
+        omegazS4(i)= omegaR_pmlM(i)
+        omegaxS4(i)= omegaR_pmlM(i)
+        omegaxS4(nxt-i-1)= omega_pml(i)
+        omegayS4(i)= omegaR_pmlM(i)
+      enddo
+	  
+	 end subroutine
 
      subroutine uxxa(nxb,nxe,nyb,nye,nzb,nze,dh,dt, omegax, omegay, omegaz, p1,p2,p3)
 !----------------------------------------------------------
@@ -2715,11 +2953,42 @@
       enddo
       enddo
       !$ACC END PARALLEL
-     ! call sxxa(nxb,nxe,nyb,nye+1,nzb,nze,dh,dt,omegaxS4, omegay4, omegaz4, xx41,xx42,xx43,yy41,yy42,yy43,zz41,zz42,zz43)
-     ! call sxya(nxb,nxe,nyb,nye,nzb,nze,dh,dt,omegax4b, omegayS4b, omegaz4b, xy41,xy42)
-     ! call sxza(nxb,nxe,nyb,nye+1,nzb,nze,dh,dt,omegax4, omegay4, omegazS4, xz41,xz42)
-     ! call syza(nxb,nxe,nyb,nye,nzb,nze,dh,dt,omegaxS4b, omegayS4b, omegazS4b, yz41,yz42)
-
-
      end
+     
+	 subroutine interp_fric()
+	    USE friction_com
+		USE fd3dparam_com
+		
+		do i=1,nxt
+		    do k=1,nzt
+#if defined FVW
+				aZ(i,k)=a(i,k)
+				bZ(i,k)=b(i,k)
+				psiZ(i,k)=psi(i,k)
+				vwZ(i,k)=vw(i,k)
+#else
+		        peakZ(i,k)=peak_xz(i,k)
+				dynZ(i,k)=dyn_xz(i,k)
+				DcZ(i,k)=Dc(i,k)
+#endif
+		    enddo
+		enddo
+		
+		do i=2,nxt-1
+		    do k=2,nzt-1
+#if defined FVW
+			!	aX(i,k)=(aZ(i,k)+aZ(i-1,k)+aZ(i,k-1)+aZ(i-1,k-1))/4.
+			!	bX(i,k)=(bZ(i,k)+bZ(i-1,k)+bZ(i,k-1)+bZ(i-1,k-1))/4.
+			!	psiX(i,k)=(psiZ(i,k)+psiZ(i-1,k)+psiZ(i,k-1)+psiZ(i-1,k-1))/4.
+			!	vwX(i,k)=(vwZ(i,k)+vwZ(i-1,k)+vwZ(i,k-1)+vwZ(i-1,k-1))/4.
+#else
+		        peakX(i,k)=(peakZ(i,k)+peakZ(i-1,k)+peakZ(i,k-1)+peakZ(i-1,k-1))/4.
+				dynX(i,k)=(dynZ(i,k)+dynZ(i-1,k)+dynZ(i,k-1)+dynZ(i-1,k-1))/4.
+				DcX(i,k)=(DcZ(i,k)+DcZ(i-1,k)+DcZ(i,k-1)+DcZ(i-1,k-1))/4.
+#endif
+		    enddo
+		enddo
+	 end 
+	 
+	 
 

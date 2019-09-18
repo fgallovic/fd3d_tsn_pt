@@ -9,10 +9,12 @@ f=open('input.dat','r').readlines()
 L,W=float(f[17].split()[0])/1000.,float(f[17].split()[1])/1000.
 
 fricpar=loadtxt('result/friction.inp')
-T0=fricpar[:,0].reshape((nzt,nxt))/1.e6
-Ts=fricpar[:,1].reshape((nzt,nxt))/1.e6
-Dc=fricpar[:,2].reshape((nzt,nxt))
-Mus=fricpar[:,3].reshape((nzt,nxt))
+T0x=fricpar[:,0].reshape((nzt,nxt))/1.e6
+T0z=fricpar[:,1].reshape((nzt,nxt))/1.e6
+T0=T0x
+Ts=fricpar[:,2].reshape((nzt,nxt))/1.e6
+Dc=fricpar[:,3].reshape((nzt,nxt))
+Mus=fricpar[:,4].reshape((nzt,nxt))
 sd=loadtxt('result/stressdrop.res').reshape((nzt,nxt))/(-1.e6)
 slip=loadtxt('result/slip.res').reshape((nzt,nxt))
 slipmax=slip.max()
@@ -51,7 +53,7 @@ f.write('\n')
 for j in range(nzt):
 #  f.write(' '.join([str((slip[j,i]*Ts[j,i]-min(Dc[j,i],slip[j,i])*Ts[j,i])/2.) for i in range(nxt)])+'\n')
 #  f.write(' '.join([str(Ts[j,i]/2.*(max(Dc[j,i],slip[j,i])-Dc[j,i])) for i in range(nxt)])+'\n')
-  f.write(' '.join([str((T0[j,i]*slip[j,i]-Ts[j,i]*(Dc[j,i]-max(0.,Dc[j,i]-slip[j,i])**2/Dc[j,i]))/2.) for i in range(nxt)])+'\n')
+  f.write(' '.join([str(((T0[j,i]+Ts[j,i]*max(0.,1.-slip[j,i]/Dc[j,i]))*slip[j,i]-Ts[j,i]*(Dc[j,i]-max(0.,Dc[j,i]-slip[j,i])**2/Dc[j,i]))/2.) for i in range(nxt)])+'\n')
 f.write('\n')
 f.write('\n')
 for j in range(nzt):
@@ -65,7 +67,7 @@ read nxt nzt dh L W < temp.out
 
 gnuplot << END
 set term postscript color solid enhanced 12
-set output 'friction2.ps'
+set output 'frictionin2.ps'
 set multiplot
 set size 0.4,0.4
 set palette defined ( 0 "white", 2 "skyblue", 3 "light-green", 6 "yellow", 10 "light-red" )

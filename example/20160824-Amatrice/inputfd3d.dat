@@ -5,3 +5,4 @@
 45.               \* Dip *\
 10 6000. 25.      \* nabc, vp, pml_fact *\
 0.3               \* damp_s *\
+0                 \* Number of stations (followed by list of coordinates)

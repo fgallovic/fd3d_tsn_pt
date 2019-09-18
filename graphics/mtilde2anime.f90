@@ -100,7 +100,7 @@ minik=0.
 !        write(201,*)'set origin ',sizex*((i-1)/(NS/2))/1.5,',',1.-dble(mod(i-1,NS/2)+1)*sizey/1.7
         write(201,*)'set origin ',sizex*((i-1)/(NS))/1.5,',',1.-dble(mod(i-1,NS)+1)*sizey/1.7
         write(201,'(A58,I5,A20)')'splot "mtilde2anime.dat" matrix u ($1*DL):($2*DW):3 index ',(kk-1)*NS+i-1,' notitle w pm3d,\'
-!        write(201,*)'"aftershocks-onfault.dat" notitle w p ps .05 lc 9,\'
+        write(201,*)'"aftershocks-onfault.dat" notitle w p ps .01 lc 9,\'
         write(201,*)'"epic.dat" u 1:2:(0) index ',kk-1,' notitle w p pt 3 lc 3 ps 1.'
       enddo
       write(201,*)'unset multiplot'

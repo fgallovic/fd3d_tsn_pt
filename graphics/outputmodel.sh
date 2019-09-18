@@ -9,7 +9,7 @@
 #MAX=`minmax -C mtilde.dat | awk '{print $2*0.8}'`
 echo $MAX
 
-python >temp.out << END
+python << END >temp.out 
 from numpy import *
 import matplotlib.pyplot as plt
 f=open('inputfd3d.dat','r').readlines()
@@ -44,6 +44,12 @@ f.write('\n')
 f.write('\n')
 for j in range(nzt):
   f.write(' '.join([str(rist[j,i]) for i in range(nxt)])+'\n')
+f.write('\n')
+f.write('\n')
+ruptvelx,ruptvely=gradient(rupt)
+for j in range(nzt):
+  f.write(' '.join([str(1./sqrt(ruptvelx[j,i]**2+ruptvely[j,i]**2)*dh) for i in range(nxt)])+'\n')
+
 print(' '.join([str(nxt),str(nzt),str(dh),str(L),str(W)]))
 END
 read nxt nzt dh L W < temp.out
@@ -52,7 +58,7 @@ gnuplot << END
 set term postscript color 12
 set output 'outputmodel.ps'
 set multiplot
-set size 0.4,0.4
+set size 0.5,0.5
 set palette defined ( 0 "white", 2 "skyblue", 3 "light-green", 6 "yellow", 10 "light-red" )
 set xtics out scale .2
 set ytics out scale .2
@@ -63,32 +69,44 @@ set yrange [0:$nzt*$dh]
 set xlabel 'Along strike (km)'
 set ylabel 'Up dip (km)'
 
-set origin 0.,0.5
-set title 'Slip (m)'
-#set cbtics 0.1
-plot 'outputmodel.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 0 notitle w image,\
-'slipcontour.dat' w l notitle lt -1 lw 1,\
-"aftershocks-onfault.dat" notitle w p ps .2 lc 9
-
-set origin .5,.5
+set origin 0.,0.55
 set title 'Stress drop (MPa)'
 #set cbtics 0.1
 plot 'outputmodel.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 1 notitle w image,\
 'slipcontour.dat' w l notitle lt -1 lw 1,\
-"aftershocks-onfault.dat" notitle w p ps .2 lc 9
+"aftershocks-onfault.dat" notitle w p ps .1 lc 9
+
+set origin .5,.55
+set title 'Risetime (s)'
+#set cbtics 0.1
+plot 'outputmodel.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):(\$2<120?\$3:(0)) index 3 notitle w image,\
+'slipcontour.dat' w l notitle lt -1 lw 1,\
+"aftershocks-onfault.dat" notitle w p ps .1 lc 9
 
 set origin 0.,0.2
 set title 'Rupture time (s)'
 #set cbtics 0.1
-plot 'outputmodel.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 2 notitle w image,\
+set cbrange [0:10]
+plot 'outputmodel.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):(\$2<120?\$3:(0)) index 2 notitle w image,\
 'slipcontour.dat' w l notitle lt -1 lw 1,\
 "aftershocks-onfault.dat" notitle w p ps .2 lc 9
 
 set origin 0.5,0.2
-set title 'Risetime (s)'
+set title 'Rupture speed (s)'
+set palette defined ( 0 "white", 2 "skyblue", 3 "light-green", 6 "yellow", 9.99 "light-red", 10 "grey" )
 #set cbtics 0.1
-plot 'outputmodel.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 3 notitle w image,\
+set cbrange [0:5]
+plot 'outputmodel.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):(\$3<5?\$3:(5)) index 4 notitle w image,\
 'slipcontour.dat' w l notitle lt -1 lw 1,\
-"aftershocks-onfault.dat" notitle w p ps .2 lc 9
+"aftershocks-onfault.dat" notitle w p ps .1 lc 9
+set autoscale cb
+set palette defined ( 0 "white", 2 "skyblue", 3 "light-green", 6 "yellow", 10 "light-red" )
+
+set origin 0.,-0.15
+set title 'Slip (m)'
+#set cbtics 0.1
+plot 'outputmodel.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 0 notitle w image,\
+'slipcontour.dat' w l notitle lt -1 lw 1,\
+"aftershocks-onfault.dat" notitle w p ps .1 lc 9
 
 END
