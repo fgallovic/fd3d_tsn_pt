@@ -158,23 +158,31 @@
 !----------------------------
       allocate(lam1(nxt,nyt,nzt),mu1(nxt,nyt,nzt),d1(nxt,nyt,nzt))
 	  allocate(uZ(nxt,nzt),wX(nxt,nzt),tabsX(nxt,nzt),tabsZ(nxt,nzt))
+     lam1=0.; mu1=0; d1=0.
+      uZ=0.;wX=0.;tabsX=0.;tabsZ=0.
+
 #if defined FVW
 	  allocate(Dc(nxt,nzt))
 	  allocate(striniZ(nxt,nzt), striniX(nxt,nzt), a(nxt,nzt), b(nxt,nzt))
 	  allocate(psi(nxt,nzt),vw(nxt,nzt))
 	  allocate(aX(nxt,nzt),bX(nxt,nzt),psiX(nxt,nzt),vwX(nxt,nzt))
 	  allocate(aZ(nxt,nzt),bZ(nxt,nzt),psiZ(nxt,nzt),vwZ(nxt,nzt))
+          Dc=0.; striniZ=0.;striniX=0.;a=0.;b=0.
+          psi=0.;vw=0.;aX=0.;bX=0.;psiX=0,vwX=0.;aZ=0.;bZ=0.,psiZ=0.;vwZ=0.
 
 #else
 
       allocate(striniZ(nxt,nzt),striniX(nxt,nzt),peak_xz(nxt,nzt),Dc(nxt,nzt),dyn_xz(nxt,nzt),coh(nxt,nzt))
 	  allocate(peakX(nxt,nzt),DcX(nxt,nzt),dynX(nxt,nzt))
 	  allocate(peakZ(nxt,nzt),DcZ(nxt,nzt),dynZ(nxt,nzt))
+          peakX=0.;DcX=0.;dynX=0.;peakZ=0.;DcZ=0.;dynZ=0.
+          striniZ=0.;striniX=0.;peak_xz=0.;Dc=0.;dyn_xz=0.;coh=0.
 
 #endif
 	  
       allocate(ruptime(nxt,nzt),slipZ(nxt,nzt),rise(nxt,nzt),schangeZ(nxt,nzt),schangeX(nxt,nzt),sliptime(nxt,nzt))
-	  
+	  ruptime=0.;slipZ=0.;rise=0.;schangeZ=0.;schangeX=0.;sliptime=0.
+
      ! strinix=0.;peak_xz=0.;Dc=0.
 
 !------------------------------------------------------------
