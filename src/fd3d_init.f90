@@ -83,7 +83,7 @@
     END MODULE
 
     MODULE source_com
-      REAL,ALLOCATABLE,DIMENSION(:,:):: ruptime,rise,slipZ,schangeX,schangeZ,sliptime
+      REAL,ALLOCATABLE,DIMENSION(:,:):: ruptime,rise,slipZ,schangeX,schangeZ,sliptime,slipX
       real    :: output_param(6)
       integer :: ioutput
       integer:: Nstations
@@ -180,8 +180,8 @@
 
 #endif
 	  
-      allocate(ruptime(nxt,nzt),slipZ(nxt,nzt),rise(nxt,nzt),schangeZ(nxt,nzt),schangeX(nxt,nzt),sliptime(nxt,nzt))
-	  ruptime=0.;slipZ=0.;rise=0.;schangeZ=0.;schangeX=0.;sliptime=0.
+      allocate(ruptime(nxt,nzt),slipZ(nxt,nzt),slipX(nxt,nzt),rise(nxt,nzt),schangeZ(nxt,nzt),schangeX(nxt,nzt),sliptime(nxt,nzt))
+	  ruptime=0.;slipZ=0.;rise=0.;schangeZ=0.;schangeX=0.;sliptime=0.;slipX=0.
 
      ! strinix=0.;peak_xz=0.;Dc=0.
 

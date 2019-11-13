@@ -121,8 +121,13 @@
       DcA(:,:,ichain)=DcI(:,:)
       ruptimeA(:,:,ichain)=ruptime(:,:)
       riseA(:,:,ichain)=rise(:,:)
+#if defined DIPSLIP
       slipA(:,:,ichain)=slipZ(:,:)
       schangeA(:,:,ichain)=schangeZ(:,:)
+#else
+      slipA(:,:,ichain)=slipX(:,:)
+      schangeA(:,:,ichain)=schangeX(:,:)
+#endif
       MomentRateA(:,ichain)=MomentRate(:)
       if (iwaveform==2) then
         ruptdistA(:,ichain)=ruptdist(:)
@@ -414,7 +419,7 @@
       enddo
     enddo
     dyn_xz=0.
-    coh=0.e6
+    coh=.5e6
 
     END
     
