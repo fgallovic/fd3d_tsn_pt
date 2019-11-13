@@ -359,8 +359,13 @@
     DcA(:,:,ichain)=DcI(:,:)
     ruptimeA(:,:,ichain)=ruptime(:,:)
     riseA(:,:,ichain)=rise(:,:)
+#if defined DIPSLIP
     slipA(:,:,ichain)=slipZ(:,:)
     schangeA(:,:,ichain)=schangeZ(:,:)
+#else
+    slipA(:,:,ichain)=slipX(:,:)
+    schangeA(:,:,ichain)=schangeX(:,:)
+#endif
     VRA(ichain)=VR
     MomentRateA(:,ichain)=MomentRate(:)
     if (iwaveform==2) then
