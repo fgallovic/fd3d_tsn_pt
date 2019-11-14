@@ -108,7 +108,7 @@
 #if defined FVW
       tabsX=striniX
       tabsZ=striniX
-      psiout=0.;perturb=0.
+      psiout=0.;
 #endif
       dht = dh/dt
       if(Nstations>0) then
@@ -284,7 +284,7 @@
             u1out=-sqrt(W1(I,NYSC,K)**2+uZ(i,k)**2)
 
 #if defined FVW
-            sr=sqrt((2.*(w1(i,nysc,k)-wini))**2+(2.*(uZ(i,k)-uini))**2)
+            sr=sqrt((2.*(abs(w1(i,nysc,k))+abs(wini)))**2+(2.*(abs(uZ(i,k))+abs(uini)))**2)
             flv = f0 - (bZ(i,k) - aZ(i,k))*log(sr/v0)
             fss = fw + (flv - fw)/((1. + (sr/vwZ(i,k))**8)**(1./8.))
             psiss = aZ(i,k)*(log(sinh(fss/aZ(i,k))) + log(2*v0/(sr))) 
@@ -330,7 +330,7 @@
             u1out=-sqrt(wX(i,k)**2+U1(I,NYSC,K)**2)
             
 #if defined FVW
-            sr=sqrt((2.*(wX(i,k)-wini))**2+(2.*(u1(i,nyt,k)-uini))**2)
+            sr=sqrt((2.*(abs(wX(i,k))-abs(wini)))**2+(2.*(abs(u1(i,nyt,k))-abs(uini)))**2)
             flv = f0 - (bX(i,k) - aX(i,k))*log(sr/v0)
             fss = fw + (flv - fw)/((1. + (sr/vwX(i,k))**8)**(1./8.))
             psiss = aX(i,k)*(log(sinh(fss/aX(i,k))) + log(2*v0/(sr))) 

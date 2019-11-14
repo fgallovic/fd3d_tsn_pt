@@ -1140,7 +1140,7 @@
           d         = d1(i,nyt,k)
 #if defined FVW
           d         = d1(i,nyt,k)
-          sr = sqrt((2.*(wX(i,k)-wini))**2+(2.*(u1(i,nyt,k)-uini))**2)
+          sr = sqrt((2.*(abs(wX(i,k))+abs(wini)))**2+(2.*(abs(u1(i,nyt,k))+abs(uini)))**2)
           cdelta = 2.*(dth/d)*Sn*aX(i,k)
           uw = asinh(exp(psiX(i,k)/aX(i,k))*sr/(2*v0))
           vtilde=-sqrt((wX(i,k) + 2.*(dth/d)*((RFz(i,k)+RFz(i-1,k)+RFz(i,k-1)+RFz(i-1,k-1))/4.-striniZ(i,k)))**2 &
@@ -1148,7 +1148,7 @@
           ferr = 10.
           j = 0
           jmax=100
-          do while (ferr>1e-5)
+          do while (ferr>1e-10)
             j = j+1
             fw =  vtilde + cdelta*uw + sinh(uw)*v0*exp(-psiX(i,k)/aX(i,k))
             dfw = cdelta + cosh(uw)*v0*exp(-psiX(i,k)/aX(i,k))
@@ -1159,7 +1159,7 @@
             ! pause
             endif
           enddo
-          u1(i,nyt,k)= (tx(i,k) + striniX(i,k))*(-sinh(uw))*v0*exp(-psiX(i,k)/aX(i,k))/tabsX(i,k) - uini
+          u1(i,nyt,k)= (tx(i,k) + striniX(i,k))*(-sinh(uw))*v0*exp(-psiX(i,k)/aX(i,k))/tabsX(i,k) + uini
 #else
           u1(i,nyt,k) = u1(i,nyt,k) + (dth/d)*2*(tx(i,k) + RFx(i,k))
 #endif
@@ -1207,11 +1207,12 @@
           cdelta = 2.*(dth/d)*Sn*aZ(i,k)
           uw = asinh(exp(psiZ(i,k)/aZ(i,k))*sr/(2*v0))
           vtilde=-sqrt((w1(i,nyt,k) + 2.*(dth/d)*(RFz(i,k)-striniZ(i,k)))**2 &
-            +(uZ(i,k) +2.*(dth/d)*((RFx(i,k)+RFx(i+1,k)+RFx(i,k+1)+RFx(i+1,k+1))/4.-striniX(i,k)))**2)
+            +(uZ(i,k) +2.*(dth/d)*((RFx(i,k)+RFx(i+1,k)+RFx(i,k+1)+RFx(i+1,k+1))/4.&
+			-(striniX(i,k)+striniX(i+1,k)+striniX(i,k+1)+striniX(i+1,k+1))/4.))**2)
           ferr = 10.
           j = 0
           jmax=100
-          do while (ferr>1e-5)
+          do while (ferr>1e-10)
             j = j+1
             fw =  vtilde + cdelta*uw + sinh(uw)*v0*exp(-psiZ(i,k)/aZ(i,k))
             dfw = cdelta + cosh(uw)*v0*exp(-psiZ(i,k)/aZ(i,k))
@@ -1222,7 +1223,7 @@
               !pause
             endif
           enddo
-          w1(i,nyt,k)= (tz(i,k) + striniZ(i,k))*(- sinh(uw)*v0*exp(-psiZ(i,k)/aZ(i,k)))/tabsZ(i,k) - wini
+          w1(i,nyt,k)= (tz(i,k) + striniZ(i,k))*(- sinh(uw)*v0*exp(-psiZ(i,k)/aZ(i,k)))/tabsZ(i,k) + wini
 #else
           w1(i,nyt,k) = w1(i,nyt,k) + (dth/d)*(2*(tz(i,k) + RFz(i,k)))
 #endif
