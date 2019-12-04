@@ -691,7 +691,7 @@
       enddo
     enddo
     dyn_xz=0.
-    coh=0.5e6
+    coh=0.e6
 
     END SUBROUTINE
     
