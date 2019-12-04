@@ -32,15 +32,15 @@
       IMPLICIT NONE
 
       real    :: time,friction,tmax,xmax,ymax,numer,denom,veltest,dd
-      integer :: incrack(nxt,nzt),broken(nxt,nzt),nsurf, brokenX(nxt,nzt),brokenZ(nxt,nzt)
       real    :: pdx, pdz,tabs
-      real    :: u1out,sliprateoutX(nxt,nzt),sliprateoutZ(nxt,nzt)!,slipX(nxt,nzt)
+      real    :: u1out,sliprateoutX(nxt,nzt),sliprateoutZ(nxt,nzt)
       real    :: CPUT1,CPUT2
       REAL    :: maxvelX,maxvelZ,maxvelsave,tint, tint2
       real    :: dht, ek, es, ef, c1, c2
       integer :: i,j,it,k, nxe, nxb, nyb, nye, nzb, nze
       integer :: ifrom,ito,jfrom,jto,kk
       real    :: rup_tresh, rv, cz
+	  real    :: distX(nxt,nzt), distZ(nxt,nzt)
 #if defined FVW
       real    :: fss, flv, psiss, dpsi,  sr
       real    :: FXZ, GT, hx, hz, rr,AA,BB
@@ -52,13 +52,23 @@
 
       if (ioutput.eq.1) then
 #if defined FVW
+        open(95,file='result/vmodel.inp')
+        open(96,file='result/friction.inp')
+        do k = nabc+1,nzt-nfs
+          do i = nabc+1,nxt-nabc
+            write(95,*) mu1(i,nysc,k)
+            write(96,'(5E13.5)') T0X(i,k),T0Z(i,k)
+          enddo
+        enddo
+        close(95)
+        close(96)
 #else
         open(95,file='result/vmodel.inp')
         open(96,file='result/friction.inp')
         do k = nabc+1,nzt-nfs
           do i = nabc+1,nxt-nabc
             write(95,*) mu1(i,nysc,k)
-            write(96,'(5E13.5)') striniX(i,k),striniZ(i,k),peak_xz(i,k),Dc(i,k),peak_xz(i,k)/normstress(k)
+            write(96,'(5E13.5)') T0X(i,k),T0Z(i,k),peak_xz(i,k),Dc(i,k),peak_xz(i,k)/normstress(k)
           enddo
         enddo
         close(95)
@@ -89,26 +99,26 @@
       u1=0.; v1=0.; w1=0.
       xx=0.; yy=0.; zz=0.; xy=0.; yz=0.; xz=0.
       ruptime=1.e4; rise=0.; sliptime=1.e4
-      broken=0;incrack=0
       tx=0.; tz=0.; v1t=0.
       uZ=0.; wX=0.
       avdx = 0.; avdz = 0.
       RFx = 0.; RFz = 0.
       au1=0.; av1=0.; aw1=0 
       MSRX=0.; MSRZ=0.; MomentRate=0.
-      slipX=0.; slipZ=0.
+      distX=0.; distZ=0.
       rup_tresh=1.e-3 !	Rate treshold for rupture time calculation
-      brokenX=0; brokenZ=0
       c1  = 9./8. !	4th order central FD formula parameters	
       c2  = -1./24.
       tabsX=0.; tabsZ=0.
       sliprateoutZ=0.; sliprateoutX=0.
       SCHANGEZ=0.; SCHANGEX=0.
-      tabs=0.
+      tabs=0.; 
+	  slipX=0.; slipZ=0.
+	!  waveU=0.; waveV=0.; waveW=0.
 #if defined FVW
-      tabsX=striniX
-      tabsZ=striniX
-      psiout=0.;
+      tabsX=1.
+      tabsZ=1.
+      psiout=0.
 #endif
       dht = dh/dt
       if(Nstations>0) then
@@ -128,6 +138,9 @@
         OPEN(27, file='result/sliprateX.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
         OPEN(26, file='result/shearstressZ.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
         OPEN(28, file='result/shearstressX.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
+        OPEN(41, file='result/waveformX.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
+        OPEN(42, file='result/waveformY.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
+        OPEN(43, file='result/waveformZ.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')		
         ! OPEN(29, file='result/sliprateY.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
       endif
       
@@ -153,12 +166,13 @@
       !$ACC      COPYIN (omegaz1,omegaz2,omegaz3,omegaz4) &
       !$ACC      COPYIN (omegaxS1,omegaxS2,omegaxS3,omegaxS4) &
       !$ACC      COPYIN (omegayS3,omegayS4,omegazS4) &
-      !$ACC      COPYIN (broken,brokenX,brokenZ,dyn_xz,striniZ,striniX,peak_xz,Dc,coh,tabsX,tabsZ) &
-      !$ACC      COPYIN (peakX, dynX, DcX, peakZ, dynZ, DcZ,staX,staY,staZ) &
+      !$ACC      COPYIN (dyn_xz,striniZ,striniX,peak_xz,Dc,coh,tabsX,tabsZ, T0X, T0Z) &
+      !$ACC      COPYIN (peakX, dynX, DcX, peakZ, dynZ, DcZ,staX,staY,staZ, distX, distZ) &
 #if defined FVW
       !$ACC      COPYIN (aX,bX,psiX,vwX,aZ,bZ,psiZ,vwZ)&
 #endif
-      !$ACC      COPY (incrack,ruptime,sliptime,slipz,rise,slipx)  
+      !$ACC      COPY (ruptime,sliptime,slipZ,rise,slipX)   
+	  !, waveU, waveV, waveW)  
 
       !seisU,seisV,seisW  
       
@@ -267,10 +281,10 @@
         _ACC_LOOP_COLLAPSE_2
         do k = nabc+1,nzt-nfs
           do i = nabc+1,nxt-nabc
-            tint=(tx(i,k)+striniX(i,k)+tx(i+1,k)+striniX(i+1,k)+tx(i,k+1)+striniX(i,k+1)+tx(i+1,k+1)+striniX(i+1,k+1))/4.
-            tabsZ(i,k) = sqrt(tint**2 + (tz(i,k)+striniZ(i,k))**2)
-            tint=(tz(i,k)+striniZ(i,k)+tz(i-1,k)+striniZ(i-1,k)+tz(i,k-1)+striniZ(i,k-1)+tz(i-1,k-1)+striniZ(i-1,k-1))/4.
-            tabsX(i,k) = sqrt((tx(i,k)+striniX(i,k))**2 + (tint)**2)
+            tint=(tx(i,k)+T0X(i,k)+tx(i+1,k)+T0X(i+1,k)+tx(i,k+1)+T0X(i,k+1)+tx(i+1,k+1)+T0X(i+1,k+1))/4.
+            tabsZ(i,k) = sqrt(tint**2 + (tz(i,k)+T0Z(i,k))**2)
+            tint=(tz(i,k)+T0Z(i,k)+tz(i-1,k)+T0Z(i-1,k)+tz(i,k-1)+T0Z(i,k-1)+tz(i-1,k-1)+T0Z(i-1,k-1))/4.
+            tabsX(i,k) = sqrt((tx(i,k)+T0X(i,k))**2 + (tint)**2)
           enddo
         enddo
         _ACC_END_PARALLEL
@@ -284,39 +298,45 @@
             u1out=-sqrt(W1(I,NYSC,K)**2+uZ(i,k)**2)
 
 #if defined FVW
+
             sr=sqrt((2.*(abs(w1(i,nysc,k))+abs(wini)))**2+(2.*(abs(uZ(i,k))+abs(uini)))**2)
+			
             flv = f0 - (bZ(i,k) - aZ(i,k))*log(sr/v0)
             fss = fw + (flv - fw)/((1. + (sr/vwZ(i,k))**8)**(1./8.))
             psiss = aZ(i,k)*(log(sinh(fss/aZ(i,k))) + log(2*v0/(sr))) 
             psiZ(i,k)=(psiZ(i,k)-psiss)*exp(-sr*dt/Dc(i,k)) + psiss
             friction  = Sn * aZ(i,k)*asinh(sr*exp(psiZ(i,k)/aZ(i,k))/(2*v0)) 
-            slipZ(i,k) = slipZ(i,k)  - 2*u1out*dt
-            brokenZ(i,k)=1
+            distZ(i,k) = distZ(i,k)  - 2*u1out*dt
             SCHANGEZ(I,K) = friction
             sliprateoutZ(i,k) = - 2.*W1(I,NYSC,K)
             psiout(i,k)=psiZ(i,k)
+			if (abs(2*u1out)>rup_tresh) then
+                if (ruptime(i,k).ne.1.e4) rise(i,k) = time
+                if (ruptime(i,k).eq.1.e4) ruptime(i,k) = time
+            endif
 #else
-            if (slipZ(i,k).le.DcZ(i,k)) then
-              friction = peakZ(i,k) * (1.0 - slipZ(i,k)/DcZ(i,k)) + dynZ(i,k)*slipZ(i,k)/DcZ(i,k) + coh(i,k)
+            if (distZ(i,k).le.DcZ(i,k)) then
+              friction = peakZ(i,k) * (1.0 - distZ(i,k)/DcZ(i,k)) + dynZ(i,k)*distZ(i,k)/DcZ(i,k) + coh(i,k)
             else
               friction = dynZ(i,k) + coh(i,k)
             endif
             
             if (tabs .ge. friction) then
-              slipZ(i,k) = slipZ(i,k)  - 2*u1out*dt
-              tz(i,k) =  (tz(i,k) + striniZ(i,k))*friction/tabs - striniZ(i,k)
-              brokenZ(i,k)=1
+              distZ(i,k) = distZ(i,k)  - 2*u1out*dt
+              tz(i,k) =  (tz(i,k) + T0Z(i,k))*friction/tabs - T0Z(i,k)
 
               if (-2*u1out>rup_tresh) then
                 if (ruptime(i,k).ne.1.e4) rise(i,k) = time
                 if (ruptime(i,k).eq.1.e4) ruptime(i,k) = time
-                broken(i,k)=1
               endif
             endif
-            SCHANGEZ(I,K) = tz(i,k) + striniZ(i,k)
+            SCHANGEZ(I,K) = tz(i,k) + T0Z(i,k)
             sliprateoutZ(i,k) = - 2.*W1(I,NYSC,K)
 #endif
-            if ((sliptime(i,k)==1.e4).AND.(slipZ(i,k)>Dc(i,k))) sliptime(i,k)=time
+            slipZ(i,k)=slipZ(i,k)+sliprateoutZ(i,k)*dt
+            slipX(i,k)=slipX(i,k)-2*uZ(i,k)*dt
+
+            if ((sliptime(i,k)==1.e4).AND.(distZ(i,k)>Dc(i,k))) sliptime(i,k)=time
           enddo
         enddo
         _ACC_END_PARALLEL
@@ -330,33 +350,33 @@
             u1out=-sqrt(wX(i,k)**2+U1(I,NYSC,K)**2)
             
 #if defined FVW
-            sr=sqrt((2.*(abs(wX(i,k))-abs(wini)))**2+(2.*(abs(u1(i,nyt,k))-abs(uini)))**2)
+			
+            sr=sqrt((2.*(abs(wX(i,k))+abs(wini)))**2+(2.*(abs(u1(i,nyt,k))+abs(uini)))**2)
             flv = f0 - (bX(i,k) - aX(i,k))*log(sr/v0)
             fss = fw + (flv - fw)/((1. + (sr/vwX(i,k))**8)**(1./8.))
             psiss = aX(i,k)*(log(sinh(fss/aX(i,k))) + log(2*v0/(sr))) 
             psiX(i,k)=(psiX(i,k)-psiss)*exp(-sr*dt/Dc(i,k)) + psiss
             friction  = Sn * aX(i,k)*asinh(sr*exp(psiX(i,k)/aX(i,k))/(2*v0)) 
 
-            slipX(i,k) = slipX(i,k)  - 2*u1out*dt
-            brokenX(i,k)=1
+            distX(i,k) = distX(i,k)  - 2*u1out*dt
             SCHANGEX(I,K) = friction
-            sliprateoutX(i,k) = - 2.*U1(I,NYSC,K)
+            sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I+1,NYSC,K)-2.*U1(I,NYSC,K+1)-2.*U1(I+1,NYSC,K+1))/4.
             
 #else
-            if (slipX(i,k).le.Dc(i,k)) then
-              friction = peakX(i,k) * (1.0 - slipX(i,k)/DcX(i,k)) + dynX(i,k)*slipX(i,k)/DcX(i,k) + coh(i,k)
+            if (distX(i,k).le.Dc(i,k)) then
+              friction = peakX(i,k) * (1.0 - distX(i,k)/DcX(i,k)) + dynX(i,k)*distX(i,k)/DcX(i,k) + coh(i,k)
             else
               friction = dynX(i,k) + coh(i,k)
             endif
             
             if (tabs .ge. friction) then
-              slipX(i,k) = slipX(i,k)  - 2*u1out*dt
-              tx(i,k) = (tx(i,k) + striniX(i,k))*friction/tabs - striniX(i,k)
-              brokenX(i,k)=1
+              distX(i,k) = distX(i,k)  - 2*u1out*dt
+              tx(i,k) = (tx(i,k) + T0X(i,k))*friction/tabs - T0X(i,k)
             endif
-            SCHANGEX(I,K) = tx(i,k)+striniX(i,k)
-            sliprateoutX(i,k) = - 2.*U1(I,NYSC,K)
+            SCHANGEX(I,K) = (tx(i,k)+T0X(i,k)+tx(i+1,k)+T0X(i+1,k)+tx(i,k+1)+T0X(i,k+1)+tx(i+1,k+1)+T0X(i+1,k+1))/4.
+            sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I+1,NYSC,K)-2.*U1(I,NYSC,K+1)-2.*U1(I+1,NYSC,K+1))/4.
 #endif 
+
           enddo
         enddo
         _ACC_END_PARALLEL
@@ -373,13 +393,31 @@
         _ACC_END_PARALLEL
         endif
         endif
+		
+        ! if(ioutput.eq.1) then
+		! if ((time .GE. waveT) .AND. (waveT .NE. 0.)) then
         
+        
+		! _ACC_PARALLEL
+        ! _ACC_LOOP_COLLAPSE_3
+		  ! do k=1,nzt
+		  ! do j=1,nyt
+          ! do i=1,nxt
+            ! waveU(i,j,k)=u1(i,j,k)
+            ! waveV(i,j,k)=v1(i,j,k)
+            ! waveW(i,j,k)=w1(i,j,k)
+          ! enddo
+		  ! enddo
+		  ! enddo
+        ! _ACC_END_PARALLEL
+        ! endif
+        ! endif      
 #if defined TPV104
 !   Smooth nucleation for the tpv104 benchmark
-        if (time <= TT2) then
+        if ((time-dt/2.) <= TT2) then
         
-          if (time < TT2) then
-            GT=exp((time-TT2)**2/(time*(time-2*TT2)))
+          if ((time-dt/2.) < TT2) then
+            GT=exp(((time-dt/2.)-TT2)**2/((time-dt/2.)*((time-dt/2.)-2*TT2)))
           else
             GT=1.
           endif
@@ -390,18 +428,20 @@
               hx = real(i)*dh
               hz = real(k)*dh
               rr = (hx-hx0)**2 + (hz-hz0)**2
-              if (rr<RR2) then
-                FXZ=exp(rr/(rr-RR2))
+              if (rr<RR2-dh) then
+                FXZ=exp(rr/(rr-RR2-dh))
               else
                 FXZ = 0.
               endif
-              strinix(i,k) = strinixI + perturb*FXZ*GT
+              T0X(i,k) = strinixI + perturb*FXZ*GT
+
             enddo
           enddo
           _ACC_END_PARALLEL
         endif
 #endif
 
+		
         !$ACC END DATA
         if(ioutput.eq.1) then
 #if defined FVW
@@ -449,12 +489,22 @@
          if(maxvelX<=0.01*maxvelsave)exit
 #endif
         endif
+		! output waveforms
+		
+!		if ((time .GE. waveT) .AND. (waveT .NE. 0.)) then
+!			waveT=0.;
+!			WRITE(41) waveU(1:nxt,1:nyt,1:nzt)
+!			WRITE(42) waveV(1:nxt,1:nyt,1:nzt)
+!			WRITE(43) waveW(1:nxt,1:nyt,1:nzt)
+!		endif
+		
+		
       enddo ! --- End of the time loop
     
       !$ACC END DATA
 
-      SCHANGEZ(:,:)=SCHANGEZ(:,:)-striniZ(:,:)   !stress drop
-      SCHANGEX(:,:)=SCHANGEX(:,:)-striniX(:,:)
+      SCHANGEZ(:,:)=SCHANGEZ(:,:)-T0Z(:,:)   !stress drop
+      SCHANGEX(:,:)=SCHANGEX(:,:)-T0X(:,:)
       
       deallocate(u1,v1,w1)
       deallocate(xx,yy,zz,xy,yz,xz)
@@ -500,28 +550,26 @@
         close(38)
         close(39)
         close(40)
+		close(41)
+		close(42)
+		close(43)
       endif
       
       rise=rise-ruptime
       
       tmax            = -1.
       output_param(1) =  0.
-      nsurf           =  0
       output_param(2) =  0.
       numer           =  0.
       denom           =  0.
       do k = nabc+1,nzt-nfs	
         do i = nabc+1,nxt-nabc
-          ! --- Surface of rupture:
-          if (incrack(i,k).eq.1) nsurf = nsurf + 1
-          
-          output_param(3) = nsurf * (dh*dh)
           ! --- Seismic moment:
-          output_param(2) = output_param(2) + slipZ(i,k)*mu1(i,nysc,k)*(dh*dh)
+          output_param(2) = output_param(2) + sqrt(slipX(i,k)**2 + slipZ(i,k)**2)*mu1(i,nysc,k)*(dh*dh)
           ! --- Stress drop:
           
-          numer = numer + sqrt((schangeZ(i,k)*slipZ(i,k))**2+(schangeX(i,k)*slipX(i,k))**2)
-          denom = denom + slipZ(i,k)
+          numer = numer + schangeZ(i,k)*slipZ(i,k)+schangeX(i,k)*slipX(i,k)	!correct only for pure dipslip/strikeslip
+          denom = denom + sqrt(slipX(i,k)**2 + slipZ(i,k)**2)
           if (denom .ne. 0.0) then
             output_param(4) = -(numer/denom)
           else
@@ -539,19 +587,19 @@
       if (ioutput.eq.1) then
         open(96,file='result/risetime.res')
         open(97,file='result/ruptime.res')
-        open(98,file='result/slip.res')
-        open(99,file='result/stressdrop.res')
+        open(98,file='result/slipX.res')
+        open(99,file='result/stressdropX.res')
+        open(95,file='result/stressdropZ.res')
+		open(94,file='result/slipZ.res')
+		
         do k = nabc+1,nzt-nfs
           do i = nabc+1,nxt-nabc
             write(96,*) rise(i,k)
             write(97,*) ruptime(i,k)
-#if defined DIPSLIP
-            write(98,*) slipZ(i,k)
-            write(99,*) schangeZ(i,k)
-#else
             write(98,*) slipX(i,k)
+            write(94,*) slipZ(i,k)
             write(99,*) schangeX(i,k)
-#endif
+            write(95,*) schangeZ(i,k)
           enddo
         enddo
         close(96)
@@ -583,8 +631,8 @@
                 if (rv.ne.0.) then
                   rv=2*dh/(sqrt((ruptime(i+1,k)-ruptime(i,k))**2+(ruptime(i,k+1)-ruptime(i,k))**2) &
                     +sqrt((ruptime(i,k)-ruptime(i-1,k))**2+(ruptime(i,k)-ruptime(i,k-1))**2))
-                  tint=tint+rv*slipZ(i,k)
-                  tint2=tint2+slipZ(i,k)
+                  tint=tint+rv*sqrt(slipX(i,k)**2+slipZ(i,k)**2)
+                  tint2=tint2+sqrt(slipX(i,k)**2+slipZ(i,k)**2)
                 else
                   rv = 0.
                 endif

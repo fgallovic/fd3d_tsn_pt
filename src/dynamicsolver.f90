@@ -1,4 +1,17 @@
-    PROGRAM dynamicsolver
+! Main body of the program - initialization, 
+! reading input files and running the inversion. 
+!-------------------------------------------------------
+! Authors: Frantisek Gallovic, Jan Premus, Lubica Valentova (2019)
+! Charles University in Prague, Faculty of Mathematics and Physics
+
+! This code is published under the GNU General Public License. To any
+! licensee is given permission to modify the work, as well as to copy
+! and redistribute the work or any derivative version. Still we would
+! like to kindly ask you to acknowledge the authors and don't remove
+! their names from the code. This code is distributed in the hope
+! that it will be useful, but WITHOUT ANY WARRANTY.
+! ------------------------------------------------------   
+    PROGRAM fd3d_tsn_pt
     USE source_com
     USE friction_com
     USE fd3dparam_com
@@ -119,7 +132,6 @@
       print *,'-----------------------------------------------------'
       print *,'Average speed:       ',output_param(1)
       print *,'Seismic moment:      ',output_param(2)
-      print *,'Surface of rupture:  ',output_param(3)
       print *,'Average stress drop: ',output_param(4)
  !     print *,'Energy release rate: ',output_param(5)
  !     print *,'Available energy:    ',output_param(6)

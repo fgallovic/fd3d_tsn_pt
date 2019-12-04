@@ -1,13 +1,15 @@
-    MODULE inversion_com
-      INTEGER:: RUNI,NLI,NWI
-      REAL,ALLOCATABLE,DIMENSION(:,:):: DcI,TsI,T0I     !Test variables (for which misfit is calculated)
-      real,allocatable,dimension(:,:,:):: DcA,TsA,T0A   !Array of variables in MC chains:
-      REAL,ALLOCATABLE,DIMENSION(:,:,:):: ruptimeA,riseA,slipA,schangeA
-      REAL,ALLOCATABLE :: pgaA(:,:,:),mwA(:),ruptdistA(:,:),MomentRateA(:,:)
-      real,allocatable,dimension(:):: VRA
-      INTEGER randseed,StepType
-      REAL StepSizeT0,StepSizeTs,StepSizeD
-    END MODULE
+! Parallel tempering inversion subroutines
+!-------------------------------------------------------
+! Authors: Frantisek Gallovic, Lubica Valentova (2019)
+! Charles University in Prague, Faculty of Mathematics and Physics
+
+! This code is published under the GNU General Public License. To any
+! licensee is given permission to modify the work, as well as to copy
+! and redistribute the work or any derivative version. Still we would
+! like to kindly ask you to acknowledge the authors and don't remove
+! their names from the code. This code is distributed in the hope
+! that it will be useful, but WITHOUT ANY WARRANTY.
+! ------------------------------------------------------
     
     MODULE frictionconstraints_com
       real:: DcMin,DcMax,strinixMin,strinixMax,peak_xzMin,peak_xzMax
@@ -188,7 +190,6 @@
           return
         endif
         if(peak_xz(i,j)/normstress(j)<peak_xzMin.or.peak_xz(i,j)/normstress(j)>peak_xzMax)then
-!        if(peak_xz(i,j)<peak_xzMin.or.peak_xz(i,j)>peak_xzMax)then
 !          write(*,*)'Peak_xz',i,j,peak_xz(i,j)
           return
         endif
@@ -199,9 +200,9 @@
     if(ConstraintNucl==1)then
       nuclOK=0
       do j=nabc+1,nzt-nfs
-        z=dh*(real(j-nabc)-0.5)
+        z=dh*real(j-1-nabc)
         do i=nabc+1,nxt-nabc
-          x=dh*(real(i-nabc)-0.5)
+          x=dh*real(i-1-nabc)
           rr=(x-NuclConstraintL)**2+(z-NuclConstraintW)**2
 #if defined DIPSLIP
           if(rr>NuclConstraintR**2.and.peak_xz(i,j)+coh(i,j)<=striniZ(i,j))then
@@ -248,9 +249,9 @@
         ncent=0
         !find  center
         do j=nabc+1,nzt-nfs
-          z=dh*(real(j-nabc)-0.5)
+          z=dh*real(j-1-nabc)
           do i=nabc+1,nxt-nabc
-            x=dh*(real(i-nabc)-0.5)
+            x=dh*real(i-1-nabc)
 #if defined DIPSLIP
             if (peak_xz(i,j)+coh(i,j)<=striniZ(i,j)) then 
 #else
@@ -265,9 +266,9 @@
         x0=x0/ncent
         z0=z0/ncent
         do j=nabc+1,nzt-nfs
-          z=dh*(real(j-nabc)-0.5)
+          z=dh*real(j-1-nabc)
           do i=nabc+1,nxt-nabc
-            x=dh*(real(i-nabc)-0.5)
+            x=dh*real(i-1-nabc)
             rr=sqrt((x-x0)**2+(z-z0)**2)
 #if defined DIPSLIP
             if (peak_xz(i,j)+coh(i,j)<=striniZ(i,j) .and. rr>NuclConstraintR) then
@@ -346,9 +347,8 @@
     call fd3d()
     CALL syntseis()
     if (iwaveform==1) then
-     CALL evalmisfit()
-     write(*,*)'Initial model VR: ',VR,' for shift',Tshift,'s'
-!     call plotseis()
+      CALL evalmisfit()
+      write(*,*)'Initial model VR: ',VR,' for shift',Tshift,'s'
     elseif (iwaveform==2) then
       call evalmisfit2()
     endif
@@ -391,65 +391,7 @@
     
     END
     
-    SUBROUTINE inversion_modeltofd3d() ! inversion from model controll points to fd3d grid
-    USE inversion_com
-    USE fd3dparam_com
-    USE friction_com
-    USE pml_com
-    IMPLICIT NONE
-    real,dimension(:),allocatable:: xintrpl,yintrpl,xnew,ynew
-    integer i,k,ii,kk
-    real DW,DL,dum,xs,zs,t,u
 
-! Bilinear interpolation
-    DL=dh*(nxt-2*nabc)/real(NLI-1)
-    DW=dh*(nzt-nfs-nabc)/real(NWI-1)
-    do k=nabc+1,nzt-nfs
-      ZS=dh*(k-1-nabc)+dh/2.
-      kk=int(ZS/DW)+1
-      u=(ZS-DW*(kk-1))/DW
-      do i=nabc+1,nxt-nabc
-        XS=dh*(i-1-nabc)+dh/2.
-        ii=int(XS/DL)+1
-        t=(XS-DL*(ii-1))/DL
-#if defined DIPSLIP
-        striniZ(i,k)=(1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)
-        striniX(i,k)=0.
-#else
-        striniX(i,k)=(1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)
-        striniZ(i,k)=0.
-#endif
-        peak_xz(i,k)=((1.-t)*(1.-u)*TsI(ii,kk)+t*(1.-u)*TsI(ii+1,kk)+t*u*TsI(ii+1,kk+1)+(1.-t)*u*TsI(ii,kk+1))*normstress(k)
-        Dc(i,k)     =(1.-t)*(1.-u)*DcI(ii,kk)+t*(1.-u)*DcI(ii+1,kk)+t*u*DcI(ii+1,kk+1)+(1.-t)*u*DcI(ii,kk+1)
-      enddo
-    enddo
-    dyn_xz=0.
-    coh=.5e6
-
-    END
-    
-    
-  
-	
-    
-    SUBROUTINE readinversionresult()
-    USE inversion_com
-    USE fd3dparam_com
-    USE friction_com
-    IMPLICIT NONE
-    real x,z,rr,DL,DW
-    integer i,j
-    real dum
-    
-    open(244,FILE='forwardmodel.dat')
-    read(244,*)dum,dum,T0I(:,:),TsI(:,:),DcI(:,:)
-    close(244)
-    
-    CALL inversion_modeltofd3d()
-    
-    END
-
-    
     subroutine alloc_temp(iseed)
     USE mod_ctrl
     IMPLICIT NONE

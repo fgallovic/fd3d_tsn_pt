@@ -72,6 +72,7 @@ plot 'friction.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 2 notitle w ima
 set origin 0.5,0.2
 set title 'Mu (GPa)'
 #set cbtics 0.1
+set cbrange [0:]
 plot 'friction.gnuplot.dat' matrix u (\$1*$dh):(\$2*$dh):3 index 3 notitle w image,\
 "aftershocks-onfault.dat" notitle w p ps .5 lc 10
 
