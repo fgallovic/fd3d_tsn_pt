@@ -152,7 +152,7 @@
           read(11,*) staX(i),staY(i),staZ(i)
         enddo
       endif 
-	  read(11,*) waveT
+!	  read(11,*) waveT
 	  
       nxt=nxtT+2*nabc
       nyt=nytT+nabc
@@ -185,6 +185,8 @@
 #endif
       
       allocate(ruptime(nxt,nzt),slipZ(nxt,nzt),slipX(nxt,nzt),rise(nxt,nzt),schangeZ(nxt,nzt),schangeX(nxt,nzt),sliptime(nxt,nzt))
+
+     striniX=0.; striniZ=0.; peak_xz=0.; Dc=0.
 
 !------------------------------------------------------------
 ! Read the velocity model
@@ -658,7 +660,7 @@
     END SUBROUTINE
 #endif
 
-    SUBROUTINE inversion_modeltofd3d() ! inversion from model controll points to fd3d grid
+    SUBROUTINE inversion_modeltofd3d() ! inversion from model control points to fd3d grid
     USE inversion_com
     USE fd3dparam_com
     USE friction_com
