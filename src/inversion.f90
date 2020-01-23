@@ -26,7 +26,7 @@
     USE waveforms_com
     USE fd3dparam_com
     USE source_com
-    USE mod_pgamisf, only : nper
+    USE mod_pgamisf, only : GMPE_id
     USE SlipRates_com
     IMPLICIT NONE
     
@@ -42,6 +42,13 @@
     read(10,*)ConstraintNucl,NuclConstraintL,NuclConstraintW,NuclConstraintR,OverstressConstraint
     read(10,*)StepType,StepSizeT0,StepSizeTs,StepSizeD
     read(10,*)SigmaData
+    if (iwaveform==2) then !for gmpes read additional parameters:
+       read(10,*) GMPE_id ! 1 for Zhao, 2 for Boore
+       read(10,*) nper !here we define periods for which psa are calculated
+       allocate(per(nper))
+       read(10,*) per(:) !periods stored here
+    endif
+    close(10)
     
     allocate(DcI(NLI,NWI),TsI(NLI,NWI),T0I(NLI,NWI))
     allocate(DcA(NLI,NWI,nchains),TsA(NLI,NWI,nchains),T0A(NLI,NWI,nchains))

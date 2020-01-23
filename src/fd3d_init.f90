@@ -212,6 +212,7 @@
     USE medium_com
     USE fd3dparam_com
     USE pml_com
+    use mod_pgamisf, only : v30 !obtain v30 for gmpe calculation
     IMPLICIT NONE
     real*8,parameter:: PI=3.1415926535
     real dip
@@ -251,6 +252,11 @@
         vpp=vp(j-1)
         vss=vs(j-1)
         dd=rho(j-1)
+      endif
+      if (dum<=30.) then
+        v30=vss !k from surface, dum from "0", rewrites v30 if there is layer<=30
+      else
+        if(k==nzt) v30=vss ! take first value
       endif
       if (vpp.gt.vpe(2)) vpe(2) = vpp
       if (vpp.lt.vpe(1)) vpe(1) = vpp
@@ -815,7 +821,7 @@
       enddo
     enddo
     dyn_xz=0.
-    coh=0.e6
+    coh=0.5e6
 
     END SUBROUTINE
     

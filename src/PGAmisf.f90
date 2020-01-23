@@ -1,69 +1,337 @@
 module mod_pgamisf
-integer :: nper
-real, allocatable :: per(:),a(:),b(:),c(:),d(:),c0(:),st(:),PGAsigma(:),PGAtau(:)
+integer :: GMPE_id !1 for zhao, 2 for boore
+integer :: nper_gmpe !number of periods with coefficients
+!for Zhao GMPEs:
+real, allocatable :: aZhao(:),bZhao(:),cZhao(:),dZhao(:),c0Zhao(:),stZhao(:),Zhao_sigma(:),Zhao_tau(:)
+!for Boore GMPEs:
+ integer, PARAMETER ::  ncoeff_stage1 = 3, ncoeff_stage2 = 7, nregions = 3
+ real,allocatable :: e_gmpe(:,:), amh_gmpe(:), c_gmpe(:,:), amref_gmpe(:), rref_gmpe(:), h_gmpe(:)     
+ real, allocatable ::  delta_c3(:,:), clin(:), vclin(:), vref(:), f1(:), f3(:), f4(:), f5(:), f6(:), f7(:) 
+ real,allocatable ::  r1(:), r2(:), delta_phiR(:), delta_phiV(:), v1(:), v2(:), phi1(:), phi2(:), tau1(:), tau2(:)
+ integer :: indx_pga,indx_permax,indx_pgv
+ real :: v30
+!!!
+real,allocatable :: per_gmpe(:) !periods where gmpes coeffs are defined
 real, allocatable :: sd(:),sv(:),sa1(:),sa2(:),psv(:),psa(:)
 !real :: pga_theor
 real :: damp=0.05
 real :: eps=1.e-6
 
-!contains
+contains
+      FUNCTION select(k,n,arr)
+      implicit none
+      INTEGER k,n
+      REAL select,arr(n)
+      INTEGER i,ir,j,l,mid
+      REAL a,temp
+      l=1
+      ir=n
+1     if(ir-l.le.1)then
+        if(ir-l.eq.1)then
+          if(arr(ir).lt.arr(l))then
+            temp=arr(l)
+            arr(l)=arr(ir)
+            arr(ir)=temp
+          endif
+        endif
+        select=arr(k)
+        return
+      else
+        mid=(l+ir)/2
+        temp=arr(mid)
+        arr(mid)=arr(l+1)
+        arr(l+1)=temp
+        if(arr(l).gt.arr(ir))then
+          temp=arr(l)
+          arr(l)=arr(ir)
+          arr(ir)=temp
+        endif
+        if(arr(l+1).gt.arr(ir))then
+          temp=arr(l+1)
+          arr(l+1)=arr(ir)
+          arr(ir)=temp
+        endif
+        if(arr(l).gt.arr(l+1))then
+          temp=arr(l)
+          arr(l)=arr(l+1)
+          arr(l+1)=temp
+        endif
+        i=l+1
+        j=ir
+        a=arr(l+1)
+3       continue
+          i=i+1
+        if(arr(i).lt.a)goto 3
+4       continue
+          j=j-1
+        if(arr(j).gt.a)goto 4
+        if(j.lt.i)goto 5
+        temp=arr(i)
+        arr(i)=arr(j)
+        arr(j)=temp
+        goto 3
+5       arr(l+1)=arr(j)
+        arr(j)=a
+        if(j.ge.k)ir=j-1
+        if(j.le.k)l=i
+      endif
+      goto 1
+      END function
 end module
 
-subroutine pga_theor(x,mw,per1,y) !result(y)
+subroutine pga_theor(x,mw,perT,y,sigma,tau) !result(y)
 use mod_pgamisf
 implicit none
 integer :: i
-real :: y,x,mw,per1
+real, intent(in) :: x,mw,perT
+real, intent(out) :: y,sigma,tau 
+!parameters for boore gmpes:
+real :: rjb, z1=-1, per_desired
+integer :: iregion=0,irelation=1,mech=1
+real :: r_pga4nl,per1,per2,r_t1,r_t2,slope_logy,slope_phi,slope_tau,slope_sigma,pga4nl,fe_pga4nl,fpb_pga4nl,fp_pga4nl,gspread_pga4nl
+real :: y_t1,fe_t1,fpb_t1,fsb_t1,fs_t1,phi_t1,tau_t1,sigma_t1,gspread_t1,amp_lin_t1,amp_nl_t1,amp_total_t1,fp_t1
+real :: y_t2,fe_t2,fpb_t2,fsb_t2,fs_t2,phi_t2,tau_t2,sigma_t2,gspread_t2,amp_lin_t2,amp_nl_t2,amp_total_t2,fp_t2
+real :: yg,ycgs,phi
+integer :: indx1,indx2,iflag_per
+
+select case(GMPE_id)
+case(1) !ZHAO
 i=1
 !print *,i,per1
-do while (abs(per1-per(i))>eps .and. i<=nper)
+do while (abs(perT-per_gmpe(i))>eps .and. i<=nper_gmpe)
  i=i+1
 enddo
 !print *,i
-if (i>nper) then
+if (i>nper_gmpe) then
  print *,'period inconsistent'
  y=-99999.!1/0.
-else
- y=a(i)*mw+b(i)*x-log(x+c(i)*exp(d(i)*mw))+c0(i)
+else !so far no interpolation between periods...
+ y=aZhao(i)*mw+bZhao(i)*x-log(x+cZhao(i)*exp(dZhao(i)*mw))+c0Zhao(i)
+ sigma=Zhao_sigma(i)
+ tau=Zhao_tau(i)
 endif
 !print *,i,pga_theor
+
+case(2) !BOORE
+per_desired=perT; rjb=x; mech=1 !others taken from defs
+!check for period consistency:
+! Trap for per outside the range of the tabulated periods (but only if not pga or pgv):
+
+            if (per_desired < per_gmpe(1) .or. per_desired > per_gmpe(indx_permax))   then
+              print *,' ERROR: per = ', per_desired, ' is outside the tabulated range in per_gmpe table'
+              print *,' per_gmpe '
+              do i = 1, nper_gmpe
+                print *, i, per_gmpe(i)
+              end do
+              print *, ' QUITTING!!!'
+              stop
+            end if
+! Find lower index of the two tabulated periods that span the interval
+! containing the input period
+! assume that the periods are sorted from small to large, and that period value
+! for index nper_gmpe corresponds to the maximum period (and thus 
+! the indices 1 and 2 are for pgv and pgv (per_gmpe = -1 and 0)).
+
+
+            iflag_per = 0
+            IF (per_desired == per_gmpe(nper_gmpe)) THEN
+              indx1 = nper_gmpe-1
+              indx2 = nper_gmpe
+              iflag_per = 1
+            ELSE
+              DO i = 1, nper_gmpe-1  
+                IF (per_desired >= per_gmpe(i) .and. per_desired < per_gmpe(i+1) ) THEN
+                  indx1 = i
+                  indx2 = i+1
+                  iflag_per = 1
+                  EXIT
+                END IF
+              END DO
+            END IF
+            if (iflag_per == 0) then
+              PRINT *,' ERROR: could not find per = ',per_desired,' in per_gmpe table'
+              PRINT *,' per_gmpe '
+              DO i = 1, nper_gmpe
+                PRINT *, per_gmpe(i)
+              END DO
+              PRINT *, ' QUITTING!!!'
+              STOP
+            end if
+  
+            per1 = per_gmpe(indx1)
+            per2 = per_gmpe(indx2)
+! Now evaluate PSA and sigma for the periods on either side of the desired period 
+! (the evaluations are so quick that there is no need to treat
+! the case of the desired and tabulated periods being the same).
+
+            r_t1 = sqrt(rjb**2+h_gmpe(indx1)**2)
+      
+            call bssa14_gm_sub4y(per_desired, mw, rjb, r_t1, v30, mech, iregion, z1, irelation, pga4nl,c_gmpe(:,indx1), amref_gmpe(indx1), rref_gmpe(indx1), delta_c3(:,indx1),&
+                                 e_gmpe(:,indx1), amh_gmpe(indx1), clin(indx1), vclin(indx1), vref(indx1), f1(indx1), f3(indx1), f4(indx1), f5(indx1), f6(indx1), f7(indx1), &
+                                 phi1(indx1), phi2(indx1),  tau1(indx1), tau2(indx1), R1(indx1), R2(indx1), delta_phiR(indx1), v1(indx1), v2(indx1), delta_phiV(indx1), y_t1, &
+                                 fe_t1, fpb_t1, fp_t1, fsb_t1, fs_t1, phi_t1, tau_t1, sigma_t1, gspread_t1, amp_lin_t1, amp_nl_t1, amp_total_t1)    
+     
+     
+            r_t2 = sqrt(rjb**2+h_gmpe(indx2)**2)
+      
+            call bssa14_gm_sub4y(per_desired, mw, rjb, r_t2, v30, mech, iregion, z1, irelation, pga4nl,c_gmpe(:,indx2), amref_gmpe(indx2), rref_gmpe(indx2), delta_c3(:,indx2), &
+                                 e_gmpe(:,indx2), amh_gmpe(indx2), clin(indx2), vclin(indx2), vref(indx2), f1(indx2), f3(indx2), f4(indx2), f5(indx2), f6(indx2), f7(indx2), &
+                                 phi1(indx2), phi2(indx2), tau1(indx2), tau2(indx2), R1(indx2), R2(indx2), delta_phiR(indx2), v1(indx2), v2(indx2), delta_phiV(indx2), y_t2,&
+                                 fe_t2, fpb_t2, fp_t2, fsb_t2, fs_t2, phi_t2, tau_t2, sigma_t2, gspread_t2, amp_lin_t2, amp_nl_t2, amp_total_t2)     
+
+            slope_logy =  (alog10(y_t2) - alog10(y_t1))/alog10(per2/per1)
+            y = 10**(alog10(y_t1) +  slope_logy*alog10(per_desired/per1)) 
+        
+            slope_phi =  (phi_t2 - phi_t1)/alog10(per2/per1); phi = phi_t1 + slope_phi*alog10(per_desired/per1) 
+            slope_tau =  (tau_t2 - tau_t1)/alog10(per2/per1); tau = tau_t1 + slope_tau*alog10(per_desired/per1)
+
+!....we do not need the other parts by now...
+ 
+!            slope_sigma =  (sigma_t2 - sigma_t1)/ alog10(per2/per1); sigma = sigma_t1 + slope_sigma*alog10(per_desired/per1)
+
+ 
+!            slope_fe =  (fe_t2 - fe_t1)/alog10(per2/per1); fe =  fe_t1 + slope_fe*alog10(per_desired/per1) 
+!            slope_fpb =  (fpb_t2 - fpb_t1)/alog10(per2/per1) ; fpb =  fpb_t1 + slope_fpb*alog10(per_desired/per1) 
+!            slope_fp =  (fp_t2 - fp_t1)/alog10(per2/per1); fp =  fp_t1 + slope_fp*alog10(per_desired/per1) 
+!            slope_fsb =  (fsb_t2 - fsb_t1)/alog10(per2/per1); fsb =  fsb_t1 + slope_fsb*alog10(per_desired/per1) 
+!            slope_fs =  (fs_t2 - fs_t1)/alog10(per2/per1); fs =  fs_t1 + slope_fs*alog10(per_desired/per1) 
+!            slope_gspread =  (gspread_t2 - gspread_t1)/alog10(per2/per1); gspread =  gspread_t1 + slope_gspread*alog10(per_desired/per1) 
+!            slope_logamp_lin = (alog10(amp_lin_t2)-alog10(amp_lin_t1))/alog10(per2/per1); amp_lin = 10**(alog10(amp_lin_t1) + slope_logamp_lin*alog10(per_desired/per1)) 
+!            slope_logamp_nl =  (alog10(amp_nl_t2) - alog10(amp_nl_t1))/alog10(per2/per1); amp_nl = 10**(alog10(amp_nl_t1) + slope_logamp_nl*alog10(per_desired/per1)) 
+!            slope_logamp_total =  (alog10(amp_total_t2) - alog10(amp_total_t1))/alog10(per2/per1); amp_total = 10**(alog10(amp_total_t1) + slope_logamp_total*alog10(per_desired/per1)) 
+!            slope_logr =  (alog10(r_t2) - alog10(r_t1))/alog10(per2/per1); r = 10**(alog10(r_t1) + slope_logr*alog10(per_desired/per1)) 
+
+!CONVERT from g to cgs
+        if (per_desired >= 0.0) then
+          yg   =y
+          ycgs = 981.0 * yg
+        else
+          yg   = y 
+          ycgs = yg
+        end if
+        sigma=phi
+        y=log(ycgs) !so that definition same with zhao: y in cm/s-2 and natural logarithm..
+end select 
+
 end subroutine
 
 SUBROUTINE PGA_INIT()
 use mod_pgamisf
+use waveforms_com, only: nper
 implicit none
 integer :: i,j,ierr
-real :: dum,dum1
+real :: dum,dum1,per_max
+integer :: i_read_status
+character(300) :: f_coeff
+integer :: nu_coeff
 
 !read coefficients
+
+select case(GMPE_id)
+case(1) !ZHAO
 ierr=0
-nper=0
+nper_gmpe=0
 open(unit=1111,file='coeff1.dat',status='old')
  do while (ierr==0)
   read(1111,*,iostat=ierr) dum
-  if (ierr==0) nper=nper+1
+  if (ierr==0) nper_gmpe=nper_gmpe+1
  enddo
 !allocate
-allocate(per(nper),a(nper),b(nper),c(nper),d(nper),c0(nper),st(nper),PGAsigma(nper),PGAtau(nper))
+allocate(per_gmpe(nper_gmpe),aZhao(nper_gmpe),bZhao(nper_gmpe),cZhao(nper_gmpe),dZhao(nper_gmpe),c0Zhao(nper_gmpe),stZhao(nper_gmpe),Zhao_sigma(nper_gmpe),Zhao_tau(nper_gmpe))
 rewind(1111)
- do i=1,nper
-  read(1111,*) per(i),a(i),b(i),c(i),d(i)
+ do i=1,nper_gmpe
+  read(1111,*) per_gmpe(i),aZhao(i),bZhao(i),cZhao(i),dZhao(i) 
  enddo
 close(1111)
 
 open(unit=1112,file='coeff2.dat',status='old')
- do i=1,nper
-  read(1112,*) dum1,c0(i),dum,(dum, j=1,3),PGAsigma(i),PGAtau(i),st(i)
-  if (abs(dum1-per(i))>eps) then 
+ do i=1,nper_gmpe
+  read(1112,*) dum1, c0Zhao(i),dum,(dum, j=1,3),Zhao_sigma(i),Zhao_tau(i),stZhao(i) 
+  if (abs(dum1-per_gmpe(i))>eps) then 
 !   read(1112,*) 
 !  else
-   print *,'files with coefficients for PGA inconsistent',dum,per(i)
+   print *,'files with coefficients for ZHAO gmpes inconsistent',dum,per_gmpe(i)
    stop
   endif
  enddo
 close(1112)
-
 allocate(sd(nper),sv(nper),sa1(nper),sa2(nper),psv(nper),psa(nper))
+
+case(2) !BOORE
+nu_coeff=1111
+f_coeff='BSSA14_Coefficients_071314_Revisedf4_071514.csv'
+!STOLEN:
+! Open coefficient files and
+! read coefficients for regression coefficients:
+      open(unit=nu_coeff,file=trim(f_coeff), status='old')
+
+      read(nu_coeff,*)
+      i = 0
+      
+      read_coefficients: DO
+
+!Coefficient file:
+! 1	         2	3	4	5	6	7	8	9	10	11	12	13	14	          15	        16	         17	                 18	         19	     20	      21	22	23	24	25	26	        27	   28	29	30	31	32	33	34	35	36	37
+!Period(sec)	e0	e1	e2	e3	e4	e5	e6	Mh	c1	c2	c3	Mref	Rref(km)	h(km)	Dc3(globalCATWNZ)	Dc3(ChinaTurkey)	Dc3(ItalyJapan)	  c	Vc(m/s)	Vref(m/s)	f1	f3	f4	f5	f6(1/km)	f7	R1(km)	R2(km)	DfR	DfV	V1(m/s)	V2(m/s)	f1	f2	t1	t2
+!period	        e0	e1	e2	e3	e4	e5	e6	Mh	c1	c2	c3	Mref	Rref	        h	Dc3.globalCATWNZ	Dc3.ChinaTurkey	        Dc3.ItalyJapan	clin	Vc	Vref	        f1	f3	f4	f5	f6	        f7	R1	R2	DfR	DfV	V1	V2	f1	f2	t1	t2
+!     :                      ncoeff_stage1 = 3,
+!     :                      ncoeff_stage2 = 7,
+!     :                      nregions = 3
+
+!get per_gmpe
+        read(nu_coeff,*,iostat=i_read_status) dum 
+
+        if (i_read_status /= 0) exit
+        
+        i = i + 1
+      
+      END DO read_coefficients
+
+      nper_gmpe = i
+
+      allocate(per_gmpe(nper_gmpe),e_gmpe(0:ncoeff_stage2-1,nper_gmpe), amh_gmpe(nper_gmpe), &
+      c_gmpe(1:ncoeff_stage1,nper_gmpe),amref_gmpe(nper_gmpe),rref_gmpe(nper_gmpe),h_gmpe(nper_gmpe),&
+      delta_c3(0:nregions,nper_gmpe),clin(nper_gmpe),vclin(nper_gmpe), vref(nper_gmpe),&
+      f1(nper_gmpe),f3(nper_gmpe),f4(nper_gmpe),f5(nper_gmpe),f6(nper_gmpe),f7(nper_gmpe),&
+      r1(nper_gmpe),r2(nper_gmpe),delta_phiR(nper_gmpe),delta_phiV(nper_gmpe), &
+      v1(nper_gmpe),v2(nper_gmpe), phi1(nper_gmpe),phi2(nper_gmpe),tau1(nper_gmpe),tau2(nper_gmpe))
+      delta_c3=0.
+     rewind(nu_coeff)
+     read(nu_coeff,*) !header
+     do i=1,nper_gmpe
+      read(nu_coeff,*,iostat=ierr) per_gmpe(i), (e_gmpe(j,i), j = 0, ncoeff_stage2-1), amh_gmpe(i), &
+                       (c_gmpe(j,i), j = 1, ncoeff_stage1), amref_gmpe(i), rref_gmpe(i), &
+                        h_gmpe(i), (delta_c3(j,i), j = 1, nregions), clin(i), vclin(i), vref(i), &
+                        f1(i), f3(i), f4(i), f5(i),f6(i), f7(i), r1(i), r2(i), delta_phiR(i), &
+                        delta_phiV(i), v1(i), v2(i), phi1(i), phi2(i), tau1(i), tau2(i)
+      if (ierr/=0) stop
+     enddo          
+      close(nu_coeff)
+
+    indx_pgv = 0
+      find_pgv_index: DO i = 1, nper_gmpe
+        IF (per_gmpe(i) == -1.0) THEN
+          indx_pgv = i
+          EXIT find_pgv_index
+        END IF
+      END DO find_pgv_index
+         indx_pga = 0
+      find_pga_index: DO i = 1, nper_gmpe
+        IF (per_gmpe(i) == 0.0) THEN
+          indx_pga = i
+          EXIT find_pga_index
+        END IF
+      END DO find_pga_index
+
+      per_max = -1.0
+      DO i = 1, nper_gmpe
+        IF (per_gmpe(i) > per_max) THEN
+          per_max = per_gmpe(i)
+          indx_permax = i
+        END IF
+      END DO
+end select
+
 END SUBROUTINE
 
 
@@ -173,3 +441,545 @@ END SUBROUTINE
       RETURN
       END
 !-----------------------------------------------------------------------
+! --------------------------------------- y_bssa14_no_site_amps --------------------------------
+      subroutine y_bssa14_no_site_amps(m, r, mech, iregion,c, mref, rref, delta_c3,e, mh,y, fe, fpb, fp, gspread)     
+     
+! **** USE THIS VERSION WITH COEFFICIENTS IN PEER REPORT FORMAT ****
+
+! NOTE: y in g, unless pgv!!!!  
+
+! ncoeff_s1, ncoeff_s2 are not included as arguments because it is
+! assumed that they are 3 and 7, respectively.
+
+! Assume no site amp
+
+! mech = 0, 1, 2, 3 for unspecified, SS, NS, RS, respectively
+
+! Dates: 02/27/13 - Modified from y_ngaw2_no_site_amps
+!        07/01/13 - Renamed from y_bssa13_no_site_amps
+ 
+      IMPLICIT none
+      
+      real :: m, r,c(1:3), mref, rref, delta_c3(0:3), e(0:6), mh
+      real ::  alny, y, fpb, fp, fe, fs, fault_type_term, gspread     
+     
+      integer :: mech, iregion
+     
+
+ 
+      if ( e(mech) == 0.0) then   ! no coefficient
+        print *,' From y_bssa14_no_site_amps, '//' e(mech) == 0.0; QUITTING'
+        stop
+      end if
+        
+      if (mech /=0 .and. mech /= 1 .and. mech /= 2 .and. mech /= 3)then
+        print *,' From y_bssa14_no_site_amps, mech = ', mech,' not a valid value; QUITTING'
+        stop
+      else
+        fault_type_term = e(mech)
+      end if
+        
+
+      if (m < mh ) then      
+        fe = e(4)*(m-mh) + e(5)*(m-mh)**2 
+      else
+        fe = e(6)*(m-mh)
+      end if
+ 
+
+      fe = fault_type_term + fe
+ 
+      gspread = c(1) + c(2)*(m-mref)
+
+      fpb = gspread*alog(r/rref) + c(3)*(r-rref)
+
+      fp = fpb + delta_c3(iregion)*(r-rref)
+      
+      fs = 0.0  ! No amps
+         
+      alny = fe + fp + fs 
+      
+      y = exp(alny)
+      
+      return
+      end
+! --------------------------------------- y_bssa14_no_site_amps --------------------------------
+! --------------------------------------------------------- bssa14_gm_sub4y
+      subroutine bssa14_gm_sub4y(per, m, rjb, r, v30, mech, iregion, z1, irelation,pga4nl,c, amref, rref, delta_c3,e, amh,clin, vclin, vref,f1, f3, f4, f5,f6, f7,phi1, phi2, tau1, tau2,r1, r2, delta_phiR,v1, v2, delta_phiV,y, fe, fpb, fp, fsb, fs, phi, tau, sigma, gspread, amp_lin, amp_nl, amp_total)     
+      
+!Input arguments:
+
+!          per, m, rjb, 
+!          mech, v30, 
+!          e_gmpe, amh_gmpe, c_gmpe, amref_gmpe,
+!          rref_gmpe, h_gmpe, 
+!          v30ref, 
+!          sigt_gmpe,
+!          e_pga4nl, amh_pga4nl, c_pga4nl, amref_pga4nl,
+!          rref_pga4nl, h_pga4nl,
+
+
+!Output arguments:
+
+!          y, expsiglny,
+!          pga4nl, fm_pga4nl, fd_pga4nl, 
+!          fs_lin_pga4nl, fs_nonlin_pga4nl,
+!          bnl, amp_lin, amp_nl, amp_total,
+!          fm_gmpe, fd_gmpe, fs_gmpe,
+!          gspread
+
+
+! Computes NGAW2 NGA motions for given input variables
+
+! Note: For generality, include a magnitude-dependent anelastic
+! term, although the coefficients are 0.0 for the 2007 BA NGA GMPEs
+
+ 
+! Dates: 02/27/13 - Written by D.M. Boore, based on ngaw2_gm_sub4y
+!        04/09/13 - Revise in light of the new report and coefficient table.
+!                 - Sediment depth term in terms of delta_z1, which requires the relation
+!                   between z1 and Vs30.  There are two relations in the report
+!                   (equations (4.9a) and (4.9b)), one for Japan and one for California.
+!                   I need to add an input argument to specify which relation to use, but for
+!                   now, just skip the sediment term altogether (even if it is included, specifying
+!                   Z1<0 will turn it off).
+!                 - Return a large value of phi if Rjb> 300
+!        04/11/13 - Ignore restriction on Rjb for phi computation
+!        07/01/13 - Renamed from bssa13_gm_sub4y
+!        01/09/14 - Adjust mu1_vs30 output from units of m to km.
+
+      implicit none
+
+      
+      real,intent(in) ::   per, m, rjb, r, v30, z1,  c(1:3), amref, rref, delta_c3(0:3), e(0:6), amh
+      real, intent(out) :: pga4nl
+      real  clin, vclin, vref, f1, f2, f3, f4, f5, f6, f7, r1, r2, delta_phiR, delta_phiV, v1, v2
+      real  phi1, phi2, tau1, tau2,  fe, fpb, fp, fsb, fs, phiM, phiMR
+      real,intent(out) ::  phi, tau, sigma, gspread,y
+      real,intent(out) ::  amp_lin, amp_nl, amp_total
+      real delta_z1, f_delta_z1,mu1_vs30
+      real y_xamp,bnl
+     
+      integer,intent(in) :: mech, iregion, irelation
+
+        
+ !  print *,per, m,rjb,r,v30
+!   print *,pga4nl
+
+!GET Y FOR GMPE, WITHOUT SITE AMPS:
+
+      call y_bssa14_no_site_amps(m, r, mech, iregion,c, amref, rref, delta_c3,e, amh,y_xamp, fe, fpb, fp, gspread)     
+      
+!     print *,pga4nl
+!Compute site amps
+
+      if (v30 <= vclin) then
+        amp_lin  =  (v30/vref)**clin
+      else
+        amp_lin  =  (vclin/vref)**clin
+      end if
+        
+      f2 = f4 * (exp(f5*(amin1(v30,760.0)-360.0)) - exp(f5*(760.0-360.0)           )   )
+      
+      bnl = f2
+      
+      amp_nl = exp(f1+f2*alog( (pga4nl+f3)/f3 ))
+
+      amp_total = amp_lin * amp_nl
+      
+      fsb  = alog(amp_total)   ! Natural log!!
+      
+      if (z1 < 0.0) then
+        delta_z1 = 0.0
+      else
+        if (irelation == 1 .or. irelation == 2) then
+          delta_z1 = z1 - mu1_vs30(v30, irelation)/1000.0
+        else
+          delta_z1 = 0.0
+        end if
+      end if
+      
+      if (per < 0.65) then
+        f_delta_z1 = 0.0
+      else
+        if (delta_z1 > f7/f6) then
+          f_delta_z1 = f7
+        else
+          f_delta_z1 = f6*delta_z1
+        end if
+      end if
+      
+      fs = fsb + f_delta_z1
+      
+      y = exp(fs) * y_xamp
+       
+!Compute phi, tau, and sigma   
+
+      if (m <= 4.5) then
+        tau = tau1
+      else if (m >= 5.5) then
+        tau = tau2
+      else 
+        tau = tau1+(tau2-tau1)*(m-4.5)
+      end if
+      
+      if (m <= 4.5) then
+        phiM = phi1
+      else if (m >= 5.5) then
+        phiM = phi2
+      else 
+        phiM = phi1+(phi2-phi1)*(m-4.5)
+      end if
+      
+      if (Rjb <= R1) then
+        phiMR = phiM
+      else if (Rjb > R2) then
+        phiMR=phiM+delta_phiR
+      else
+        phiMR = phiM+delta_phiR*(alog(Rjb/R1)/alog(R2/R1))
+      end if
+
+      if (v30 <= v1) then
+        phi = phiMR - delta_phiV
+      else if (v30 >= v2) then
+        phi = phiMR
+      else
+        phi = phiMR - delta_phiV*(alog(v2/v30)/alog(v2/v1))
+      end if
+      
+      sigma = sqrt(phi**2 + tau**2)
+         
+      return
+      end subroutine bssa14_gm_sub4y
+! --------------------------------------------------------- bssa14_gm_sub4y
+
+! --------------------------------------------------------- mu1_vs30
+      function mu1_vs30(vs30, irelation)     
+
+! irelation   relation
+!       1     California
+!       2     Japan
+
+! NOTE: the units of mu1_vs30 are m. not km
+
+! Dates: 05/10/13 - Written by D.M. Boore 
+
+      implicit none
+      
+      real :: ln_mu1, mu1_vs30, vs30 
+     
+      integer :: irelation
+      
+      if (irelation == 1) then 
+      
+        ln_mu1 = (-7.15/4.0)*alog((vs30**4+570.94**4)/(1360.0**4+570.94**4))
+        mu1_vs30 = exp(ln_mu1)
+        
+      else if (irelation == 2) then
+      
+        ln_mu1 = (-5.23/2.0)*alog((vs30**2+412.39**2)/(1360.0**2+412.39**2))
+        mu1_vs30 = exp(ln_mu1)      
+      
+      else
+      
+        ! No relation, return negative value
+        mu1_vs30 = -9.9
+      
+      end if
+      
+
+      return
+      
+      end function mu1_vs30
+
+
+subroutine get_rotd50(a1,a2,nt1,nt2,dt,per1,nper1,damp,rotd50)
+!input: a1(nt1),a2(nt2)
+!       per1(nper1)
+!       damp
+use mod_pgamisf, only : select
+implicit none
+real :: a1(1:nt1),a2(1:nt2),per1(nper1),damp,rotd50(nper1)
+!local:
+real, allocatable :: arot(:,:)
+real, allocatable :: ts_rd(:),ts_rv(:)
+integer :: nrot,n50,nt,irot, iper
+real :: deg2rad,angrot,omega,d0,v0,dt,rd,rv,aa
+real, allocatable :: psarot(:,:),wrk(:)
+integer :: nper1,nt1,nt2
+real*8,parameter:: PI=3.1415926535
+!check the size
+!nt1=size(a1);nt2=size(a2)
+!print *,nt1,nt2
+
+
+if (nt1.ne.nt2) then
+ print *,'different length in horizontal components, taking the smaller one'
+ if (nt1<nt2 .and. nt1>0) then
+  nt=nt1
+ elseif (nt2>0) then 
+  nt=nt2
+ else
+  print *,'problem with horizontal compononent lengths: ',nt1,nt2
+  stop
+ endif
+else
+ nt=nt1
+endif
+
+nrot=180
+n50=nrot/2
+deg2rad=pi/180.
+allocate(arot(nt,nrot))
+
+allocate(ts_rd(nt),ts_rv(nt),wrk(nrot))
+allocate(psarot(nrot,nper1))
+
+do irot=1,nrot
+ angrot=(irot-1.)*deg2rad
+ arot(:,irot)=a1(:)*cos(angrot)+a2(:)*sin(angrot)
+ !get response spectra of angrot
+  do iper=1,nper1
+   omega=2.*pi/per1(iper)
+   d0=0.;v0=0.
+!  print *,damp,minval(arot(:,irot))
+   call rdrvaa_rd_rv_ts(arot(:,irot),nt,omega,damp,dt,rd,rv,aa,d0,v0,ts_rd(:),ts_rv(:))
+   psarot(irot,iper)=omega**2*rd 
+!   print *,psarot(irot,iper),rd
+  enddo
+enddo
+
+
+!sort and find n50
+do iper=1,nper1
+!get rotd50
+ wrk=psarot(:,iper)
+! print *,maxval(wrk),maxval(psarot(:,iper))
+ rotd50(iper)=select(n50,nrot,wrk)
+enddo
+
+deallocate(arot,ts_rd,ts_rv,wrk,psarot)
+
+end subroutine
+
+
+     subroutine rdrvaa_rd_rv_ts(acc,na,omega,damp,dt,rd,rv,aa,d0,v0,ts_rd, ts_rv)
+! This is a modified version of "Quake.For", originally
+! written by J.M. Roesset in 1971 and modified by
+! Stavros A. Anagnostopoulos, Oct. 1986.  The formulation is that of
+! Nigam and Jennings (BSSA, v. 59, 909-922, 1969).  This modification
+! returns the time series of the relative displacement, in addition to
+! rd, rv, and aa
+
+!   acc = acceleration time series
+!    na = length of time series
+! omega = 2*pi/per
+!  damp = fractional damping (e.g., 0.05)
+!    dt = time spacing of input
+!    rd = relative displacement of oscillator
+!    rv = relative velocity of oscillator
+!    aa = absolute acceleration of oscillator
+! d0,v0 = initial displacement and velocity (usually set to 0.0)
+
+! Dates: 05/06/95 - Modified by David M. Boore
+!        04/15/96 - Changed name to RD_CALC and added comment lines
+!                   indicating changed for storing the oscillator time series
+!                   and computing the relative velocity and absolute
+!                   acceleration
+!        04/16/96 - This is RD_CALC, with the time series of the relative
+!                   displacement added and the name changed
+!        03/14/01 - Made this double precision, but did not rename it as I
+!                   did rc_calc and rdrvaa.  Also added initial displacement 
+!                   and velocity.
+!        01/31/03 - Moved implicit statement before the type declarations
+!        10/10/07 - Initial variable assignments and iteration loop modified 
+!                   to double-precision (Chris Stephens)
+!        02/08/08 - Set ts(1)=0.0 and fill ts array up to na points.  The previous
+!                   version of the program filled ts to na-1, but the program 
+!                   calling this subroutine thought that the time series had
+!                   a length of na.  What I do now is shift the ts by dt, assuming
+!                   that ts(1) = 0.0
+!        08/14/12 - Included 12/22/10 revision made to rscalc_ts: 
+!                     Remove minus sign in front of the initialization of y, ydot. 
+!                     The minus sign was a remnant of an earlier version where I did not
+!                     understand the meaning of y and ydot.
+!                 - Included 12/26/10 revision made to rscalc_ts: 
+!                     Correct error that first vel and dis points = 0.0
+!        09/22/12 - Renamed from rdcalcts, and now include rv and aa in output
+!                   (following rdrvaa.for).
+!        02/07/18 - Modified from rdrvaa_rd_ts.for, and nows writes out ts_rv, following rscalc_ts. 
+!                   I am trying to decrease the number of programs that compute oscillator 
+!                   response time series, as things have gotten quite confusing.  The
+!                   program smc2psa_rot_gmrot_interp_acc_rot_osc_ts.for had used the
+!                   subroutine rdrvaa_rd_ts, perhaps to avoid the extra time in computing
+!                   ts_rv, but that extra cost is minor compared to the confusion of having
+!                   too many programs that do almost the same thing.  So now 
+!                   smc2psa_rot_gmrot_interp_acc_rot_osc_ts.for and smc2rs_ts.for will both
+!                   call the subroutine rdrvaa_rd_rv_ts.  The subroutines rscalc_ts.for, rdcalcts.for, 
+!                   and rdrvaa_rd_ts.for have all been saved with their latest dates as an extension,
+!                   and the files with the actual names have been modified by deleting all
+!                   content and adding the line
+!                   ! Use rdrvaa_rd_rv_ts.for instead
+
+!                   
+
+      IMPLICIT NONE
+      REAL acc(*), omega, damp, dt, rd, rv, aa, d0, v0, ts_rd(*), ts_rv(*)
+!locals:
+      real :: omt, d2,bom,d3,omd,om2,omdt,c1,c2,c3,c4,ss,cc,bomt,ee,s1,s2,s3,a11,a12,a21,a22,s4,s5
+      real :: b11,b12,b21,b22,y,ydot,y1,z,z1,z2,ra
+      integer :: i,na
+
+
+      omt=dble(omega)*dble(dt)
+      d2=1-dble(damp)*dble(damp)
+      d2=sqrt(d2)
+      bom=dble(damp)*dble(omega)
+      d3 = 2.*bom                 ! for aa
+      omd=dble(omega)*d2
+      om2=dble(omega)*dble(omega)
+      omdt=omd*dble(dt)
+      c1=1.d0/om2
+      c2=2.d0*dble(damp)/(om2*omt)
+      c3=c1+c2
+      c4=1.d0/(dble(omega)*omt)
+      ss=sin(omdt)
+      cc=cos(omdt)
+      bomt=dble(damp)*omt
+      ee=exp(-bomt)
+      ss=ss*ee
+      cc=cc*ee
+      s1=ss/omd
+      s2=s1*bom
+      s3=s2+cc
+      a11=s3
+      a12=s1
+      a21=-om2*s1
+      a22=cc-s2
+      s4=c4*(1.d0-s3)
+      s5=s1*c4+c2
+      b11=s3*c3-s5
+      b12=-c2*s3+s5-c1
+      b21=-s1+s4
+      b22=-s4
+      rd=0.
+      rv = 0.                           ! for rv
+      aa = 0.                           ! for aa
+
+      y = dble(d0)
+      ydot = dble(v0) ! These are initial values of the oscillator
+!      y=0.
+!      ydot=0.
+
+      ts_rd(1) = d0  ! 14aug12
+      ts_rv(1) = v0  ! 14aug12
+!      ts(1) = 0.0  ! 08feb08
+
+      DO i=1, na-1   ! 08feb08 (used new variable n1=na-1, but I replaced the upper limit with 
+                     ! na-1 on 09/22/12, as n1 was only used here)
+
+        y1=a11*y+a12*ydot+b11*dble(acc(i))+b12*dble(acc(i+1))
+        ydot=a21*y+a22*ydot+b21*dble(acc(i))+b22*dble(acc(i+1))
+        y=y1    ! y is the oscillator output at time corresponding to index i+1 
+                ! changed "i" in this comment to "i+1" on 14aug12
+        ts_rd(i+1) = y   !08feb08
+        ts_rv(i+1) = ydot    
+        z=abs(y)
+        if (z > rd) rd=z
+        z1 = abs(ydot)                   ! for rv
+        if (z1 > rv) rv = z1            ! for rv
+        ra = -d3*ydot -om2*y1            ! for aa
+        z2 = abs(ra)                     ! for aa
+        if (z2 > aa) aa = z2            ! for aa
+
+      END DO
+
+      RETURN
+      END SUBROUTINE
+!nFreq=nper
+!!     Convert periods to freq in Radians
+!    do iFreq=1,nFreq
+!       w(iFreq) = 2.0*3.14159 / per(iFreq)
+!    enddo
+!!       Check that the two time series have the same number of points.  If not, reset to smaller value
+!        if (npts1 .lt. npts2) then
+!          npts0 = npts1
+!        elseif (npts2 .lt. npts1) then
+!          npts0 = npts2
+!        elseif (npts1 .eq. npts2) then
+!          npts0 = npts1
+!        endif
+!!       Check that the two time series have the same dt.
+!        if (dt1 .ne. dt2) then
+!          write (*,*) 'DT values are not equal!!!'
+!!          write (*,*) 'DT1 = ', dt1
+!!          write (*,*) 'DT2 = ', dt2
+!        else
+!          dt = dt1
+!        endif
+!        dt0 = dt 
+!!        Copy to new array for interpolating ( from original acc )
+!         do i=1,npts0
+!           acc1(i) = acc1_0(i)
+!           acc2(i) = acc2_0(i)
+!         enddo    
+!         npts = npts0
+!         dt = dt0
+!!        Loop over each oscilator frequency
+!         do iFreq=1,nFreq 
+!         Compute the oscillator time histoires for the two components. 
+!          call CalcRspTH ( acc1, npts, dt, w(iFreq), damping, rspTH1 )
+!          call CalcRspTH ( acc2, npts, dt, w(iFreq), damping, rspTH2 )
+!!         Fill new array with points with amplitude on one component at least SaMin/1.5
+!!         This sets the points for the rotation to speed up the calculation
+!          call Calc_Sa ( rspTH1, sa1, npts)
+!          call Calc_Sa ( rspTH2, sa2, npts )
+!          test = amin1(sa1, sa2) / 1.5
+!          j = 1
+!          do i=1,npts
+!            amp1 = abs(rspTH1(i))
+!            amp2 = abs(rspTH2(i))
+!            if ( amp2 .gt. amp1 ) amp1 = amp2
+!            if ( amp1 .gt. test .and. iFlag .eq. 0 ) then
+!              rsp1(j) = rspTH1(i)
+!              rsp2(j) = rspTH2(i)
+!              j = j + 1
+!            endif 
+!          enddo
+!          npts1 = j -1
+!!         Loop over different rotation angles and compute response spectra by rotating the Oscillator TH
+!          do j=1,90
+!            rotangle = real(((j-1)*3.14159)/180.0)
+!            cos1 = cos(rotangle)
+!            sin1 = sin(rotangle)
+!            do i=1,npts1
+!              x(i)=cos1*rsp1(i) - sin1*rsp2(i)
+!              y(i)=sin1*rsp1(i) + cos1*rsp2(i)
+!            enddo
+!!          Find the maximum response for X and Y and load into a single Sa array
+!            call Calc_Sa ( x, saX, npts1 )
+!            call Calc_Sa ( y, saY, npts1 )
+!            sa(j) = saX
+!            sa(j+90) = SaY
+!          enddo      
+!         Get the as-recorded PSa
+!          psa5E(iFreq) = sa(1)
+!          psa5N(iFreq) = sa(91)
+
+!         Sort the Sa array to find the median value.
+!          n1 = 180
+!          call SORT(Sa,WorkArray,N1)
+!          rotD50(iFreq) = ( Sa(90) + Sa(91) ) /2.
+!         enddo
+!!        Find the Famp1.5 (assumes order of freq are high to low)
+!         do iFreq=2,nFreq 
+!           shape1 = rotD50(iFreq)/rotD50(1)
+!           if ( shape1 .ge. 1.5 ) then
+!             famp15 = 1./rsp_period(iFreq)
+!!             goto 105
+!           endif
+!         enddo
+!!  105    continue
+
+
+

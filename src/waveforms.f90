@@ -4,10 +4,13 @@
       integer:: NRseis,NSTAcomp,Nseis
       real,allocatable,dimension(:):: Dsynt,stasigma, ruptdist
       real,allocatable,dimension(:,:):: Dseis, StaDist
+      logical, allocatable :: srfmask(:) !for estimation Rjb for nga-west2
       real SigmaData   ! Typically 0.05m
       real misfit,VR,Tshift
-      integer iwaveform
-      real,allocatable :: pgaM(:,:),pgaD(:,:)
+      integer iwaveform,nper
+      real,allocatable :: pgaM(:,:),pgaD(:,:),per(:)
+      real, allocatable :: PGAsigma(:,:),PGAtau(:,:) ! now tau and sigma of gmpe are on output..
+
 
 !GFs for synthetic seismograms
       real:: T,T1,T2,artifDT,M0aprior,leng,widt,elem,df
@@ -219,6 +222,7 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
      close(225)
      call pga_init()
      allocate(pgaM(nrseis,nper),pgaD(nrseis,nper))
+     allocate(PGAsigma(nrseis,nper),PGAtau(nrseis,nper))
     endif 
     
     END
@@ -229,6 +233,7 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     USE fd3dparam_com
     USE medium_com
     USE SlipRates_com
+    use mod_pgamisf, only : gmpe_id !we need it for estimatio of Rjb
     IMPLICIT NONE
     real,allocatable,dimension(:):: slipGF
     complex, allocatable, dimension(:,:) :: sr,cseis
@@ -236,6 +241,7 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     integer ifrom,ito,jfrom,jto,kfrom,kto
     real dum,maxslip,dum1,dum2
     COMPLEX,DIMENSION(:),ALLOCATABLE:: seis1
+    logical, allocatable :: slipmask(:,:)
 
     allocate(slipGF(nl*nw),sr(np,nl*nw))
     slipGF=0.;sr=0.
@@ -296,7 +302,23 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
         open(243,file=trim(GFfile),form='unformatted',status='old',iostat=ierr)
         if (ierr/=0) print *,'error while openening file:',trim(GFfile),ierr
         do jj=1,NRseis
+         select case (GMPE_id)
+         case(1)
           ruptdist(jj)=minval(stadist(:,jj),mask=(slipGF>0.1*maxslip))
+           case(2)
+            srfmask=.false.
+            allocate(slipmask(nl,nw))
+            slipmask=.false.
+            do i=1,NL
+             do j=1,NW
+              ii=(j-1)*NL+i
+              if (slipGF(ii)>0.1*maxslip) slipmask(i,j)=.true.
+             enddo
+              if (any(slipmask(i,:))) srfmask((nw-1)*nl+i)=.true.
+             enddo
+            ruptdist(jj)=minval(stadist(:,jj),mask=(srfmask))
+            deallocate(slipmask)
+          end select
           do k=1,3
             if(stainfo(k,jj)==0)cycle
             do i=1,NL*NW
@@ -419,61 +441,83 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     logical :: k1,k2
     logical, allocatable :: kmask(:)
     integer :: nstat,ierr
+    real :: ctrl1,ctrl2
+    real, allocatable :: hor1(:),hor2(:),rtd50(:)
 
     misfit=1.e30
     misf=0.
-    m=0
-    nstat=0
     mw=(log10(m0)-9.1)/1.5
     diff=0.
-    allocate(kmask(nrseis))
-    kmask=.false.
-
+    nstat=0 
     pgaM=0.
     pgaD=0.
+    pgasigma=0.
+    pgatau=0.
 
     !do not calculate and discard model if:
     if (Mw<5.) return !if moment too small - seismograms are zero
     if (abs(output_param(3)-(nxt-2*nabc)*(nzt-nabc-nfs)*dh*dh)<0.5*dh*dh) return !if whole fault ruptured -->  discard model : rupture may have continued on larger fault
     if (MomentRate(nSr)>0.) return ! if momentrate function not finished --> discard model, as the rupture may have continued
+    allocate(kmask(nrseis))
+    kmask=.false.
 
-    if (ioutput==1) open(2223,file='dobliky.dat')
+     if (ioutput==1) open(2223,file='dobliky.dat')
+     m=0
+     allocate(hor1(nT),hor2(nT),rtd50(nper))
+     hor1=0.;hor2=0;rtd50=0.
      do jj=1,NRseis
         k1=.false.
         k2=.false.
       do k=1,3
         if(stainfo(k,jj)==0)cycle
         m=m+1
-        if (k==1) then
-          call pcn05(nT,nT,nper,nper,dtseis,damp,per(:),Dsynt((m-1)*nT+1:)*100.,sd,sv,sa1,psv,psa)
+        if (k==1) then 
+          hor1=Dsynt((m-1)*nT+1:m*nT)*100. !in cm
           k1=.true.
         elseif (k==2) then
-          call pcn05(nT,nT,nper,nper,dtseis,damp,per(:),Dsynt((m-1)*nT+1:)*100.,sd,sv,sa2,psv,psa)
+          hor2=Dsynt((m-1)*nT+1:m*nT)*100.
           k2=.true.
         endif
         if (k1*k2 .and. k<3) then
-          do i=1,nper
-            call pga_theor(ruptdist(jj),mw,per(i),pgaM(jj,i))
-            pgaD(jj,i)=sqrt(sa1(i)*sa2(i))
-            if (ioutput==1) write(2223,*) mw,ruptdist(jj),per(i),exp(pgaM(jj,i))/100.,pgaD(jj,i)/100.
-          enddo
+          select case (GMPE_id)
+          case(1) !ZHAO
+           call  pcn05(nT,nT,nper,nper,dtseis,damp,per(:),hor1,sd,sv,sa1,psv,psa)
+           call  pcn05(nT,nT,nper,nper,dtseis,damp,per(:),hor2,sd,sv,sa2,psv,psa)
+           do i=1,nper
+              pgaD(jj,i)=sqrt(sa1(i)*sa2(i))
+           enddo
+          case(2) !BOORE
+            call get_rotd50(hor1,hor2,nT,nT,dtseis,per,nper,damp,rtd50)
+            pgaD(jj,:)=rtd50(:)
+          end select
           kmask(jj)=.true.
           nstat=nstat+1
         endif
+       enddo
+     enddo
+     deallocate(hor1,hor2,rtd50)
+     
+     do i=1,nper
+      do jj=1,nrseis
+       if (kmask(jj)) then
+          call pga_theor(ruptdist(jj),mw,per(i),pgaM(jj,i),PGAsigma(jj,i),PGAtau(jj,i))
+          misf=misf+(log(pgaD(jj,i))-pgam(jj,i))**2/(PGAsigma(jj,i)**2) !first part difference from the mean value for each station for particular event
+          if (ioutput==1) write(2223,*) mw,ruptdist(jj),per(i),exp(pgaM(jj,i))/100.,pgaD(jj,i)/100.,PGAsigma(jj,i),PGAtau(jj,i)
+       endif
       enddo
       if (ioutput==1) write(2223,*)
-    enddo
-    do i=1,nper
-     mean=sum(log(pgad(:,i)),mask=kmask)/nstat
-     diff=sum(pgam(:,i),mask=kmask)/nstat
-     do jj=1,nrseis 
-           if(kmask(jj)) then
-            misf=misf+(log(pgaD(jj,i))-pgam(jj,i))**2/(PGAsigma(i)**2) !first part difference from the mean value for each station for particular event
-!            diff=diff+(log(pgaD(jj,i))-pgaM(jj,i))
-           endif 
+      !control whether sigma and tau are not distance/magnitude dependent, otherwise how to misfit??!!
+      ctrl1=sum(pgasigma(:,i))/nrseis
+      ctrl2=sum(pgatau(:,i))/nrseis
+      if ((any(abs(pgasigma(:,i)-ctrl1)>eps)) .or. (any(abs(pgatau(:,i)-ctrl2)>eps))) then
+         print *,'sigma problem:', abs(pgasigma(:,i)-ctrl1) 
+         print *,'tau problem:', abs(pgatau(:,i)-ctrl2) 
+      else
+        mean=sum(log(pgad(:,i)),mask=kmask)/nstat
+        diff=sum(pgam(:,i),mask=kmask)/nstat 
+        misf=misf-(mean-diff)**2*nstat**2*PGAtau(1,i)**2/(PGAsigma(1,i)**2+nstat*PGAtau(1,i)**2)/PGAsigma(1,i)**2
+      endif
      enddo
-     misf=misf-(mean-diff)**2*nstat**2*PGAtau(i)**2/(PGAsigma(i)**2+nstat*PGAtau(i)**2)/PGAsigma(i)**2
-    enddo
     misf=misf/2./nper
     if (ioutput==1) close(2223)
 !    deallocate(pgaD,pgaM,kmask)
