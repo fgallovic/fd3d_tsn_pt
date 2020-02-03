@@ -28,6 +28,7 @@
     USE fd3dparam_com
     USE medium_com
     use mod_pgamisf
+    use pml_com, only : nabc
     use mod_ctrl, only : mrank
     IMPLICIT NONE
 #if defined MPI
