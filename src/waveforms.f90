@@ -306,9 +306,9 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
          select case (GMPE_id)
          case(1)
           ruptdist(jj)=minval(stadist(:,jj),mask=(slipGF>0.1*maxslip))
-           case(2)
+         case(2)
+            allocate(slipmask(nl,nw),srfmask(nl*nw))
             srfmask=.false.
-            allocate(slipmask(nl,nw))
             slipmask=.false.
             do i=1,NL
              do j=1,NW
@@ -318,7 +318,7 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
               if (any(slipmask(i,:))) srfmask((nw-1)*nl+i)=.true.
              enddo
             ruptdist(jj)=minval(stadist(:,jj),mask=(srfmask))
-            deallocate(slipmask)
+            deallocate(slipmask,srfmask)
           end select
           do k=1,3
             if(stainfo(k,jj)==0)cycle
