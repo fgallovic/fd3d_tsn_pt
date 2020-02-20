@@ -795,6 +795,7 @@
     USE pml_com
     IMPLICIT NONE
     real,dimension(:),allocatable:: xintrpl,yintrpl,xnew,ynew
+    real,parameter:: dyn=0.0  !dynamic friction coefficient
     integer i,k,ii,kk
     real DW,DL,dum,xs,zs,t,u
 
@@ -809,18 +810,18 @@
         XS=dh*(i-1-nabc)
         ii=int(XS/DL)+1
         t=(XS-DL*(ii-1))/DL
+        Dc(i,k)     =(1.-t)*(1.-u)*DcI(ii,kk)+t*(1.-u)*DcI(ii+1,kk)+t*u*DcI(ii+1,kk+1)+(1.-t)*u*DcI(ii,kk+1)
+        dyn_xz(i,k)=dyn*normstress(k)
+        peak_xz(i,k)=((1.-t)*(1.-u)*TsI(ii,kk)+t*(1.-u)*TsI(ii+1,kk)+t*u*TsI(ii+1,kk+1)+(1.-t)*u*TsI(ii,kk+1))*normstress(k)+dyn_xz(i,k)
 #if defined DIPSLIP
-        striniZ(i,k)=(1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)
+        striniZ(i,k)=(1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)+dyn_xz(i,k)
         striniX(i,k)=0.
 #else
-        striniX(i,k)=(1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)
+        striniX(i,k)=(1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)+dyn_xz(i,k)
         striniZ(i,k)=0.
 #endif
-        peak_xz(i,k)=((1.-t)*(1.-u)*TsI(ii,kk)+t*(1.-u)*TsI(ii+1,kk)+t*u*TsI(ii+1,kk+1)+(1.-t)*u*TsI(ii,kk+1))*normstress(k)
-        Dc(i,k)     =(1.-t)*(1.-u)*DcI(ii,kk)+t*(1.-u)*DcI(ii+1,kk)+t*u*DcI(ii+1,kk+1)+(1.-t)*u*DcI(ii,kk+1)
       enddo
     enddo
-    dyn_xz=0.
     coh=0.5e6
 
     END SUBROUTINE
