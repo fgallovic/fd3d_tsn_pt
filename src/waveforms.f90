@@ -13,7 +13,7 @@
 
 
 !GFs for synthetic seismograms
-      real:: T,T1,T2,artifDT,M0aprior,leng,widt,elem,df
+      real:: T,T1,T2,artifDT,M0aprior,M0sigma,leng,widt,elem,df
       real,allocatable,dimension(:,:):: H
       real,allocatable,dimension(:):: fc1,fc2
       integer,allocatable,dimension(:):: fcsta
@@ -425,6 +425,8 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
         VR=1.-dump/normdatp
       endif
     enddo
+    
+    if(M0sigma>0.)misfit=misfit+0.5*(M0/M0sigma-M0aprior/M0sigma)**2
     
     END
 

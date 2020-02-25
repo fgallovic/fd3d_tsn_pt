@@ -41,7 +41,7 @@
     read(10,*)DcMin,DcMax
     read(10,*)ConstraintNucl,NuclConstraintL,NuclConstraintW,NuclConstraintR,OverstressConstraint
     read(10,*)StepType,StepSizeT0,StepSizeTs,StepSizeD
-    read(10,*)SigmaData
+    read(10,*)SigmaData,M0sigma    !M0 constraint applies only when M0sigma>0 (see evalmisfit())
     if (iwaveform==2) then !for gmpes read additional parameters:
        read(10,*) GMPE_id ! 1 for Zhao, 2 for Boore
        read(10,*) nper !here we define periods for which psa are calculated
