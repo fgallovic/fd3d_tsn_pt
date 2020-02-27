@@ -33,29 +33,34 @@
 
       real    :: time,friction,tmax,xmax,ymax,numer,denom,veltest,dd
       real    :: pdx, pdz,tabs
-      real    :: u1out,sliprateoutX(nxt,nzt),sliprateoutZ(nxt,nzt)
+      real    :: u1out
       real    :: CPUT1,CPUT2
       REAL    :: maxvelX,maxvelZ,maxvelsave,tint, tint2
       real    :: dht, ek, es, ef, c1, c2
       integer :: i,j,it,k, nxe, nxb, nyb, nye, nzb, nze
       integer :: ifrom,ito,jfrom,jto,kk
       real    :: rup_tresh, rv, cz
-	  real    :: distX(nxt,nzt), distZ(nxt,nzt)
+      real,allocatable,dimension (:,:):: sliprateoutX,sliprateoutZ,distX,distZ
 #if defined FVW
       real    :: fss, flv, psiss, dpsi,  sr
       real    :: FXZ, GT, hx, hz, rr,AA,BB
-      real    :: psiout(nxt,nzt)
+      real,allocatable,dimension (:,:):: psiout
 #endif
 !-------------------------------------------------------
 !   initialize arrays
 !-------------------------------------------------------
-
-      allocate(u1(nxt,nyt,nzt),v1(nxt,nyt,nzt),w1(nxt,nyt,nzt))
+      
+      allocate(v1(nxt,nyt,nzt))
+      allocate(u1(nxt,nyt,nzt))
+      allocate(w1(nxt,nyt,nzt))
       allocate(xx(nxt,nyt,nzt),yy(nxt,nyt,nzt),zz(nxt,nyt,nzt),xy(nxt,nyt,nzt),yz(nxt,nyt,nzt),xz(nxt,nyt,nzt))
       allocate(tx(nxt,nzt),tz(nxt,nzt),v1t(nxt,nzt),avdx(nxt,nzt),avdz(nxt,nzt), RFx(nxt,nzt),RFz(nxt,nzt))
+	  allocate(sliprateoutX(nxt,nzt),sliprateoutZ(nxt,nzt),distX(nxt,nzt),distZ(nxt,nzt))
       allocate(omega_pml(nabc-1), omegaR_pml(nabc-1),omega_pmlM(nabc-1), omegaR_pmlM(nabc-1))
       allocate(au1(nxt,nzt),av1(nxt,nzt),aw1(nxt,nzt))
-
+#if defined FVW
+	  allocate(psiout(nxt,nzt))
+#endif
       u1=0.; v1=0.; w1=0.
       xx=0.; yy=0.; zz=0.; xy=0.; yz=0.; xz=0.
       ruptime=1.e4; rise=0.; sliptime=1.e4
@@ -186,10 +191,10 @@
       
       do it = 1,ntfd
         time = it*dt
-        sliprateoutX(:,:)=0.
-        sliprateoutZ(:,:)=0.
-        schangeZ(:,:)=0.
-        schangeX(:,:)=0.
+        sliprateoutX(1:nxt,1:nzt)=0.
+        sliprateoutZ(1:nxt,1:nzt)=0.
+        schangeZ(1:nxt,1:nzt)=0.
+        schangeX(1:nxt,1:nzt)=0.
 
         if(Nstations>0) then
           seisU = 0.
@@ -197,7 +202,7 @@
           seisW = 0.
         endif
 #if defined FVW
-        psiout = 0.
+        psiout(1:nxt,1:nzt) = 0.
         !$ACC DATA COPY (sliprateoutX,sliprateoutZ,schangeZ,schangeX,seisU,seisV,seisW,psiout)
 #else
         !$ACC DATA COPY (sliprateoutX,sliprateoutZ,schangeZ,schangeX,seisU,seisV,seisW)
@@ -545,13 +550,13 @@
         !$ACC END DATA
         if(ioutput.eq.1) then
 #if defined FVW
-          WRITE(24) psiout(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
+  !        WRITE(24) psiout(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
 #endif
           WRITE(25) sliprateoutZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
           WRITE(27) sliprateoutX(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
           WRITE(26) SCHANGEZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
           WRITE(28) SCHANGEX(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
-    !     write(29) v1t(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
+!          write(29) v1t(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
           do i=1,Nstations
             write (30+i,*)seisU(i),seisV(i),seisW(i)
           enddo
@@ -583,10 +588,10 @@
           write(*,*)'Time: ',time,'Slip rate max: ',maxvelX,maxvelZ
 #if defined DIPSLIP
           if(maxvelZ>maxvelsave)maxvelsave=maxvelZ
-          if(maxvelZ<=0.01*maxvelsave)exit
+         if(maxvelZ<=0.01*maxvelsave)exit
 #else
           if(maxvelX>maxvelsave)maxvelsave=maxvelX
-          if(maxvelX<=0.01*maxvelsave)exit
+         if(maxvelX<=0.01*maxvelsave)exit
 #endif
         endif
 		! output waveforms
@@ -609,7 +614,7 @@
       deallocate(u1,v1,w1)
       deallocate(xx,yy,zz,xy,yz,xz)
       deallocate(tx,tz,v1t,avdx,avdz, RFx,RFz)
-
+      deallocate(sliprateoutX,sliprateoutZ,distX,distZ)
       deallocate(omega_pml,omegaR_pml,omega_pmlM,omegaR_pmlM,au1,av1,aw1)
       deallocate (omegax1,omegay1,omegaz1,omegaxS1)    
       deallocate (u11,u12,u13,v11,v12,v13,w11,w12,w13)
@@ -623,7 +628,9 @@
       deallocate (omegax4,omegay4,omegaz4,omegaxS4,omegayS4,omegazS4)
       deallocate (u41,u42,u43,v41,v42,v43,w41,w42,w43)
       deallocate (xx41,xx42,xx43,yy41,yy42,yy43,zz41,zz42,zz43,xz41,xz42,xy41,xy42,yz41,yz42)    
-
+#if defined FVW
+      deallocate (psiout)
+#endif
       CALL CPU_TIME(CPUT2)
       PRINT *,'CPU TIME OF TIME LOOP: ',CPUT2-CPUT1
 

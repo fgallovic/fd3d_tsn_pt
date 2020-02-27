@@ -267,13 +267,11 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     endif
  
     if (ioutput.eq.1) then
-      open(297,FILE='mtilde.dat',iostat=ierr)
-!      if (ierr/=0) print *,'error while opening file mtilde.dat'
-#if defined DIPSLIP 
-      write(297,'(1E13.5)')MSRZ
-#else
+      open(297,FILE='mtildeX.dat',iostat=ierr)
       write(297,'(1E13.5)')MSRX
-#endif	  
+      close(297)
+      open(297,FILE='mtildeZ.dat',iostat=ierr)
+      write(297,'(1E13.5)')MSRZ
       close(297)
       open(297,FILE='mtildemomentrate.dat')
       do k=1,nSR
