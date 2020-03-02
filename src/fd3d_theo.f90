@@ -731,18 +731,18 @@
             cz=0.
             rv=0.
             if ((ruptime(i,k).ne.1.e4).and.(ruptime(i+1,k).ne.1.e4).and.(ruptime(i,k+1).ne.1.e4) &
-              .and.(ruptime(i-1,k).ne.1.e4).and.(ruptime(i,k-1).ne.1.e4)) then
-              if (sliptime(i,k).ne.1.e4) then
-                rv = (sqrt((ruptime(i+1,k)-ruptime(i,k))**2+(ruptime(i,k+1)-ruptime(i,k))**2) &
+            .and.(ruptime(i-1,k).ne.1.e4).and.(ruptime(i,k-1).ne.1.e4)) then
+              rv = (sqrt((ruptime(i+1,k)-ruptime(i,k))**2+(ruptime(i,k+1)-ruptime(i,k))**2) &
+                +sqrt((ruptime(i,k)-ruptime(i-1,k))**2+(ruptime(i,k)-ruptime(i,k-1))**2))
+              if (rv.ne.0.) then
+                rv=2*dh/(sqrt((ruptime(i+1,k)-ruptime(i,k))**2+(ruptime(i,k+1)-ruptime(i,k))**2) &
                   +sqrt((ruptime(i,k)-ruptime(i-1,k))**2+(ruptime(i,k)-ruptime(i,k-1))**2))
-                if (rv.ne.0.) then
-                  rv=2*dh/(sqrt((ruptime(i+1,k)-ruptime(i,k))**2+(ruptime(i,k+1)-ruptime(i,k))**2) &
-                    +sqrt((ruptime(i,k)-ruptime(i-1,k))**2+(ruptime(i,k)-ruptime(i,k-1))**2))
-                  tint=tint+rv*sqrt(slipX(i,k)**2+slipZ(i,k)**2)
-                  tint2=tint2+sqrt(slipX(i,k)**2+slipZ(i,k)**2)
-                else
-                  rv = 0.
-                endif
+                tint=tint+rv*sqrt(slipX(i,k)**2+slipZ(i,k)**2)
+                tint2=tint2+sqrt(slipX(i,k)**2+slipZ(i,k)**2)
+              else
+                rv = 0.
+              endif
+              if (sliptime(i,k).ne.1.e4) then
                 cz=rv*(sliptime(i,k)-ruptime(i,k))
               endif
             endif
