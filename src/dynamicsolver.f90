@@ -143,7 +143,7 @@
         write(*,*)'Variance reduction: ',VR,' for shift',Tshift,'s'
         call plotseis()
         open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
-        write(594,'(10000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:)
+        write(594,'(100000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:)
         close(594)
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
@@ -152,7 +152,7 @@
       elseif (iwaveform==2) then
         call evalmisfit2()
         open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
-        write(594,'(10000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:)
+        write(594,'(100000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:)
         close(594)
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &

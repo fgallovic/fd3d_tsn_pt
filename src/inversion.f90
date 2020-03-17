@@ -149,7 +149,7 @@
     !if (yn.and.(abs(T-1.0)<eps).and.record_mcmc_now) then  !write the accepted step
     if ((abs(T-1.0)<eps).and.record_mcmc_now) then  !write the present step whether accepted or not
       misfit=E
-      write(ifile,'(10000E13.5)')misfit,VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain)
+      write(ifile,'(100000E13.5)')misfit,VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain)
       flush(ifile)
       write(ifile+2)misfit,VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),ruptimeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),slipA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain), &
           & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRateA(:,ichain)
@@ -392,7 +392,7 @@
     
     open(unit=ifile+1,file=trim(rname),status='replace',iostat=ierr)
     do ichain=1,nchains
-      write(ifile+1,'(10000E13.5)')T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain)
+      write(ifile+1,'(100000E13.5)')T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain)
     enddo
     close(ifile+1)
     
