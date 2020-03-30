@@ -184,20 +184,20 @@
     do j=nabc+1,nzt-nfs
       do i=nabc+1,nxt-nabc
         if(Dc(i,j)<DcMin.or.Dc(i,j)>DcMax)then
-!          write(*,*)'Dc',i,j,Dc(i,j),Dcmin,DcMax
+          write(*,*)'Dc',i,j,Dc(i,j),Dcmin,DcMax
           return
         endif
 #if defined DIPSLIP
         if(striniZ(i,j)<strinixMin.or.striniZ(i,j)>strinixMax)then
-!          write(*,*)'Strinix',i,j,striniZ(i,j),strinixMin,strinixMax
+         write(*,*)'Strinix',i,j,striniZ(i,j),strinixMin,strinixMax
 #else
         if(striniX(i,j)<strinixMin.or.striniX(i,j)>strinixMax)then
-!          write(*,*)'Strinix',i,j,striniX(i,j),strinixMin,strinixMax
+          write(*,*)'Strinix',i,j,striniX(i,j),strinixMin,strinixMax
 #endif
           return
         endif
         if(peak_xz(i,j)/normstress(j)<peak_xzMin.or.peak_xz(i,j)/normstress(j)>peak_xzMax)then
-!          write(*,*)'Peak_xz',i,j,peak_xz(i,j)
+          write(*,*)'Peak_xz',i,j,peak_xz(i,j)
           return
         endif
       enddo
@@ -213,13 +213,13 @@
           rr=(x-NuclConstraintL)**2+(z-NuclConstraintW)**2
 #if defined DIPSLIP
           if(rr>NuclConstraintR**2.and.peak_xz(i,j)+coh(i,j)<=striniZ(i,j))then
-!            write(*,*)'Nucl',x,z,peak_xz(i,j)-striniZ(i,j)
+            write(*,*)'Nucl',x,z,peak_xz(i,j)-striniZ(i,j)
             return    !nucleation outside the nucleation zone
           endif
           if(rr<=NuclConstraintR**2.and.peak_xz(i,j)+coh(i,j)<=striniZ(i,j))nuclOK=1
 #else
           if(rr>NuclConstraintR**2.and.peak_xz(i,j)+coh(i,j)<=striniX(i,j))then
-!            write(*,*)'Nucl',x,z,peak_xz(i,j)-striniX(i,j)
+            write(*,*)'Nucl',x,z,peak_xz(i,j)-striniX(i,j)
             return    !nucleation outside the nucleation zone
           endif
           if(rr<=NuclConstraintR**2.and.peak_xz(i,j)+coh(i,j)<=striniX(i,j))nuclOK=1
@@ -227,6 +227,22 @@
         enddo
       enddo
       if(nuclOK==0)return
+!Constraint on Mean Overstress (applied only if the constraint is larger than zero):
+      if(overstressconstraint>0.)then
+        allocate(strengthexcess1(nxt,nzt))
+#if defined DIPSLIP
+        strengthexcess1(:,:)=striniZ(:,:)-(peak_xz(:,:)+coh(i,j))
+#else
+        strengthexcess1(:,:)=striniX(:,:)-(peak_xz(:,:)+coh(i,j))
+#endif
+        nuclsize=dh*dh*COUNT(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)
+        meanoverstress=sum(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs),strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)*dh*dh/nuclsize
+        deallocate(strengthexcess1)    
+        if (meanoverstress>overstressconstraint) then
+          print *,'meanoverstress:',meanoverstress
+          return !mean overstress is too large
+        endif
+      endif
     elseif (ConstraintNucl==2) then
 !      print *,'checking nucleation constraint 2'
 !Constraint on Mean Overstress:   
