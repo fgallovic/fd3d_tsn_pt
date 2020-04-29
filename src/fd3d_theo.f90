@@ -586,6 +586,7 @@
           maxvelZ=maxval(sliprateoutZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
           maxvelX=maxval(sliprateoutX(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
           write(*,*)'Time: ',time,'Slip rate max: ',maxvelX,maxvelZ
+if(sqrt(maxvelX**2+maxvelZ**2)<1.e-6)exit
 #if defined DIPSLIP
           if(maxvelZ>maxvelsave)maxvelsave=maxvelZ
          if(maxvelZ<=0.01*maxvelsave)exit

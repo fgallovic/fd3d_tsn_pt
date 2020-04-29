@@ -795,7 +795,7 @@
     USE pml_com
     IMPLICIT NONE
     real,dimension(:),allocatable:: xintrpl,yintrpl,xnew,ynew
-    real,parameter:: dyn=0.0  !dynamic friction coefficient
+    real,parameter:: dyn=0.  !0.4  !dynamic friction coefficient
     integer i,k,ii,kk
     real DW,DL,dum,xs,zs,t,u
 
@@ -804,11 +804,11 @@
     DW=dh*(nzt-nfs-nabc)/real(NWI-1)
     do k=nabc+1,nzt-nfs
       ZS=dh*(k-1-nabc)
-      kk=int(ZS/DW)+1
+      kk=min(NWI-1,int(ZS/DW)+1)
       u=(ZS-DW*(kk-1))/DW
       do i=nabc+1,nxt-nabc
         XS=dh*(i-1-nabc)
-        ii=int(XS/DL)+1
+        ii=min(NLI-1,int(XS/DL)+1)
         t=(XS-DL*(ii-1))/DL
         Dc(i,k)     =(1.-t)*(1.-u)*DcI(ii,kk)+t*(1.-u)*DcI(ii+1,kk)+t*u*DcI(ii+1,kk+1)+(1.-t)*u*DcI(ii,kk+1)
         dyn_xz(i,k)=dyn*normstress(k)
@@ -822,7 +822,7 @@
 #endif
       enddo
     enddo
-    coh=0.5e6
+    coh=0. !0.5e6
 
     END SUBROUTINE
     
