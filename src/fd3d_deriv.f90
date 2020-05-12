@@ -575,10 +575,9 @@
 !     shear stresses
 !----------------------------------------------------------
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i,j+1,k)
-        xmu = 0.5*( xm1+xm2)
-
+!        xm1 = mu1(i,j,k)
+!        xm2 = mu1(i,j+1,k)
+        xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
 !       Find xy stress
 
         xy(i,j,k) = xy(i,j,k)                      +  &
@@ -587,24 +586,21 @@
                    c1*(v1(i,j,k)   - v1(i-1,j,k))  +  &
                    c2*(v1(i+1,j,k) - v1(i-2,j,k)))
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i,j,k+1)
-        xmu = 0.5*( xm1+xm2)
+
 
 !       Find xz stress
-
+        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i-1,j,k) +1/mu1(i-1,j,k+1) +1/mu1(i,j,k)))
+		
         xz(i,j,k) = xz(i,j,k)                      +  &
           dth*xmu*(c1*(u1(i,j,k+1) - u1(i,j,k))    +  &
                    c2*(u1(i,j,k+2) - u1(i,j,k-1))  +  &
                    c1*(w1(i,j,k)   - w1(i-1,j,k))  +  &
                    c2*(w1(i+1,j,k) - w1(i-2,j,k)))
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i+1,j+1,k+1)
-        xmu = 0.5*( xm1+xm2)
+
 
 !       Find yz stress
-
+        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i,j+1,k) +1/mu1(i,j+1,k+1) +1/mu1(i,j,k)))
         yz(i,j,k) = yz(i,j,k)                      +  &
           dth*xmu*(c1*(v1(i,j,k+1) - v1(i,j,k))    +  &
                    c2*(v1(i,j,k+2) - v1(i,j,k-1))  +  &
@@ -643,7 +639,7 @@
       integer :: nxb,nxe,nyb,nye,nzb,nze
       real    :: dh,dt,dth,c1,c2,xm1,xm2,xmu
 
-      dth = .5*dt/dh
+      dth = dt/dh
       c1  = 9./8.
       c2  = -1./24.
 
@@ -655,9 +651,7 @@
 !----------------------------------------------------------
 !     Find xy stress
 !----------------------------------------------------------
-         xm1 = mu1(i,j,k)
-         xm2 = mu1(i,j+1,k)
-         xmu = xm1+xm2
+         xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
          xy(i,j,k) = xy(i,j,k)                      +  &
            dth*xmu*(c1*(u1(i,j+1,k) - u1(i,j,k))    +  &
                     c2*(u1(i,j+2,k) - u1(i,j-1,k))  +  &
@@ -693,7 +687,7 @@
       integer :: nxb,nxe,nyb,nye,nzb,nze
       real    :: dh,dt,dth,c1,c2,xm1,xm2,xmu
 
-      dth = .5*dt/dh
+      dth = dt/dh
       c1  = 9./8.
       c2  = -1./24.
 
@@ -705,9 +699,7 @@
 !----------------------------------------------------------
 !     Find xz stress
 !----------------------------------------------------------
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i,j,k+1)
-        xmu = xm1+xm2
+        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i-1,j,k) +1/mu1(i-1,j,k+1) +1/mu1(i,j,k)))
         xz(i,j,k) = xz(i,j,k)                      +  &
           dth*xmu*(c1*(u1(i,j,k+1) - u1(i,j,k))    +  &
                    c2*(u1(i,j,k+2) - u1(i,j,k-1))  +  &
@@ -743,7 +735,7 @@
       integer :: nxb,nxe,nyb,nye,nzb,nze
       real    :: dh,dt,dth,c1,c2,xm1,xm2,xmu
 
-      dth = .5*dt/dh
+      dth = dt/dh
       c1  = 9./8.
       c2  = -1./24.
 
@@ -755,9 +747,7 @@
 !----------------------------------------------------------
 !     Find yz stress
 !----------------------------------------------------------
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i+1,j+1,k+1)
-        xmu = xm1+xm2
+        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i,j+1,k) +1/mu1(i,j+1,k+1) +1/mu1(i,j,k)))
         yz(i,j,k) = yz(i,j,k)                        +  &
             dth*xmu*(c1*(v1(i,j,k+1) - v1(i,j,k))    +  &
                      c2*(v1(i,j,k+2) - v1(i,j,k-1))  +  &
@@ -899,7 +889,7 @@
       integer :: nxb,nxe,nyb,nye,nzb,nze
       real    :: dh,dt,dth,xm1,xm2,xmu
 
-      dth = .5*dt/dh
+      dth = dt/dh
 
       _ACC_PARALLEL
       _ACC_LOOP_COLLAPSE_3
@@ -909,9 +899,7 @@
 
 !       Find xy stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i,j+1,k)
-        xmu = xm1+xm2
+        xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
 
         xy(i,j,k) = xy(i,j,k) + dth*xmu*(u1(i,j+1,k) - u1(i,j,k) + v1(i,j,k) - v1(i-1,j,k))
       enddo
@@ -944,7 +932,7 @@
       integer :: nxb,nxe,nyb,nye,nzb,nze
       real    :: dh,dt,dth,xm1,xm2,xmu
 
-      dth = .5*dt/dh
+      dth = dt/dh
 
       _ACC_PARALLEL
       _ACC_LOOP_COLLAPSE_3
@@ -954,9 +942,7 @@
 
 !       Find xz stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i,j,k+1)
-        xmu = xm1+xm2
+        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i-1,j,k) +1/mu1(i-1,j,k+1) +1/mu1(i,j,k)))
         xz(i,j,k) = xz(i,j,k) + dth*xmu*(u1(i,j,k+1) - u1(i,j,k) + w1(i,j,k) - w1(i-1,j,k))
       enddo
       enddo
@@ -988,7 +974,7 @@
       integer :: nxb,nxe,nyb,nye,nzb,nze
       real    :: dh,dt,dth,xm1,xm2,xmu
 
-      dth = .5*dt/dh
+      dth = dt/dh
 
       _ACC_PARALLEL
       _ACC_LOOP_COLLAPSE_3
@@ -998,9 +984,7 @@
 
 !        Find yz stress
 
-         xm1 = mu1(i,j,k)
-         xm2 = mu1(i+1,j+1,k+1)
-         xmu = xm1+xm2
+         xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i,j+1,k) +1/mu1(i,j+1,k+1) +1/mu1(i,j,k)))
 
          yz(i,j,k) = yz(i,j,k) + dth*xmu*(v1(i,j,k+1) - v1(i,j,k) + w1(i,j+1,k) - w1(i,j,k))
       enddo
@@ -1794,9 +1778,7 @@
         k2=1-nzb+k
 !       Find xy stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i,j+1,k)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
 
         pt = p1(i2,j2,k2)*(1.-omegay(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
         p1(i2,j2,k2) = pt/(1.+omegay(j2))
@@ -1847,9 +1829,7 @@
         k2=1-nzb+k
 !       Find xz stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i,j,k+1)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i-1,j,k) +1/mu1(i-1,j,k+1) +1/mu1(i,j,k)))
 
         pt = p1(i2,j2,k2)*(1.-omegaz(k2)) + dt*xmu*(u1(i,j,k+1) - u1(i,j,k))/dh
         p1(i2,j2,k2) = pt/(1.+omegaz(k2))
@@ -1900,9 +1880,7 @@
         k2=1-nzb+k
 !       Find yz stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i+1,j+1,k+1)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i,j+1,k) +1/mu1(i,j+1,k+1) +1/mu1(i,j,k)))
 
         pt = p1(i2,j2,k2)*(1.-omegaz(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
         p1(i2,j2,k2) = pt/(1.+omegaz(k2))
@@ -2391,9 +2369,7 @@
 
 !       Find xy stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i,j+1,k)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
 
         pt = xy11(i2,j2,k2)*(1.-omegay1(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
         xy11(i2,j2,k2) = pt/(1.+omegay1(j2))
@@ -2418,9 +2394,7 @@
 
 !       Find xz stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i,j,k+1)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i-1,j,k) +1/mu1(i-1,j,k+1) +1/mu1(i,j,k)))
 
         pt = xz11(i2,j2,k2)*(1.-omegaz1(k2)) + dt*xmu*(u1(i,j,k+1) - u1(i,j,k))/dh
         xz11(i2,j2,k2) = pt/(1.+omegaz1(k2))
@@ -2445,9 +2419,7 @@
 
 !       Find yz stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i+1,j+1,k+1)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i,j+1,k) +1/mu1(i,j+1,k+1) +1/mu1(i,j,k)))
 
         pt = yz11(i2,j2,k2)*(1.-omegaz1(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
         yz11(i2,j2,k2) = pt/(1.+omegaz1(k2))
@@ -2568,9 +2540,7 @@
 
 !       Find xy stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i,j+1,k)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
 
         pt = xy21(i2,j2,k2)*(1.-omegay2(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
         xy21(i2,j2,k2) = pt/(1.+omegay2(j2))
@@ -2596,9 +2566,7 @@
 
 !       Find xz stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i,j,k+1)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i-1,j,k) +1/mu1(i-1,j,k+1) +1/mu1(i,j,k)))
 
         pt = xz21(i2,j2,k2)*(1.-omegaz2(k2)) + dt*xmu*(u1(i,j,k+1) - u1(i,j,k))/dh
         xz21(i2,j2,k2) = pt/(1.+omegaz2(k2))
@@ -2623,9 +2591,7 @@
 
 !       Find yz stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i+1,j+1,k+1)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i,j+1,k) +1/mu1(i,j+1,k+1) +1/mu1(i,j,k)))
 
         pt = yz21(i2,j2,k2)*(1.-omegaz2(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
         yz21(i2,j2,k2) = pt/(1.+omegaz2(k2))
@@ -2751,9 +2717,7 @@
 
 !       Find xy stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i,j+1,k)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
 
         pt = xy31(i2,j2,k2)*(1.-omegayS3(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
         xy31(i2,j2,k2) = pt/(1.+omegayS3(j2))
@@ -2778,9 +2742,7 @@
 
 !       Find xz stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i,j,k+1)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i-1,j,k) +1/mu1(i-1,j,k+1) +1/mu1(i,j,k)))
 
         pt = xz31(i2,j2,k2)*(1.-omegaz3(k2)) + dt*xmu*(u1(i,j,k+1) - u1(i,j,k))/dh
         xz31(i2,j2,k2) = pt/(1.+omegaz3(k2))
@@ -2805,9 +2767,7 @@
 
 !       Find yz stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i+1,j+1,k+1)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i,j+1,k) +1/mu1(i,j+1,k+1) +1/mu1(i,j,k)))
 
         pt = yz31(i2,j2,k2)*(1.-omegaz3(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
         yz31(i2,j2,k2) = pt/(1.+omegaz3(k2))
@@ -2921,9 +2881,7 @@
 
 !       Find xy stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i,j+1,k)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
 
         pt = xy41(i2,j2,k2)*(1.-omegayS4(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
         xy41(i2,j2,k2) = pt/(1.+omegayS4(j2))
@@ -2948,9 +2906,7 @@
 
 !       Find xz stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i,j,k+1)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i-1,j,k) +1/mu1(i-1,j,k+1) +1/mu1(i,j,k)))
 
         pt = xz41(i2,j2,k2)*(1.-omegazS4(k2)) + dt*xmu*(u1(i,j,k+1) - u1(i,j,k))/dh
         xz41(i2,j2,k2) = pt/(1.+omegazS4(k2))
@@ -2975,9 +2931,7 @@
 
 !       Find yz stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i+1,j+1,k+1)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i,j+1,k) +1/mu1(i,j+1,k+1) +1/mu1(i,j,k)))
 
         pt = yz41(i2,j2,k2)*(1.-omegazS4(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
         yz41(i2,j2,k2) = pt/(1.+omegazS4(k2))
@@ -3070,9 +3024,7 @@
 
 !       Find xy stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i,j+1,k)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
 
         pt = xy51(i2,j2,k2)*(1.-omegayS5(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
         xy51(i2,j2,k2) = pt/(1.+omegayS5(j2))
@@ -3097,9 +3049,7 @@
 
 !       Find xz stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i,j,k+1)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i-1,j,k) +1/mu1(i-1,j,k+1) +1/mu1(i,j,k)))
 
         pt = xz51(i2,j2,k2)*(1.-omegazS5(k2)) + dt*xmu*(u1(i,j,k+1) - u1(i,j,k))/dh
         xz51(i2,j2,k2) = pt/(1.+omegazS5(k2))
@@ -3124,9 +3074,7 @@
 
 !       Find yz stress
 
-        xm1 = mu1(i,j,k)
-        xm2 = mu1(i+1,j+1,k+1)
-        xmu = (xm1+xm2)/2.
+        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i,j+1,k) +1/mu1(i,j+1,k+1) +1/mu1(i,j,k)))
 
         pt = yz51(i2,j2,k2)*(1.-omegazS5(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
         yz51(i2,j2,k2) = pt/(1.+omegazS5(k2))

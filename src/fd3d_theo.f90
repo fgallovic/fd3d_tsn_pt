@@ -41,6 +41,7 @@
       integer :: ifrom,ito,jfrom,jto,kk
       real    :: rup_tresh, rv, cz
       real,allocatable,dimension (:,:):: sliprateoutX,sliprateoutZ,distX,distZ
+!	   real,allocatable,dimension (:,:,:):: waveU,waveV,waveW
 #if defined FVW
       real    :: fss, flv, psiss, dpsi,  sr
       real    :: FXZ, GT, hx, hz, rr,AA,BB
@@ -55,9 +56,10 @@
       allocate(w1(nxt,nyt,nzt))
       allocate(xx(nxt,nyt,nzt),yy(nxt,nyt,nzt),zz(nxt,nyt,nzt),xy(nxt,nyt,nzt),yz(nxt,nyt,nzt),xz(nxt,nyt,nzt))
       allocate(tx(nxt,nzt),tz(nxt,nzt),v1t(nxt,nzt),avdx(nxt,nzt),avdz(nxt,nzt), RFx(nxt,nzt),RFz(nxt,nzt))
-	  allocate(sliprateoutX(nxt,nzt),sliprateoutZ(nxt,nzt),distX(nxt,nzt),distZ(nxt,nzt))
+	    allocate(sliprateoutX(nxt,nzt),sliprateoutZ(nxt,nzt),distX(nxt,nzt),distZ(nxt,nzt))
       allocate(omega_pml(nabc-1), omegaR_pml(nabc-1),omega_pmlM(nabc-1), omegaR_pmlM(nabc-1))
       allocate(au1(nxt,nzt),av1(nxt,nzt),aw1(nxt,nzt))
+!   allocate(waveU(nxt,nyt,nzt),waveV(nxt,nyt,nzt),waveW(nxt,nyt,nzt))
 #if defined FVW
 	  allocate(psiout(nxt,nzt))
 #endif
@@ -185,8 +187,6 @@
 #endif
       !$ACC      COPY (ruptime,sliptime,slipZ,rise,slipX)
 	  
-	  !, waveU, waveV, waveW)  
-
       !seisU,seisV,seisW  
       
       do it = 1,ntfd
@@ -475,20 +475,20 @@
 		! if ((time .GE. waveT) .AND. (waveT .NE. 0.)) then
         
         
-		! _ACC_PARALLEL
-        ! _ACC_LOOP_COLLAPSE_3
-		  ! do k=1,nzt
-		  ! do j=1,nyt
-          ! do i=1,nxt
-            ! waveU(i,j,k)=u1(i,j,k)
-            ! waveV(i,j,k)=v1(i,j,k)
-            ! waveW(i,j,k)=w1(i,j,k)
-          ! enddo
-		  ! enddo
-		  ! enddo
-        ! _ACC_END_PARALLEL
-        ! endif
-        ! endif      
+!		! _ACC_PARALLEL
+!        ! _ACC_LOOP_COLLAPSE_3
+!		   do k=1,nzt
+!		   do j=1,nyt
+!          do i=1,nxt
+!             waveU(i,j,k)=u1(i,j,k)
+!             waveV(i,j,k)=v1(i,j,k)
+!             waveW(i,j,k)=w1(i,j,k)
+!           enddo
+!		   enddo
+!		   enddo
+!        ! _ACC_END_PARALLEL
+!         endif
+!         endif      
 #if defined TPV103
 !   Smooth nucleation for the tpv104 benchmark
         if ((time-dt/2.) <= TT2) then
@@ -578,7 +578,7 @@
         
         do j = nabc+1,nzt-nfs
           do i = nabc+1,nxt-nabc
-            MomentRate(k)=MomentRate(k)+sqrt(sliprateoutX(i,j)**2+sliprateoutZ(i,j)**2)*mu1(i,nysc,j)*dh*dh/(dtseis/dt)
+            MomentRate(k)=MomentRate(k)+sqrt(sliprateoutX(i,j)**2+sliprateoutZ(i,j)**2)*muSource(i,j)*dh*dh/(dtseis/dt)
           enddo
         enddo
       
@@ -673,7 +673,7 @@ if(sqrt(maxvelX**2+maxvelZ**2)<1.e-6)exit
       do k = nabc+1,nzt-nfs	
         do i = nabc+1,nxt-nabc
           ! --- Seismic moment:
-          output_param(2) = output_param(2) + sqrt(slipX(i,k)**2 + slipZ(i,k)**2)*mu1(i,nysc,k)*(dh*dh)
+          output_param(2) = output_param(2) + sqrt(slipX(i,k)**2 + slipZ(i,k)**2)*muSource(i,k)*(dh*dh)
           ! --- Stress drop:
           
           numer = numer + schangeZ(i,k)*slipZ(i,k)+schangeX(i,k)*slipX(i,k)	!correct only for pure dipslip/strikeslip

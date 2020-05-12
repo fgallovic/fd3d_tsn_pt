@@ -126,7 +126,7 @@
           do k=1,nfmax
             read(20) dumarr
             if(k>np)cycle
-            dum=sum(mu1(int(dL/dh*(jl-1))+nabc+1:nabc+int(dL/dh*jl),nysc,int(dW/dh*(jw-1))+nabc+1:nabc+int(dW/dh*jw)))/(dL/dh*dW/dh)
+            dum=sum(muSource(int(dL/dh*(jl-1))+nabc+1:nabc+int(dL/dh*jl),int(dW/dh*(jw-1))+nabc+1:nabc+int(dW/dh*jw)))/(dL/dh*dW/dh)
             cirN(k,i)=cmplx(dumarr(1),dumarr(4))*dum*elem
             cirE(k,i)=cmplx(dumarr(2),dumarr(5))*dum*elem
             cirZ(k,i)=cmplx(dumarr(3),dumarr(6))*dum*elem

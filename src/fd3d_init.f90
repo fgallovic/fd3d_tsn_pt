@@ -118,6 +118,7 @@
       REAL dL,dW,dtseis
       REAL M0,Mw
       REAL,allocatable,dimension(:):: MSRX,MSRZ,MomentRate
+      REAL,allocatable,dimension(:,:):: muSource
     END MODULE
 
     ! MODULE inversion_com
@@ -178,14 +179,15 @@
 !----------------------------
       allocate(lam1(nxt,nyt,nzt),mu1(nxt,nyt,nzt),d1(nxt,nyt,nzt))
       allocate(uZ(nxt,nzt),wX(nxt,nzt),tabsX(nxt,nzt),tabsZ(nxt,nzt))
+      
 #if defined FVW
       allocate(Dc(nxt,nzt))
       allocate(striniZ(nxt,nzt),striniX(nxt,nzt), a(nxt,nzt), b(nxt,nzt))
       allocate(psi(nxt,nzt),vw(nxt,nzt),T0X(nxt,nzt),T0Z(nxt,nzt))
       allocate(aX(nxt,nzt),bX(nxt,nzt),psiX(nxt,nzt),vwX(nxt,nzt))
       allocate(aZ(nxt,nzt),bZ(nxt,nzt),psiZ(nxt,nzt),vwZ(nxt,nzt))
-	  perturb=0.
-	!  allocate(waveU(nxt,nyt,nzt),waveV(nxt,nyt,nzt),waveW(nxt,nyt,nzt))
+      perturb=0.
+
 #else
 
       allocate(striniZ(nxt,nzt),striniX(nxt,nzt),peak_xz(nxt,nzt),Dc(nxt,nzt),dyn_xz(nxt,nzt),coh(nxt,nzt))
@@ -195,8 +197,9 @@
 #endif
       
       allocate(ruptime(nxt,nzt),slipZ(nxt,nzt),slipX(nxt,nzt),rise(nxt,nzt),schangeZ(nxt,nzt),schangeX(nxt,nzt),sliptime(nxt,nzt))
+      allocate(muSource(nxt,nzt))
 
-     striniX=0.; striniZ=0.; peak_xz=0.; Dc=0.
+      striniX=0.; striniZ=0.; peak_xz=0.; Dc=0.
 
 
 !------------------------------------------------------------
@@ -213,12 +216,13 @@
     USE fd3dparam_com
     USE pml_com
     use mod_pgamisf, only : v30 !obtain v30 for gmpe calculation
+    use SlipRates_com
     IMPLICIT NONE
     real*8,parameter:: PI=3.1415926535
-    real dip
+    real dip, d_zone, vlow_zone,vlowMax_zone, vlowMin_zone 
     real    :: vpe(2),vse(2),den(2),CFL,dum,dd,vpp,vss
     real,allocatable,dimension(:):: vp,vs,depth,rho
-    INTEGER ndepth,j,k
+    INTEGER ndepth,j,k,i
 
     vpe(2)  = 0.
     vpe(1)  = 1.0E+10
@@ -273,6 +277,25 @@
 !   write(*,*)mu_mean
     deallocate(depth,vp,vs,rho)
 
+!damaged fault zone
+    muSource(:,:)=mu1(:,nysc,:)
+    d_zone=500 ! fault zone width
+    vlowMax_zone=0.3 !velocity reduction at the fault
+    vlowMin_zone=0.1 !velocity reduction at the fault
+    vlowMax_zone=0.0 !no velocity reduction
+    vlowMin_zone=0.0 !no velocity reduction
+	  j=0
+    do while (j*dh<=d_zone)
+      do k=1,nzt-2
+        do i=1,nxt
+!         lam1(i,nyt-j,k)=(1-vlow_zone)**2*lam1(i,nyt-j,k)
+          vlow_zone= vlowMax_zone - (vlowMax_zone-vlowMin_zone)*(j*dh/d_zone)**2
+          mu1(i,nyt-j,k)=(1-vlow_zone)**2*mu1(i,nyt-j,k)
+        enddo
+      enddo
+	    j=j+1
+	  enddo
+	  
 !-------------------------------------------------------
 !     Make sure the simulation is numerically stable
 !     CFL < 0.25
