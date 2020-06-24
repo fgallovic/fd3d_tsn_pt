@@ -1005,7 +1005,7 @@
       USE traction_com
 
 !     free-surface B.C. for velocities
-      real temp
+      real temp, a1, b1
 !     nxt   nodal points in x dir (integer)(sent)
 !     nyt   nodal points in y dir (integer)(sent)
 !     nzt   nodal points in z dir (integer)(sent)
@@ -1035,9 +1035,9 @@
         do i=2,nxt-2
           xl=lam1(i,j,nzt+1)
           xm=mu1(i,j,nzt+1)
-          a=2.*xl
-          b=xl+2.*xm
-          w1(i,j,nzt+1)=+(w1(i,j,nzt-1)-(a/b)*(u1(i+1,j,nzt)-u1(i,j,nzt)+u1(i+1,j,nzt+1)-u1(i,j,nzt+1) &
+          a1=2.*xl
+          b1=xl+2.*xm
+          w1(i,j,nzt+1)=+(w1(i,j,nzt-1)-(a1/b1)*(u1(i+1,j,nzt)-u1(i,j,nzt)+u1(i+1,j,nzt+1)-u1(i,j,nzt+1) &
             +v1(i,j,nzt)-v1(i,j-1,nzt)+v1(i,j,nzt+1)-v1(i,j-1,nzt+1)))
         enddo
       enddo
@@ -1098,7 +1098,7 @@
       USE traction_com
       USE pml_com
 #if defined FVW
-      USE friction_com, only: Sn, psiX, v0, uini,wini, aX,T0Z,T0X,wX, tabsX
+      USE friction_com, only: SnX, psiX, v0, uini,wini, aX,T0Z,T0X,wX, tabsX, coh
 #endif
 !u component at the fault
 
@@ -1124,26 +1124,31 @@
           d         = d1(i,nyt,k)
 #if defined FVW
           d         = d1(i,nyt,k)
-          sr = sqrt((2.*(abs(wX(i,k))+abs(wini)))**2+(2.*(abs(u1(i,nyt,k))+abs(uini)))**2)
-          cdelta = 2.*(dth/d)*Sn*aX(i,k)
+          sr = sqrt((2.*(abs(wX(i,k))+abs(wini(i,k))))**2+(2.*(abs(u1(i,nyt,k))+abs(uini(i,k))))**2)
+          cdelta = 2.*(dth/d)*SnX(i,k)*aX(i,k)
           uw = asinh(exp(psiX(i,k)/aX(i,k))*sr/(2*v0))
           vtilde=-sqrt((wX(i,k) + 2.*(dth/d)*((RFz(i,k)+RFz(i-1,k)+RFz(i,k-1)+RFz(i-1,k-1))/4.-T0Z(i,k)))**2 &
-            +(u1(i,nyt,k) +2.*(dth/d)*(RFx(i,k)-T0X(i,k)))**2)
+            +(u1(i,nyt,k) +2.*(dth/d)*(RFx(i,k)-T0X(i,k)))**2)+2.*(dth/d)*coh(i,k)
           ferr = 10.
           j = 0
           jmax=100
-          do while (ferr>1e-10)
+          do while (ferr>1e-5)
             j = j+1
+			
             fw =  vtilde + cdelta*uw + sinh(uw)*v0*exp(-psiX(i,k)/aX(i,k))
             dfw = cdelta + cosh(uw)*v0*exp(-psiX(i,k)/aX(i,k))
             ferr = fw/dfw
             uw = uw - ferr
+
             if (jmax<j)then
-              print*, 'newton error?', (tx(i,k) + T0X(i,k))*(-sinh(uw))*v0*exp(-psiX(i,k)/aX(i,k))/tabsX(i,k) - uini, ferr, i, k
+              print*, 'newton error?', (tx(i,k) + T0X(i,k))*(-sinh(uw))*v0*exp(-psiX(i,k)/aX(i,k))/tabsX(i,k) - uini(i,k), ferr,uini(i,k), i, k
             ! pause
             endif
           enddo
-          u1(i,nyt,k)= (tx(i,k) + T0X(i,k))*(-sinh(uw))*v0*exp(-psiX(i,k)/aX(i,k))/tabsX(i,k) + uini
+          u1(i,nyt,k)= (tx(i,k) + T0X(i,k))*(-sinh(uw))*v0*exp(-psiX(i,k)/aX(i,k))/tabsX(i,k) + uini(i,k)
+	!		if ((i.eq.200) .and. (k.eq.125)) then
+	!			print*, u1(i,nyt,k),fw, T0X(i,k), T0Xi(i,k)
+	!		endif
 #else
           u1(i,nyt,k) = u1(i,nyt,k) + (dth/d)*2*(tx(i,k) + RFx(i,k))
 #endif
@@ -1156,7 +1161,7 @@
 !----------------------------------------------------------
 !----------------------------------------------------------
 !----------------------------------------------------------
-      subroutine tasw1(nxt,nyt,nzt,dt,dh)
+       subroutine tasw1(nxt,nyt,nzt,dt,dh)
 
       USE medium_com
       USE displt_com
@@ -1164,7 +1169,7 @@
       USE traction_com
       USE pml_com
 #if defined FVW
-      USE friction_com, only: Sn, psiZ, v0, wini, uini,aZ,T0Z,T0X,uZ,tabsZ
+      USE friction_com, only: SnZ, psiZ, v0, wini, uini,aZ,T0Z,T0X,uZ,tabsZ, coh
 #endif
 !w component at the fault
 
@@ -1187,27 +1192,27 @@
           d         = d1(i,nyt,k)
 #if defined FVW
           d         = d1(i,nyt,k)
-          sr = sqrt((2.*(w1(i,nyt,k)-wini))**2+(2.*(uZ(i,k)-uini))**2)
-          cdelta = 2.*(dth/d)*Sn*aZ(i,k)
+          sr = sqrt((2.*(w1(i,nyt,k)-wini(i,k)))**2+(2.*(uZ(i,k)-uini(i,k)))**2)
+          cdelta = 2.*(dth/d)*SnZ(i,k)*aZ(i,k)
           uw = asinh(exp(psiZ(i,k)/aZ(i,k))*sr/(2*v0))
           vtilde=-sqrt((w1(i,nyt,k) + 2.*(dth/d)*(RFz(i,k)-T0Z(i,k)))**2 &
             +(uZ(i,k) +2.*(dth/d)*((RFx(i,k)+RFx(i+1,k)+RFx(i,k+1)+RFx(i+1,k+1))/4.&
-			-(T0X(i,k)+T0X(i+1,k)+T0X(i,k+1)+T0X(i+1,k+1))/4.))**2)
+			-(T0X(i,k)+T0X(i+1,k)+T0X(i,k+1)+T0X(i+1,k+1))/4.))**2) +2.*(dth/d)* coh(i,k)
           ferr = 10.
           j = 0
           jmax=100
-          do while (ferr>1e-10)
+          do while (ferr>1e-5)
             j = j+1
             fw =  vtilde + cdelta*uw + sinh(uw)*v0*exp(-psiZ(i,k)/aZ(i,k))
             dfw = cdelta + cosh(uw)*v0*exp(-psiZ(i,k)/aZ(i,k))
             ferr = fw/dfw
             uw = uw - ferr
             if (jmax<j) then
-              print*, 'newton error?', (tz(i,k) + T0Z(i,k))*(- sinh(uw)*v0*exp(-psiZ(i,k)/aZ(i,k)))/tabsZ(i,k) - wini, ferr,i,k
+              print*, 'newton error?', (tz(i,k) + T0Z(i,k))*(- sinh(uw)*v0*exp(-psiZ(i,k)/aZ(i,k)))/tabsZ(i,k) - wini(i,k), ferr,i,k
               !pause
             endif
           enddo
-          w1(i,nyt,k)= (tz(i,k) + T0Z(i,k))*(- sinh(uw)*v0*exp(-psiZ(i,k)/aZ(i,k)))/tabsZ(i,k) + wini
+          w1(i,nyt,k)= (tz(i,k) + T0Z(i,k))*(- sinh(uw)*v0*exp(-psiZ(i,k)/aZ(i,k)))/tabsZ(i,k) + wini(i,k)
 #else
           w1(i,nyt,k) = w1(i,nyt,k) + (dth/d)*(2*(tz(i,k) + RFz(i,k)))
 #endif
@@ -1421,9 +1426,9 @@
 #endif	  
 	  
       do i = 1,nabc-1
-        omega_pml(i) = 0.5*dt*omegaM_pml * (real(i)/real((nabc-1)))**4
+        omega_pml(i) = 0.5*dt*omegaM_pml * (real(i)/real((nabc-1)))**2
         omegaR_pml(nabc-i) = omega_pml(i)
-        omega_pmlM(i) = 0.5*dt*omegaM_pml * ((real(i)-0.5)/real((nabc-1)))**4
+        omega_pmlM(i) = 0.5*dt*omegaM_pml * ((real(i)-0.5)/real((nabc-1)))**2
         omegaR_pmlM(nabc-i) = omega_pmlM(i)
       end do
       
@@ -1475,431 +1480,7 @@
       enddo
       
       end subroutine
-!----------------------------------------------------------
-!----------------------------------------------------------
-!----------------------------------------------------------
-!----------------------------------------------------------
-      subroutine uxxa(nxb,nxe,nyb,nye,nzb,nze,dh,dt, omegax, omegay, omegaz, p1,p2,p3)
-!----------------------------------------------------------
-!     2nd order finite-difference of u1
-!     nxb   starting point for FD in x dir (integer)(sent)
-!     nxe   ending point for FD in x dir   (integer)(sent)
-!     nyb   starting point for FD in y dir (integer)(sent)
-!     nye   ending point for FD in y dir   (integer)(sent)
-!     nzb   starting point for FD in z dir (integer)(sent)
-!     nze   ending point for FD in z dir   (integer)(sent)
-!     dh    spatial discretization         (real)   (sent)
-!     dt    temporal discretization        (real)   (sent)
-!----------------------------------------------------------
-      USE medium_com
-      USE displt_com
-      USE strfld_com
-      USE pml_com
 
-      integer :: nxb,nxe,nyb,nye,nzb,nze,i2,j2,k2
-      real    :: dt,dh,dth,d, pt
-      real    :: omegax(nxe-nxb+1),  omegay(nye-nyb+1), omegaz(nze-nzb+1)
-      real    :: p1(nxe-nxb+1,nye-nyb+1,nze-nzb+1),p2(nxe-nxb+1,nye-nyb+1,nze-nzb+1),p3(nxe-nxb+1,nye-nyb+1,nze-nzb+1)
-      dth = dt/dh
-!----------------------------------------------------------
-!     Find u-displacement fields at time t+1/2
-!----------------------------------------------------------
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k = nzb,nze
-      do j = nyb,nye
-      do i = nxb,nxe
-        d         = d1(i,j,k)
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
-
-        pt = p1(i2,j2,k2)*(1.-omegax(i2))  + (dt/d)*(xx(i,j,k) - xx(i-1,j,k))/dh
-        p1(i2,j2,k2) = pt/(1.+omegax(i2))
-        
-        pt = p2(i2,j2,k2)*(1.-omegay(j2))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh
-        p2(i2,j2,k2) = pt/(1.+omegay(j2))
-        
-        pt = p3(i2,j2,k2)*(1.-omegaz(k2))  + (dt/d)*(xz(i,j,k) - xz(i,j,k-1))/dh
-        p3(i2,j2,k2) = pt/(1.+omegaz(k2))
-
-        u1(i,j,k) = p1(i2,j2,k2) + p2(i2,j2,k2) + p3(i2,j2,k2)
-        
-        ! pt = p1(1-nxb+i,1-nyb+j,1-nzb+k)*(1.-omegax(1-nxb+i))  + (dt/d)*(xx(i,j,k) - xx(i-1,j,k))/dh
-        ! p1(1-nxb+i,1-nyb+j,1-nzb+k) = pt/(1.+omegax(1-nxb+i))
-        
-        ! pt = p2(1-nxb+i,1-nyb+j,1-nzb+k)*(1.-omegay(1-nyb+j))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh
-        ! p2(1-nxb+i,1-nyb+j,1-nzb+k) = pt/(1.+omegay(1-nyb+j))
-        
-        ! pt = p3(1-nxb+i,1-nyb+j,1-nzb+k)*(1.-omegaz(1-nzb+k))  + (dt/d)*(xz(i,j,k) - xz(i,j,k-1))/dh
-        ! p3(1-nxb+i,1-nyb+j,1-nzb+k) = pt/(1.+omegaz(1-nzb+k))
-
-        ! u1(i,j,k) = p1(1-nxb+i,1-nyb+j,1-nzb+k) + p2(1-nxb+i,1-nyb+j,1-nzb+k) + p3(1-nxb+i,1-nyb+j,1-nzb+k)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
-
-      return
-      end subroutine
-!----------------------------------------------------------
-!----------------------------------------------------------
-!----------------------------------------------------------
-!----------------------------------------------------------
-      subroutine vyya(nxb,nxe,nyb,nye,nzb,nze,dh,dt, omegax, omegay, omegaz, p1, p2, p3)
-!----------------------------------------------------------
-!     2nd order finite-difference of v1
-!     nxb   starting point for FD in x dir (integer)(sent)
-!     nxe   ending point for FD in x dir   (integer)(sent)
-!     nyb   starting point for FD in y dir (integer)(sent)
-!     nye   ending point for FD in y dir   (integer)(sent)
-!     nzb   starting point for FD in z dir (integer)(sent)
-!     nze   ending point for FD in z dir   (integer)(sent)
-!     dh    spatial discretization         (real)   (sent)
-!     dt    temporal discretization        (real)   (sent)
-!----------------------------------------------------------
-      USE medium_com
-      USE displt_com
-      USE strfld_com
-      USE pml_com
-      integer :: nxb,nxe,nyb,nye,nzb,nze,i2,j2,k2
-      real    :: dt,dh,dth,d,pt, cl
-      real    :: omegax(nxe-nxb+1),  omegay(nye-nyb+1), omegaz(nze-nzb+1)
-      real    :: p1(nxe-nxb+1,nye-nyb+1,nze-nzb+1),p2(nxe-nxb+1,nye-nyb+1,nze-nzb+1),p3(nxe-nxb+1,nye-nyb+1,nze-nzb+1)
-
-      dth = dt/dh
-!----------------------------------------------------------
-!     Find v-displacement fields at time t+1/2
-!----------------------------------------------------------
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k = nzb,nze
-      do j = nyb,nye
-      do i = nxb,nxe
-        d         = d1(i,j,k)
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
-        
-        pt = p1(i2,j2,k2)*(1.-omegax(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh
-        p1(i2,j2,k2) = pt/(1.+omegax(i2))
-
-        pt = p2(i2,j2,k2)*(1.-omegay(j2))  + (dt/d)*(yy(i,j+1,k) - yy(i,j,k))/dh
-        p2(i2,j2,k2) = pt/(1.+omegay(j2))
-
-        pt = p3(i2,j2,k2)*(1.-omegaz(k2))  + (dt/d)*(yz(i,j,k) - yz(i,j,k-1))/dh
-        p3(i2,j2,k2) = pt/(1.+omegaz(k2))
-
-        v1(i,j,k) = p1(i2,j2,k2) + p2(i2,j2,k2) + p3(i2,j2,k2)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
-
-      return
-      end subroutine
-!----------------------------------------------------------
-!----------------------------------------------------------
-!----------------------------------------------------------
-!----------------------------------------------------------
-      subroutine wzza(nxb,nxe,nyb,nye,nzb,nze,dh,dt, omegax, omegay, omegaz,p1,p2,p3)
-!----------------------------------------------------------
-!     2nd order finite-difference of w1
-!     nxb   starting point for FD in x dir (integer)(sent)
-!     nxe   ending point for FD in x dir   (integer)(sent)
-!     nyb   starting point for FD in y dir (integer)(sent)
-!     nye   ending point for FD in y dir   (integer)(sent)
-!     nzb   starting point for FD in z dir (integer)(sent)
-!     nze   ending point for FD in z dir   (integer)(sent)
-!     dh    spatial discretization         (real)   (sent)
-!     dt    temporal discretization        (real)   (sent)
-!----------------------------------------------------------
-      USE medium_com
-      USE displt_com
-      USE strfld_com
-      USE pml_com
-      integer :: nxb,nxe,nyb,nye,nzb,nze,i2,j2,k2
-      real    :: dt,dh,dth,d,pt
-      real    :: omegax(nxe-nxb+1),  omegay(nye-nyb+1), omegaz(nze-nzb+1)
-      real    :: p1(nxe-nxb+1,nye-nyb+1,nze-nzb+1),p2(nxe-nxb+1,nye-nyb+1,nze-nzb+1),p3(nxe-nxb+1,nye-nyb+1,nze-nzb+1)
-     
-!----------------------------------------------------------
-!     Find w-displacement fields at time t+1/2
-!----------------------------------------------------------
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k = nzb,nze
-      do j = nyb,nye
-      do i = nxb,nxe
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
-        d         = d1(i,j,k)
-        pt = p1(i2,j2,k2)*(1.-omegax(i2))  + (dt/d)*(xz(i+1,j,k) - xz(i,j,k))/dh
-        p1(i2,j2,k2) = pt/(1.+omegax(i2))
-
-        pt = p2(i2,j2,k2)*(1.-omegay(j2))  + (dt/d)*(yz(i,j,k) - yz(i,j-1,k))/dh
-        p2(i2,j2,k2) = pt/(1.+omegay(j2))
-
-        pt = p3(i2,j2,k2)*(1.-omegaz(k2))  + (dt/d)*(zz(i,j,k+1) - zz(i,j,k))/dh
-        p3(i2,j2,k2) = pt/(1.+omegaz(k2))
-
-        w1(i,j,k) = p1(i2,j2,k2) + p2(i2,j2,k2) + p3(i2,j2,k2)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
-
-      return
-      end subroutine
-!----------------------------------------------------------
-!----------------------------------------------------------
-!----------------------------------------------------------
-!----------------------------------------------------------
-      subroutine sxxa(nxb,nxe,nyb,nye,nzb,nze,dh,dt, omegax, omegay, omegaz, px1, px2, px3, py1,py2,py3,pz1,pz2,pz3)
-!----------------------------------------------------------
-!----------------------------------------------------------
-!     2th order finite-difference of normal stresses
-!     nxb   starting point for FD in x dir (integer)(sent)
-!     nxe   ending point for FD in x dir   (integer)(sent)
-!     nyb   starting point for FD in y dir (integer)(sent)
-!     nye   ending point for FD in y dir   (integer)(sent)
-!     nzb   starting point for FD in z dir (integer)(sent)
-!     nze   ending point for FD in z dir   (integer)(sent)
-!     dh    spatial discretization         (real)   (sent)
-!     dt    temporal discretization        (real)   (sent)
-!----------------------------------------------------------
-      USE medium_com
-      USE displt_com
-      USE strfld_com
-      USE pml_com
-      integer :: nxb,nxe,nyb,nye,nzb,nze,i2,j2,k2
-      real    :: dh,dt,dth,xl,xm,a,b, pt, omt
-      real    :: omegax(nxe-nxb+1),  omegay(nye-nyb+1), omegaz(nze-nzb+1), diff1, diff2, diff3, cl1, cl2, cl3
-      real    :: px1(nxe-nxb+1,nye-nyb+1,nze-nzb+1),px2(nxe-nxb+1,nye-nyb+1,nze-nzb+1),px3(nxe-nxb+1,nye-nyb+1,nze-nzb+1)
-      real    :: py1(nxe-nxb+1,nye-nyb+1,nze-nzb+1),py2(nxe-nxb+1,nye-nyb+1,nze-nzb+1),py3(nxe-nxb+1,nye-nyb+1,nze-nzb+1)
-      real    :: pz1(nxe-nxb+1,nye-nyb+1,nze-nzb+1),pz2(nxe-nxb+1,nye-nyb+1,nze-nzb+1),pz3(nxe-nxb+1,nye-nyb+1,nze-nzb+1)
-
-!----------------------------------------------------------
-!     Find displacement fields at time t+1/2
-!----------------------------------------------------------
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k = nzb,nze
-      do j = nyb,nye
-      do i = nxb,nxe
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
-        xl = lam1(i,j,k)
-        xm = mu1(i,j,k)
-        a  = xl + 2.*xm
-        b  = xl
-        
-        diff1=u1(i+1,j,k) - u1(i,j,k)
-        diff2=v1(i,j,k) - v1(i,j-1,k)
-        diff3=w1(i,j,k) - w1(i,j,k-1)
-        
-!       Find xx stress
-        
-        pt = px1(i2,j2,k2)*(1.-omegax(i2)) + dt*a*diff1/dh
-        px1(i2,j2,k2) = pt/(1.+omegax(i2))
-
-        pt = px2(i2,j2,k2)*(1.-omegay(j2)) + dt*b*diff2/dh
-        px2(i2,j2,k2) = pt/(1.+omegay(j2))
-
-        pt = px3(i2,j2,k2)*(1.-omegaz(k2)) + dt*b*diff3/dh
-        px3(i2,j2,k2) = pt/(1.+omegaz(k2))
-
-        xx(i,j,k)= px1(i2,j2,k2) + px2(i2,j2,k2) + px3(i2,j2,k2)
-
-!       Find yy stress
-
-        pt = py1(i2,j2,k2)*(1.-omegax(i2)) + dt*b*diff1/dh
-        py1(i2,j2,k2) = pt/(1.+omegax(i2))
-
-        pt = py2(i2,j2,k2)*(1.-omegay(j2)) + dt*a*diff2/dh
-        py2(i2,j2,k2) = pt/(1.+omegay(j2))
-
-        pt = py3(i2,j2,k2)*(1.-omegaz(k2)) + dt*b*diff3/dh
-        py3(i2,j2,k2) = pt/(1.+omegaz(k2))
-
-        yy(i,j,k)= py1(i2,j2,k2) + py2(i2,j2,k2) + py3(i2,j2,k2)
-!       Find zz stress
-        pt = pz1(i2,j2,k2)*(1.-omegax(i2)) + dt*b*diff1/dh
-        pz1(i2,j2,k2) = pt/(1.+omegax(i2))
-
-        pt = pz2(i2,j2,k2)*(1.-omegay(j2)) + dt*b*diff2/dh
-        pz2(i2,j2,k2) = pt/(1.+omegay(j2))
-
-        pt = pz3(i2,j2,k2)*(1.-omegaz(k2)) + dt*a*diff3/dh
-        pz3(i2,j2,k2) = pt/(1.+omegaz(k2))
-
-        zz(i,j,k)= pz1(i2,j2,k2) + pz2(i2,j2,k2) + pz3(i2,j2,k2)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
-
-      return
-      end subroutine
-!----------------------------------------------------------
-!----------------------------------------------------------
-!----------------------------------------------------------
-!----------------------------------------------------------
-      subroutine sxya(nxb,nxe,nyb,nye,nzb,nze,dh,dt, omegax, omegay, omegaz,p1,p2)
-!----------------------------------------------------------
-!     2th order finite-difference of xy
-!     nxb   starting point for FD in x dir (integer)(sent)
-!     nxe   ending point for FD in x dir   (integer)(sent)
-!     nyb   starting point for FD in y dir (integer)(sent)
-!     nye   ending point for FD in y dir   (integer)(sent)
-!     nzb   starting point for FD in z dir (integer)(sent)
-!     nze   ending point for FD in z dir   (integer)(sent)
-!     dh    spatial discretization         (real)   (sent)
-!     dt    temporal discretization        (real)   (sent)
-!----------------------------------------------------------
-      USE medium_com
-      USE displt_com
-      USE strfld_com
-      USE pml_com
-      integer :: nxb,nxe,nyb,nye,nzb,nze,i2,j2,k2
-      real    :: dh,dt,dth,xm1,xm2,xmu, pt
-      real    :: omegax(nxe-nxb+1),  omegay(nye-nyb+1), omegaz(nze-nzb+1)
-      real    :: p1(nxe-nxb+1,nye-nyb+1,nze-nzb+1),p2(nxe-nxb+1,nye-nyb+1,nze-nzb+1)
-
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k = nzb,nze
-      do j = nyb,nye
-      do i = nxb,nxe
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
-!       Find xy stress
-
-        xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
-
-        pt = p1(i2,j2,k2)*(1.-omegay(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
-        p1(i2,j2,k2) = pt/(1.+omegay(j2))
-
-        pt = p2(i2,j2,k2)*(1.-omegax(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh
-        p2(i2,j2,k2) = pt/(1.+omegax(i2))
-
-        xy(i,j,k)= p1(i2,j2,k2) + p2(i2,j2,k2)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
-
-      return
-      end subroutine
-!----------------------------------------------------------
-!----------------------------------------------------------
-!----------------------------------------------------------
-!----------------------------------------------------------
-      subroutine sxza(nxb,nxe,nyb,nye,nzb,nze,dh,dt, omegax, omegay, omegaz,p1,p2)
-!----------------------------------------------------------
-!     2th order finite-difference of xz
-!     nxb   starting point for FD in x dir (integer)(sent)
-!     nxe   ending point for FD in x dir   (integer)(sent)
-!     nyb   starting point for FD in y dir (integer)(sent)
-!     nye   ending point for FD in y dir   (integer)(sent)
-!     nzb   starting point for FD in z dir (integer)(sent)
-!     nze   ending point for FD in z dir   (integer)(sent)
-!     dh    spatial discretization         (real)   (sent)
-!     dt    temporal discretization        (real)   (sent)
-!----------------------------------------------------------
-      USE medium_com
-      USE displt_com
-      USE strfld_com
-      USE pml_com
-      integer :: nxb,nxe,nyb,nye,nzb,nze,i2,j2,k2
-      real    :: dh,dt,dth,xm1,xm2,xmu, pt
-      real    :: omegax(nxe-nxb+1),  omegay(nye-nyb+1), omegaz(nze-nzb+1)
-      real    :: p1(nxe-nxb+1,nye-nyb+1,nze-nzb+1),p2(nxe-nxb+1,nye-nyb+1,nze-nzb+1)
-
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k=nzb,nze
-      do j=nyb,nye
-      do i=nxb,nxe
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
-!       Find xz stress
-
-        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i-1,j,k) +1/mu1(i-1,j,k+1) +1/mu1(i,j,k)))
-
-        pt = p1(i2,j2,k2)*(1.-omegaz(k2)) + dt*xmu*(u1(i,j,k+1) - u1(i,j,k))/dh
-        p1(i2,j2,k2) = pt/(1.+omegaz(k2))
-
-        pt = p2(i2,j2,k2)*(1.-omegax(i2)) + dt*xmu*(w1(i,j,k) - w1(i-1,j,k))/dh
-        p2(i2,j2,k2) = pt/(1.+omegax(i2))
-
-        xz(i,j,k)= p1(i2,j2,k2) + p2(i2,j2,k2)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
-
-      return
-      end subroutine
-!----------------------------------------------------------
-!----------------------------------------------------------
-!----------------------------------------------------------
-!----------------------------------------------------------
-      subroutine syza(nxb,nxe,nyb,nye,nzb,nze,dh,dt, omegax, omegay, omegaz,p1,p2)
-!----------------------------------------------------------
-!     2th order finite-difference of yz
-!     nxb   starting point for FD in x dir (integer)(sent)
-!     nxe   ending point for FD in x dir   (integer)(sent)
-!     nyb   starting point for FD in y dir (integer)(sent)
-!     nye   ending point for FD in y dir   (integer)(sent)
-!     nzb   starting point for FD in z dir (integer)(sent)
-!     nze   ending point for FD in z dir   (integer)(sent)
-!     dh    spatial discretization         (real)   (sent)
-!     dt    temporal discretization        (real)   (sent)
-!----------------------------------------------------------
-      USE medium_com
-      USE displt_com
-      USE strfld_com
-      USE pml_com
-      integer :: nxb,nxe,nyb,nye,nzb,nze,i2,j2,k2
-      real    :: dh,dt,xm1,xm2,xmu,pt
-      real    ::  omegax(nxe-nxb+1),  omegay(nye-nyb+1), omegaz(nze-nzb+1)
-      real    :: p1(nxe-nxb+1,nye-nyb+1,nze-nzb+1),p2(nxe-nxb+1,nye-nyb+1,nze-nzb+1)
-
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k=nzb,nze
-      do j=nyb,nye
-      do i=nxb,nxe
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
-!       Find yz stress
-
-        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i,j+1,k) +1/mu1(i,j+1,k+1) +1/mu1(i,j,k)))
-
-        pt = p1(i2,j2,k2)*(1.-omegaz(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
-        p1(i2,j2,k2) = pt/(1.+omegaz(k2))
-
-        pt = p2(i2,j2,k2)*(1.-omegay(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh
-        p2(i2,j2,k2) = pt/(1.+omegay(j2))
-
-        yz(i,j,k)= p1(i2,j2,k2) + p2(i2,j2,k2)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
-
-      return
-      end subroutine
-!----------------------------------------------------------
-!----------------------------------------------------------
-!----------------------------------------------------------
-!----------------------------------------------------------
       !Perfectly matched layers
 
       subroutine pml_uvw (nxt,nyt,nzt,dt,dh)
@@ -3106,10 +2687,15 @@
         do k=1,nzt
 #if defined FVW
           aZ(i,k)=a(i,k)
-          bZ(i,k)=b(i,k)
+          baZ(i,k)=ba(i,k)
           psiZ(i,k)=psi(i,k)
           vwZ(i,k)=vw(i,k)
 		  T0Z(i,k)=striniZ(i,k)
+		  DcZ(i,k)=Dc(i,k)
+		  fwZ(i,k)=fw(i,k)
+		  f0Z(i,k)=f0(i,k)
+		  SnZ(i,k)=Sn(i,k)
+		  wini(i,k)=0.
 #else
           peakZ(i,k)=peak_xz(i,k)
           dynZ(i,k)=dyn_xz(i,k)
@@ -3122,11 +2708,18 @@
       do i=2,nxt-1
         do k=2,nzt-1
 #if defined FVW
-          ! aX(i,k)=(aZ(i,k)+aZ(i-1,k)+aZ(i,k-1)+aZ(i-1,k-1))/4.
-          ! bX(i,k)=(bZ(i,k)+bZ(i-1,k)+bZ(i,k-1)+bZ(i-1,k-1))/4.
-          ! psiX(i,k)=(psiZ(i,k)+psiZ(i-1,k)+psiZ(i,k-1)+psiZ(i-1,k-1))/4.
-          ! vwX(i,k)=(vwZ(i,k)+vwZ(i-1,k)+vwZ(i,k-1)+vwZ(i-1,k-1))/4.
+          aX(i,k)=(aZ(i,k)+aZ(i-1,k)+aZ(i,k-1)+aZ(i-1,k-1))/4.
+          baX(i,k)=(baZ(i,k)+baZ(i-1,k)+baZ(i,k-1)+baZ(i-1,k-1))/4.
+          psiX(i,k)=(psiZ(i,k)+psiZ(i-1,k)+psiZ(i,k-1)+psiZ(i-1,k-1))/4.
+          vwX(i,k)=(vwZ(i,k)+vwZ(i-1,k)+vwZ(i,k-1)+vwZ(i-1,k-1))/4.
 		  T0X(i,k)=(striniX(i,k)+striniX(i-1,k)+striniX(i,k-1)+striniX(i-1,k-1))/4.
+		  DcX(i,k)=(DcZ(i,k)+DcZ(i-1,k)+DcZ(i,k-1)+DcZ(i-1,k-1))/4.
+		  fwX(i,k)=(fwZ(i,k)+fwZ(i-1,k)+fwZ(i,k-1)+fwZ(i-1,k-1))/4.
+		  f0X(i,k)=(f0Z(i,k)+f0Z(i-1,k)+f0Z(i,k-1)+f0Z(i-1,k-1))/4.
+		  SnX(i,k)=(SnZ(i,k)+SnZ(i-1,k)+SnZ(i,k-1)+SnZ(i-1,k-1))/4.
+		  uini(i,k)= v0*exp(T0X(i,k)/(aX(i,k)*SnX(i,k))-psiX(i,k)/aX(i,k))/2.!sinh(T0X(i,k)/(aX(i,k)*SnX(i,k)))/exp(psiX(i,k)/aX(i,k))     
+		  
+		  !psi(i,k) = a(i,k)*(log((2*v0/(2*wini))) + log(sinh(striniZ(i,k)/(a(i,k)*Sn(i,k)))))
 #else
           peakX(i,k)=(peakZ(i,k)+peakZ(i-1,k)+peakZ(i,k-1)+peakZ(i-1,k-1))/4.
           dynX(i,k)=(dynZ(i,k)+dynZ(i-1,k)+dynZ(i,k-1)+dynZ(i-1,k-1))/4.

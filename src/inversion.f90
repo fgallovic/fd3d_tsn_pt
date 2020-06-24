@@ -10,14 +10,47 @@
 ! their names from the code. This code is distributed in the hope
 ! that it will be useful, but WITHOUT ANY WARRANTY.
 ! ------------------------------------------------------
-    
+
+
+
+
+      MODULE inversion_com
+#     if defined FVW
+      INTEGER:: RUNI,NLI,NWI  
+      REAL,ALLOCATABLE,DIMENSION(:,:):: T0I, aI, baI, psiI, f0I, fwI, DcI, vwI     !Test variables (for which misfit is calculated)
+      real,allocatable,dimension(:,:,:):: T0A, aA, baA, psiA, f0A, fwA, DcA, vwA   !Array of variables in MC chains:
+      REAL,ALLOCATABLE,DIMENSION(:,:,:):: ruptimeA,riseA,slipA,schangeA
+      REAL,ALLOCATABLE :: pgaA(:,:,:),mwA(:),ruptdistA(:,:),MomentRateA(:,:)
+      INTEGER randseed,StepType
+      REAL StepSizeT0,StepSizeTs,StepSizeD
+
+	  
+#     else
+
+
+      INTEGER:: RUNI,NLI,NWI  
+      REAL,ALLOCATABLE,DIMENSION(:,:):: DcI,T0I     !Test variables (for which misfit is calculated)
+      real,allocatable,dimension(:,:,:):: DcA,T0A   !Array of variables in MC chains:
+      REAL,ALLOCATABLE,DIMENSION(:,:,:):: ruptimeA,riseA,slipA,schangeA
+      REAL,ALLOCATABLE :: pgaA(:,:,:),mwA(:),ruptdistA(:,:),MomentRateA(:,:)
+      INTEGER randseed,StepType
+      REAL StepSizeT0,StepSizeTs,StepSizeD
+#     endif
+      REAL,ALLOCATABLE,DIMENSION(:,:):: TsI   !Test variables (for which misfit is calculated)
+      real,allocatable,dimension(:,:,:):: TsA  !Array of variables in MC chains:
+      real,allocatable,dimension(:):: MisfitA,VRA, EgA, ErA
+
+      END MODULE
+
+
+
+	  
     MODULE frictionconstraints_com
       real:: DcMin,DcMax,strinixMin,strinixMax,peak_xzMin,peak_xzMax
       integer:: ConstraintNucl
       real:: NuclConstraintL,NuclConstraintW,NuclConstraintR
       real :: OverstressConstraint
     END MODULE
-    
     
     SUBROUTINE inversion_init()
     USE inversion_com
@@ -49,10 +82,18 @@
        read(10,*) per(:) !periods stored here
     endif
     close(10)
-    
-    allocate(DcI(NLI,NWI),TsI(NLI,NWI),T0I(NLI,NWI))
-    allocate(DcA(NLI,NWI,nchains),TsA(NLI,NWI,nchains),T0A(NLI,NWI,nchains))
-    allocate(ruptimeA(nxt,nzt,nchains),riseA(nxt,nzt,nchains),slipA(nxt,nzt,nchains),schangeA(nxt,nzt,nchains),VRA(nchains))
+#if defined FVW
+    allocate(T0I(NLI,NWI), aI(NLI,NWI), baI(NLI,NWI), psiI(NLI,NWI), f0I(NLI,NWI), fwI(NLI,NWI), DcI(NLI,NWI), vwI(NLI, NWI))
+    allocate(T0A(NLI,NWI,nchains), aA(NLI,NWI,nchains), baA(NLI,NWI,nchains), psiA(NLI,NWI,nchains))
+    allocate(f0A(NLI,NWI,nchains), fwA(NLI,NWI,nchains), DcA(NLI,NWI,nchains), vwA(NLI, NWI,nchains))
+#else
+    allocate(DcI(NLI,NWI),T0I(NLI,NWI))
+    allocate(DcA(NLI,NWI,nchains),T0A(NLI,NWI,nchains))
+#endif
+    allocate(TsI(NLI,NWI), TsA(NLI,NWI,nchains))
+
+    allocate(ruptimeA(nxt,nzt,nchains),riseA(nxt,nzt,nchains),slipA(nxt,nzt,nchains),schangeA(nxt,nzt,nchains))
+    allocate(MisfitA(nchains),VRA(nchains),EgA(nchains),ErA(nchains))
     
     !Read GFs and seismograms
     CALL readGFs()
@@ -125,6 +166,7 @@
     call PT_McMC_accept(T,E,prop21,newmisfit,prop12,yn,iseed)
     if (yn) then  !step accepted
       E=newmisfit
+      MisfitA(ichain)=E
       T0A(:,:,ichain)=T0I(:,:)
       TsA(:,:,ichain)=TsI(:,:)
       DcA(:,:,ichain)=DcI(:,:)
@@ -138,6 +180,8 @@
       schangeA(:,:,ichain)=schangeX(:,:)
 #endif
       MomentRateA(:,ichain)=MomentRate(:)
+      EgA(ichain)=Eg
+      ErA(ichain)=Er
       if (iwaveform==2) then
         ruptdistA(:,ichain)=ruptdist(:)
         MwA(ichain)=mw
@@ -149,9 +193,9 @@
     !if (yn.and.(abs(T-1.0)<eps).and.record_mcmc_now) then  !write the accepted step
     if ((abs(T-1.0)<eps).and.record_mcmc_now) then  !write the present step whether accepted or not
       misfit=E
-      write(ifile,'(100000E13.5)')misfit,VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain)
+      write(ifile,'(100000E13.5)')MisfitA(ichain),VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),EgA(ichain),ErA(ichain)
       flush(ifile)
-      write(ifile+2)misfit,VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),ruptimeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),slipA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain), &
+      write(ifile+2)MisfitA(ichain),VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),ruptimeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),slipA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain), &
           & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRateA(:,ichain)
       flush(ifile+2)
       if (iwaveform==2) then
@@ -184,20 +228,20 @@
     do j=nabc+1,nzt-nfs
       do i=nabc+1,nxt-nabc
         if(Dc(i,j)<DcMin.or.Dc(i,j)>DcMax)then
-          write(*,*)'Dc',i,j,Dc(i,j),Dcmin,DcMax
+!          write(*,*)'Dc',i,j,Dc(i,j),Dcmin,DcMax
           return
         endif
 #if defined DIPSLIP
         if(striniZ(i,j)<strinixMin.or.striniZ(i,j)>strinixMax)then
-         write(*,*)'Strinix',i,j,striniZ(i,j),strinixMin,strinixMax
+!         write(*,*)'Strinix',i,j,striniZ(i,j),strinixMin,strinixMax
 #else
         if(striniX(i,j)<strinixMin.or.striniX(i,j)>strinixMax)then
-          write(*,*)'Strinix',i,j,striniX(i,j),strinixMin,strinixMax
+!          write(*,*)'Strinix',i,j,striniX(i,j),strinixMin,strinixMax
 #endif
           return
         endif
         if(peak_xz(i,j)/normstress(j)<peak_xzMin.or.peak_xz(i,j)/normstress(j)>peak_xzMax)then
-          write(*,*)'Peak_xz',i,j,peak_xz(i,j)
+!          write(*,*)'Peak_xz',i,j,peak_xz(i,j)
           return
         endif
       enddo
@@ -213,13 +257,13 @@
           rr=(x-NuclConstraintL)**2+(z-NuclConstraintW)**2
 #if defined DIPSLIP
           if(rr>NuclConstraintR**2.and.peak_xz(i,j)+coh(i,j)<=striniZ(i,j))then
-            write(*,*)'Nucl',x,z,peak_xz(i,j)-striniZ(i,j)
+!            write(*,*)'Nucl',x,z,peak_xz(i,j)-striniZ(i,j)
             return    !nucleation outside the nucleation zone
           endif
           if(rr<=NuclConstraintR**2.and.peak_xz(i,j)+coh(i,j)<=striniZ(i,j))nuclOK=1
 #else
           if(rr>NuclConstraintR**2.and.peak_xz(i,j)+coh(i,j)<=striniX(i,j))then
-            write(*,*)'Nucl',x,z,peak_xz(i,j)-striniX(i,j)
+!            write(*,*)'Nucl',x,z,peak_xz(i,j)-striniX(i,j)
             return    !nucleation outside the nucleation zone
           endif
           if(rr<=NuclConstraintR**2.and.peak_xz(i,j)+coh(i,j)<=striniX(i,j))nuclOK=1
@@ -239,7 +283,7 @@
         meanoverstress=sum(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs),strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)*dh*dh/nuclsize
         deallocate(strengthexcess1)    
         if (meanoverstress>overstressconstraint) then
-          print *,'meanoverstress:',meanoverstress
+!          print *,'meanoverstress:',meanoverstress
           return !mean overstress is too large
         endif
       endif
@@ -341,25 +385,13 @@
     integer ichain,iseed
     logical modelinvalid
 
-
-!initial random
-    !REAL ran3
-    !do j=1,NWI
-    !  do i=1,NLI
-    !    T0I(i,j)=ran3(iseed)*2.e6
-    !    TsI(i,j)=(1.+ran3(iseed)/10.)*2.2e6
-    !    DcI(i,j)=(1.+ran3(iseed))*0.05
-    !  enddo
-    !enddo
-    !T0I(NLI/2,NWI/2)=TsI(NLI/2,NWI/2)*1.2
-
     if (RUNI==1) then
       open(244,FILE='initialmodel.dat')
       read(244,*)dum,dum,T0I(:,:),TsI(:,:),DcI(:,:)
       close(244)
     elseif (RUNI==2) then
       if(ichain==1)open(unit=ifile+1,file=trim(rname),status='old',iostat=ierr)
-      read(ifile+1,*)T0I(:,:),TsI(:,:),DcI(:,:)
+      read(ifile+1,*)dum,dum,T0I(:,:),TsI(:,:),DcI(:,:)
       if(ichain==nchains)close(ifile+1)
     endif
     
@@ -377,6 +409,7 @@
     endif
 
     E=misfit
+    MisfitA(ichain)=E
     T0A(:,:,ichain)=T0I(:,:)
     TsA(:,:,ichain)=TsI(:,:)
     DcA(:,:,ichain)=DcI(:,:)
@@ -391,6 +424,8 @@
 #endif
     VRA(ichain)=VR
     MomentRateA(:,ichain)=MomentRate(:)
+    EgA(ichain)=Eg
+    ErA(ichain)=Er
     if (iwaveform==2) then
       ruptdistA(:,ichain)=ruptdist(:)
       MwA(ichain)=mw
@@ -408,7 +443,7 @@
     
     open(unit=ifile+1,file=trim(rname),status='replace',iostat=ierr)
     do ichain=1,nchains
-      write(ifile+1,'(100000E13.5)')T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain)
+      write(ifile+1,'(100000E13.5)')MisfitA(ichain),VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain)
     enddo
     close(ifile+1)
     

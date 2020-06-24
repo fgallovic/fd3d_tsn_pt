@@ -133,9 +133,9 @@
       print *,'Average speed:       ',output_param(1)
       print *,'Seismic moment:      ',output_param(2)
       print *,'Average stress drop: ',output_param(4)
- !     print *,'Energy release rate: ',output_param(5)
- !     print *,'Available energy:    ',output_param(6)
- !     print *,'kappa:               ',output_param(6)/output_param(5)
+      print *,'Fracture energy: ',output_param(5)
+      print *,'Radiated energy:    ',output_param(6)
+      print *,'Energy efficiency:               ',output_param(6)/(output_param(5)+output_param(6))
       print *,'-----------------------------------------------------'
       call syntseis()
       if(iwaveform==1)then
@@ -143,7 +143,7 @@
         write(*,*)'Variance reduction: ',VR,' for shift',Tshift,'s'
         call plotseis()
         open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
-        write(594,'(100000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:)
+        write(594,'(100000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),Eg,Er
         close(594)
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
@@ -152,7 +152,7 @@
       elseif (iwaveform==2) then
         call evalmisfit2()
         open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
-        write(594,'(100000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:)
+        write(594,'(100000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),Eg,Er
         close(594)
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
@@ -219,9 +219,9 @@
         print *,'Seismic moment:      ',output_param(2)
         print *,'Surface of rupture:  ',output_param(3)
         print *,'Average stress drop: ',output_param(4)
-!        print *,'Energy release rate: ',output_param(5)
-!        print *,'Available energy:    ',output_param(6)
-!        print *,'kappa:               ',output_param(6)/output_param(5)
+        print *,'Fracture energy: ',output_param(5)
+        print *,'Radiated energy:    ',output_param(6)
+        print *,'Energy efficiency:               ',output_param(6)/(output_param(5)+output_param(6))
         print *,'-----------------------------------------------------'
         call syntseis()
         call evalmisfit()

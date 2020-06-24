@@ -58,12 +58,10 @@
       real,allocatable,dimension(:,:):: Dc
       real,allocatable,dimension(:,:):: tabsX,tabsZ
 #if defined FVW
-      real Sn, uini,wini, f0, v0, fw, hx0, hz0, perturb, RR2, TT2,strinixI
-
-      real,allocatable,dimension(:,:):: a, b, psi, vw
-      real,allocatable,dimension(:,:):: aX,bX,psiX,vwX
-      real,allocatable,dimension(:,:):: aZ,bZ,psiZ,vwZ
-
+      real v0, hx0, hz0, perturb, RR2, TT2, strinixI
+      real,allocatable,dimension(:,:):: a, ba, psi, vw, f0, fw, Sn, uini,wini
+      real,allocatable,dimension(:,:):: aX, baX, psiX,vwX, f0X, fwX, SnX
+      real,allocatable,dimension(:,:):: aZ, baZ, psiZ, vwZ, f0Z, fwZ, SnZ
 #endif
       real,allocatable,dimension(:,:):: peak_xz,dyn_xz,coh
       real,allocatable,dimension(:,:):: peakX,DcX,dynX
@@ -95,6 +93,7 @@
       integer,allocatable:: staX(:), staY(:), staZ(:)
       REAL,allocatable :: seisU(:), seisV(:), seisW(:)
 	  real :: waveT
+	  real :: Eg, Er
 	 ! REAL,allocatable :: waveU(:,:,:),waveV(:,:,:), waveW(:,:,:)
 	  
     END MODULE
@@ -108,7 +107,7 @@
     END MODULE
 
     MODULE traction_com
-      real,allocatable,dimension(:,:):: tx,tz,v1t,avdx,avdz,RFx,RFz  ! x and z component of traction, v component of velocity at fault
+      real,allocatable,dimension(:,:):: tx,tz,v1t,avdx,avdz,RFx,RFz, T0XI, T0ZI  ! x and z component of traction, v component of velocity at fault
       real,allocatable,dimension(:,:):: au1,av1,aw1  !attenuation of velocities near fault
       real :: damp_s
     END MODULE
@@ -122,7 +121,7 @@
     END MODULE
 
     ! MODULE inversion_com
-    INCLUDE 'inversion_com.f90'
+   ! INCLUDE 'inversion_com.f90'
 
     SUBROUTINE fd3d_init()
       USE medium_com
@@ -172,7 +171,6 @@
       omegaM_pml=pml_fact*pml_vp/(2.*dh*(nabc-1))
       nSR=ntfd
       close(11)
- !    print*, nxt,nyt,nzt,nfs,nSR
 
 !----------------------------
 ! Allocate FD module arrays
@@ -181,23 +179,28 @@
       allocate(uZ(nxt,nzt),wX(nxt,nzt),tabsX(nxt,nzt),tabsZ(nxt,nzt))
       
 #if defined FVW
-      allocate(Dc(nxt,nzt))
-      allocate(striniZ(nxt,nzt),striniX(nxt,nzt), a(nxt,nzt), b(nxt,nzt))
-      allocate(psi(nxt,nzt),vw(nxt,nzt),T0X(nxt,nzt),T0Z(nxt,nzt))
-      allocate(aX(nxt,nzt),bX(nxt,nzt),psiX(nxt,nzt),vwX(nxt,nzt))
-      allocate(aZ(nxt,nzt),bZ(nxt,nzt),psiZ(nxt,nzt),vwZ(nxt,nzt))
-      perturb=0.
+      allocate(dc(nxt,nzt),dcX(nxt,nzt),dcZ(nxt,nzt))
+      allocate(striniZ(nxt,nzt),striniX(nxt,nzt), a(nxt,nzt), ba(nxt,nzt))
+	  
+      allocate(psi(nxt,nzt),vw(nxt,nzt),t0X(nxt,nzt),t0Z(nxt,nzt))
+      allocate(aX(nxt,nzt),baX(nxt,nzt),psiX(nxt,nzt),vwX(nxt,nzt))
+      allocate(aZ(nxt,nzt),baZ(nxt,nzt),psiZ(nxt,nzt),vwZ(nxt,nzt))
+	  allocate(f0(nxt,nzt),fw(nxt,nzt),Sn(nxt,nzt))
+	  allocate(f0X(nxt,nzt),fwX(nxt,nzt),SnX(nxt,nzt))
+	  allocate(f0Z(nxt,nzt),fwZ(nxt,nzt),SnZ(nxt,nzt))
+	  allocate(uini(nxt,nzt),wini(nxt,nzt),t0Xi(nxt,nzt),t0Zi(nxt,nzt))
+	  perturb=0.
 
 #else
 
-      allocate(striniZ(nxt,nzt),striniX(nxt,nzt),peak_xz(nxt,nzt),Dc(nxt,nzt),dyn_xz(nxt,nzt),coh(nxt,nzt))
+      allocate(striniZ(nxt,nzt),striniX(nxt,nzt),peak_xz(nxt,nzt),Dc(nxt,nzt),dyn_xz(nxt,nzt))
       allocate(peakX(nxt,nzt),T0X(nxt,nzt),DcX(nxt,nzt),dynX(nxt,nzt))
       allocate(peakZ(nxt,nzt),T0Z(nxt,nzt),DcZ(nxt,nzt),dynZ(nxt,nzt))
 
 #endif
       
       allocate(ruptime(nxt,nzt),slipZ(nxt,nzt),slipX(nxt,nzt),rise(nxt,nzt),schangeZ(nxt,nzt),schangeX(nxt,nzt),sliptime(nxt,nzt))
-      allocate(muSource(nxt,nzt))
+      allocate(muSource(nxt,nzt),coh(nxt,nzt))
 
       striniX=0.; striniZ=0.; peak_xz=0.; Dc=0.
 
@@ -347,7 +350,6 @@
     wini=0.
     f0=f0ini
     v0=v0ini
-    b=bini
     strinixI=Tini
     striniX=Tini
     fw=fwini
@@ -380,9 +382,10 @@
         
         !print *, BX*BZ
         a(i,k) = a0ini + a0ini*(1.-BX1*BZ1)
+	ba(i,k)=bini-a(i,k)
         vw(i,k) = vw0ini + vwdeltaini*(1.-BX1*BZ1) 
         !strinix(i,k) = Sn*(f0-(b-a(i,k))*log(2*vini/v0ini))
-        psi(i,k) = a(i,k)*(log((2*v0ini/(2*vini))) + log(sinh(striniX(i,k)/(a(i,k)*Sn))))
+        psi(i,k) = a(i,k)*(log((2*v0ini/(2*vini))) + log(sinh(striniX(i,k)/(a(i,k)*Sn(i,k)))))
 
       enddo
     enddo
@@ -412,8 +415,8 @@
         aX(i,k) = a0ini + a0ini*(1.-BX1*BZ1)
         vwX(i,k) = vw0ini + vwdeltaini*(1.-BX1*BZ1) 
         !strinix(i,k) = Sn*(f0-(b-a(i,k))*log(2*vini/v0ini))
-        psiX(i,k)=aX(i,k)*(log((2*v0/(2*uini))) + log(sinh(striniX(i,k)/(aX(i,k)*Sn))))
-        bX(i,k)=bini
+        psiX(i,k)=aX(i,k)*(log((2*v0/(2*uini(i,k)))) + log(sinh(striniX(i,k)/(aX(i,k)*Sn(i,k)))))
+        baX(i,k)=bini-aX(i,k)
       enddo
     enddo
 
@@ -457,9 +460,7 @@
     wini=0.
     f0=f0ini
     v0=v0ini
-    b=bini
     strinixI=Tini
-    
     fw=fwini
     
     hx0 = hx0t + fringe + real(nabc)*dh
@@ -490,9 +491,10 @@
         
         !print *, BX*BZ
         a(i,k) = a0ini + a0ini*(1.-BX1*BZ1)
+        ba(i,k) = bini -a(i,k)
         vw(i,k) = vw0ini + vwdeltaini*(1.-BX1*BZ1) 
         !strinix(i,k) = Sn*(f0-(b-a(i,k))*log(2*vini/v0ini))
-        psi(i,k) = a(i,k)*(log((2*v0ini/(2*vini))) + log(sinh(striniX(i,k)/(a(i,k)*Sn))))
+        psi(i,k) = a(i,k)*(log((2*v0ini/(2*vini))) + log(sinh(striniX(i,k)/(a(i,k)*Sn(i,k)))))
 
       enddo
     enddo
@@ -520,10 +522,11 @@
         
         !print *, BX*BZ
         aX(i,k) = a0ini + a0ini*(1.-BX1*BZ1)
+        baX(i,k) = bini - aX(i,k)
         vwX(i,k) = vw0ini + vwdeltaini*(1.-BX1*BZ1) 
         !strinix(i,k) = Sn*(f0-(b-a(i,k))*log(2*vini/v0ini))
-        psiX(i,k)=aX(i,k)*(log((2*v0/(2*uini))) + log(sinh(striniX(i,k)/(aX(i,k)*Sn))))
-        bX(i,k)=bini
+        psiX(i,k)=aX(i,k)*(log((2*v0/(2*uini(i,k)))) + log(sinh(striniX(i,k)/(aX(i,k)*Sn(i,k)))))
+
       enddo
     enddo
 
@@ -628,19 +631,6 @@
       striniX(i,nzt)=striniX(i,nzt-3)
     enddo
 
-    !Zlomova zona
-    j2=0
-    do while (j2*dh<d_zone)
-      j=nyt-j2
-      do k=1,nzt-2
-        do i=1,nxt
-          lam1(i,j,k)=(1-vlow_zone)**2*lam1(i,j,k)
-          mu1(i,j,k)=(1-vlow_zone)**2*mu1(i,j,k)
-        enddo
-      enddo
-    j2=j2+1
-    enddo
-    
     END SUBROUTINE
 
     SUBROUTINE forwardspecialTPV9()
@@ -715,19 +705,6 @@
       striniZ(i,nzt)=-striniZ(i,nzt-3)
     enddo
 
-    !Zlomova zona
-    j2=0
-    do while (j2*dh<d_zone)
-      j=nyt-j2
-      do k=1,nzt-2
-        do i=1,nxt
-          lam1(i,j,k)=(1-vlow_zone)**2*lam1(i,j,k)
-          mu1(i,j,k)=(1-vlow_zone)**2*mu1(i,j,k)
-        enddo
-      enddo
-    j2=j2+1
-    enddo
-    
     END SUBROUTINE
     
     SUBROUTINE forwardspecialTPV8()
@@ -793,23 +770,11 @@
       Dc(i,nzt)=Dc(i,nzt-3)
       strinix(i,nzt)=-strinix(i,nzt-3)
     enddo
-
-    !Zlomova zona
-    j2=0
-    do while (j2*dh<d_zone)
-      j=nyt-j2
-      do k=1,nzt-2
-        do i=1,nxt
-          lam1(i,j,k)=(1-vlow_zone)**2*lam1(i,j,k)
-          mu1(i,j,k)=(1-vlow_zone)**2*mu1(i,j,k)
-        enddo
-      enddo
-    j2=j2+1
-    enddo
-    
     END SUBROUTINE
 #endif
 
+
+#if defined FVW
 
     SUBROUTINE inversion_modeltofd3d() ! inversion from model control points to fd3d grid
     USE inversion_com
@@ -818,7 +783,142 @@
     USE pml_com
     IMPLICIT NONE
     real,dimension(:),allocatable:: xintrpl,yintrpl,xnew,ynew
-    real,parameter:: dyn=0.  !0.4  !dynamic friction coefficient
+
+    integer i,k,ii,kk
+    real DW,DL,dum,xs,zs,t,u, hx, hz, rr, FXZ
+
+    v0              =1.e-6
+	
+! Bilinear interpolation
+    DL=dh*(nxt-2*nabc)/real(NLI-1)
+    DW=dh*(nzt-nfs-nabc)/real(NWI-1)
+    do k=nabc+1,nzt-nfs
+      ZS=dh*(k-1-nabc)
+      kk=min(NWI-1,int(ZS/DW)+1)
+      u=(ZS-DW*(kk-1))/DW
+      do i=nabc+1,nxt-nabc
+        XS=dh*(i-1-nabc)
+        ii=min(NLI-1,int(XS/DL)+1)
+        t=(XS-DL*(ii-1))/DL
+        Dc(i,k)     = (1.-t)*(1.-u)*DcI(ii,kk)+t*(1.-u)*DcI(ii+1,kk)+t*u*DcI(ii+1,kk+1)+(1.-t)*u*DcI(ii,kk+1)
+        Sn(i,k)     = normstress(k)
+	a(i,k)      = (1.-t)*(1.-u)*aI(ii,kk)+t*(1.-u)*aI(ii+1,kk)+t*u*aI(ii+1,kk+1)+(1.-t)*u*aI(ii,kk+1)
+	ba(i,k)      = (1.-t)*(1.-u)*baI(ii,kk)+t*(1.-u)*baI(ii+1,kk)+t*u*baI(ii+1,kk+1)+(1.-t)*u*baI(ii,kk+1)
+	psi(i,k)    = (1.-t)*(1.-u)*psiI(ii,kk)+t*(1.-u)*psiI(ii+1,kk)+t*u*psiI(ii+1,kk+1)+(1.-t)*u*psiI(ii,kk+1)
+	f0(i,k)     = (1.-t)*(1.-u)*f0I(ii,kk)+t*(1.-u)*f0I(ii+1,kk)+t*u*f0I(ii+1,kk+1)+(1.-t)*u*f0I(ii,kk+1)
+	fw(i,k)     = (1.-t)*(1.-u)*fwI(ii,kk)+t*(1.-u)*fwI(ii+1,kk)+t*u*fwI(ii+1,kk+1)+(1.-t)*u*fwI(ii,kk+1)
+	vw(i,k)     = (1.-t)*(1.-u)*vwI(ii,kk)+t*(1.-u)*vwI(ii+1,kk)+t*u*vwI(ii+1,kk+1)+(1.-t)*u*vwI(ii,kk+1)
+#if defined DIPSLIP
+        striniZ(i,k)= (1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)
+		!psi(i,k) = a(i,k)*(log((2*v0/(2*wini))) + log(sinh(striniZ(i,k)/(a(i,k)*Sn(i,k)))))
+        striniX(i,k)= 0.
+#else
+        striniX(i,k)= (1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)
+		!psi(i,k) = a(i,k)*(log((2*v0/(2*uini(i,k)))) + log(sinh(striniX(i,k)/(a(i,k)*Sn(i,k)))))
+        striniZ(i,k)= 0.
+#endif
+      enddo
+    enddo
+	
+      k=nabc
+
+      do i=nabc+1,nxt-nabc
+	  
+        Dc(i,k)     = Dc(i,k+1)
+        Sn(i,k)     = Sn(i,k+1)
+	a(i,k)      = a(i,k+1)
+	ba(i,k)     = ba(i,k+1)
+	psi(i,k)    = psi(i,k+1)
+	f0(i,k)     = f0(i,k+1)
+	fw(i,k)     = fw(i,k+1)
+	vw(i,k)     = vw(i,k+1)
+#if defined DIPSLIP
+        striniZ(i,k)= striniZ(i,k+1)
+		!psi(i,k) = a(i,k)*(log((2*v0/(2*wini))) + log(sinh(striniZ(i,k)/(a(i,k)*Sn(i,k)))))
+        striniX(i,k)= 0.
+#else
+        striniX(i,k)= striniX(i,k+1)
+		!psi(i,k) = a(i,k)*(log((2*v0/(2*uini(i,k)))) + log(sinh(striniX(i,k)/(a(i,k)*Sn(i,k)))))
+
+        striniZ(i,k)= 0.
+#endif
+      enddo
+	
+      do k=nabc,nzt-nfs
+
+        i=nabc
+	  
+        Dc(i,k)     = Dc(i+1,k)
+        Sn(i,k)     = Sn(i+1,k)
+	a(i,k)      = a(i+1,k)
+	ba(i,k)     = ba(i+1,k)
+	psi(i,k)    = psi(i+1,k)
+	f0(i,k)     = f0(i+1,k)
+	fw(i,k)     = fw(i+1,k)
+	vw(i,k)     = vw(i+1,k)
+#if defined DIPSLIP
+        striniZ(i,k)= striniZ(i+1,k)
+		!psi(i,k) = a(i,k)*(log((2*v0/(2*wini))) + log(sinh(striniZ(i,k)/(a(i,k)*Sn(i,k)))))
+        striniX(i,k)= 0.
+#else
+        striniX(i,k)= striniX(i+1,k)
+		!psi(i,k) = a(i,k)*(log((2*v0/(2*uini(i,k)))) + log(sinh(striniX(i,k)/(a(i,k)*Sn(i,k)))))
+
+        striniZ(i,k)= 0.
+#endif
+
+    enddo	
+    
+	coh=0.2e6
+	
+	hx0=hx0+real(nabc)*dh
+	hz0=hz0+real(nabc)*dh
+	
+    END SUBROUTINE
+	
+    SUBROUTINE readinversionresult()
+    USE inversion_com
+    USE fd3dparam_com
+    USE friction_com
+    IMPLICIT NONE
+    real x,z,rr,DL,DW
+    integer i,j
+    real dum
+
+    open(244,FILE='forwardmodel.dat')
+    read(244,*)dum,dum, hx0, hz0, RR2, TT2, perturb, T0I(:,:),aI(:,:), baI(:,:), psiI(:,:), f0I(:,:), fwI(:,:), DcI(:,:), vwI(:,:)
+    close(244)
+    
+    CALL inversion_modeltofd3d()
+    
+    END SUBROUTINE
+	
+#else
+  
+    SUBROUTINE readinversionresult()
+    USE inversion_com
+    USE fd3dparam_com
+    USE friction_com
+    IMPLICIT NONE
+    real x,z,rr,DL,DW
+    integer i,j
+    real dum
+    
+    open(244,FILE='forwardmodel.dat')
+    read(244,*)dum,dum,T0I(:,:),TsI(:,:),DcI(:,:)
+    close(244)
+    
+    CALL inversion_modeltofd3d()
+    
+    END SUBROUTINE
+    SUBROUTINE inversion_modeltofd3d() ! inversion from model control points to fd3d grid
+    USE inversion_com
+    USE fd3dparam_com
+    USE friction_com
+    USE pml_com
+    IMPLICIT NONE
+    real,dimension(:),allocatable:: xintrpl,yintrpl,xnew,ynew
+    real,parameter:: dyn=0.4  !dynamic friction coefficient
     integer i,k,ii,kk
     real DW,DL,dum,xs,zs,t,u
 
@@ -845,23 +945,8 @@
 #endif
       enddo
     enddo
-    coh=0. !0.5e6
+    coh=0.5e6
 
     END SUBROUTINE
-    
-    SUBROUTINE readinversionresult()
-    USE inversion_com
-    USE fd3dparam_com
-    USE friction_com
-    IMPLICIT NONE
-    real x,z,rr,DL,DW
-    integer i,j
-    real dum
-    
-    open(244,FILE='forwardmodel.dat')
-    read(244,*)dum,dum,T0I(:,:),TsI(:,:),DcI(:,:)
-    close(244)
-    
-    CALL inversion_modeltofd3d()
-    
-    END SUBROUTINE
+
+#endif

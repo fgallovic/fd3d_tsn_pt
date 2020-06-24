@@ -2,9 +2,9 @@
 13 8           ! Number of model parameters (discretization)
 -123           ! Random seed
 1              ! Calculate waveforms? Reset to 1 if running inversion
-0.    1.e8  ! T0 constraint (min, max)
- .0    1.1    ! MuS constraint (min, max)
- 0.14    1.01   ! Dc constraint (min, max)
-1  16000. 7000.  4000. 0. ! Constraint on nucleation (1=yes, 0=no), Nucl position (along strike, dip), Radius
-2 .2e6 0.01 0.02     ! StepType (1=log-normal, 2=normal), StepSize of stress (fraction or MPa, resp.) and Dc (fraction or m, resp.)
-0.1           ! Data uncertainty (sigma in m)
+0.       1.e8  ! T0 constraint (min, max)
+0.       2.    ! MuS constraint (min, max)
+0.14     5.    ! Dc constraint (min, max)
+1  16000. 7000.  4000.  1.3e6 ! Constraint on nucleation (1=yes, 0=no), Nucl position (along strike, dip), Radius
+1 0.05 0.02 0.02  ! StepType (1=log-normal, 2=normal), StepSize of stress (fraction or MPa, resp.) and Dc (fraction or m, resp.)
+0.1   .3d18       ! Data uncertainty (sigma in m), M0 uncertainty (sigma in Nm)
