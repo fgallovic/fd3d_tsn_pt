@@ -923,8 +923,8 @@
     real DW,DL,dum,xs,zs,t,u
 
 ! Bilinear interpolation
-    DL=dh*(nxt-2*nabc)/real(NLI-1)
-    DW=dh*(nzt-nfs-nabc)/real(NWI-1)
+    DL=dh*(nxt-2*nabc-1)/real(NLI-1)
+    DW=dh*(nzt-nfs-nabc-1)/real(NWI-1)
     do k=nabc+1,nzt-nfs
       ZS=dh*(k-1-nabc)
       kk=min(NWI-1,int(ZS/DW)+1)
