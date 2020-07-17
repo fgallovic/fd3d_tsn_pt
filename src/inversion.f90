@@ -232,15 +232,15 @@
           return
         endif
 #if defined DIPSLIP
-        if(striniZ(i,j)<strinixMin.or.striniZ(i,j)>strinixMax)then
+        if(striniZ(i,j)-dyn_xz(i,k)<strinixMin.or.striniZ(i,j)-dyn_xz(i,k)>strinixMax)then
 !         write(*,*)'Strinix',i,j,striniZ(i,j),strinixMin,strinixMax
 #else
-        if(striniX(i,j)<strinixMin.or.striniX(i,j)>strinixMax)then
+        if(striniX(i,j)-dyn_xz(i,k)<strinixMin.or.striniX(i,j)-dyn_xz(i,k)>strinixMax)then
 !          write(*,*)'Strinix',i,j,striniX(i,j),strinixMin,strinixMax
 #endif
           return
         endif
-        if(peak_xz(i,j)/normstress(j)<peak_xzMin.or.peak_xz(i,j)/normstress(j)>peak_xzMax)then
+        if((peak_xz(i,j)-dyn_xz(i,k))/normstress(j)<peak_xzMin.or.(peak_xz(i,j)-dyn_xz(i,k))/normstress(j)>peak_xzMax)then
 !          write(*,*)'Peak_xz',i,j,peak_xz(i,j)
           return
         endif
