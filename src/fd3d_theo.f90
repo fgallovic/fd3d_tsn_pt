@@ -734,6 +734,8 @@ if(sqrt(maxvelX**2+maxvelZ**2)<1.e-6)exit
         close(298)
         close(299)
 		
+        deallocate(efrac,schangef,erad,slipt)
+        
 	    output_param(5)=Eg
 	    output_param(6)=Er
 		
