@@ -705,6 +705,13 @@ if(sqrt(maxvelX**2+maxvelZ**2)<1.e-6)exit
     ! output_param(6) = (1./2.)*output_param(4)*(output_param(2)/(mu_mean*output_param(3)))
       M0=output_param(2)
 
+      do k=1,nSR
+        if ((efrac(k)-schangef(k))*dh**2>0.) Eg=(efrac(k)-schangef(k))*dh**2
+        if (erad(k)*dh**2>0.) Er=erad(k)*dh**2		   
+      enddo
+      output_param(5)=Eg
+      output_param(6)=Er
+      
 !---------------------------
 ! Write down the output
 !---------------------------
@@ -715,7 +722,7 @@ if(sqrt(maxvelX**2+maxvelZ**2)<1.e-6)exit
         open(99,file='result/stressdropX.res')
         open(95,file='result/stressdropZ.res')
         open(94,file='result/slipZ.res')
-        open(93,file='result/energy.res')
+!        open(93,file='result/energy.res')
         open(297,FILE='mtildeX.dat')
         open(298,FILE='mtildeZ.dat')
         open(299,FILE='mtildemomentrate.dat')
@@ -726,18 +733,13 @@ if(sqrt(maxvelX**2+maxvelZ**2)<1.e-6)exit
         enddo
         do k=1,nSR
            write(299,*)dtseis*(k-1),Momentrate(k)
-		   if ((efrac(k)-schangef(k))*dh**2>0.) Eg=(efrac(k)-schangef(k))*dh**2
-		   if (erad(k)*dh**2>0.) Er=erad(k)*dh**2		   
-           write(93,*)dtseis*(k-1),Eg, Er
+!		   if ((efrac(k)-schangef(k))*dh**2>0.) Eg=(efrac(k)-schangef(k))*dh**2
+!		   if (erad(k)*dh**2>0.) Er=erad(k)*dh**2		   
+!          write(93,*)dtseis*(k-1),Eg, Er
         enddo
         close(297)
         close(298)
         close(299)
-		
-        deallocate(efrac,schangef,erad,slipt)
-        
-	    output_param(5)=Eg
-	    output_param(6)=Er
 		
         do k = nabc+1,nzt-nfs
           do i = nabc+1,nxt-nabc
@@ -797,5 +799,7 @@ if(sqrt(maxvelX**2+maxvelZ**2)<1.e-6)exit
         close(502)
         close(503)
       endif
+
+      deallocate(efrac,schangef,erad,slipt)
 
       END SUBROUTINE
