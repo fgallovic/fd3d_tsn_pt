@@ -35,9 +35,6 @@
 
     allocate(modtemp(nchains))
     call pt (0,0,0,0,0,modtemp,0.d0,0.d0,0,0.0,0,dir,nproc,rank,iprint)   !Musi to byt prvni prikaz
-    call system_clock(iseed)
-    iseed=-iseed
-    call alloc_temp(iseed)
 
 #if defined MPI
     call MPI_COMM_RANK(MPI_COMM_WORLD,mrank,ierr)
@@ -45,6 +42,9 @@
 #else
     mrank=0
 #endif
+    
+    iseed = -(1000+mrank*mrank*1000) ! re-initialize random number generator
+    call alloc_temp(iseed)
 
 #if defined GPUMPI
     i=acc_get_num_devices(acc_device_nvidia)

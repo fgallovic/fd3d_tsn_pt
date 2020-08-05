@@ -162,7 +162,7 @@ contains
             close(123)
          end if
 
-         iseed = -(iseed0+iprocc*iprocc*1000) ! re-initialize random number generator
+         iseed = -abs(iseed0+iprocc*iprocc*1000) ! re-initialize random number generator
          a = ran3(iseed)
          record_temp_now = .false.
          record_mcmc_now = .false.
