@@ -113,20 +113,24 @@
     USE source_com
     USE pml_com
     USE fd3dparam_com
+    USE friction_com    !only for StepType=3
+    USE frictionconstraints_com    !only for StepType=3
     IMPLICIT NONE
     real,parameter:: eps=1.e-6
     integer ichain,iseed
     real*8 T,E,prop12,prop21
     logical record_mcmc_now
     real*8 newmisfit
-    real gasdev
+    real gasdev,gasdev1,SEold,SEnew
     logical  yn,modelinvalid
-    integer i,j,jj
+    integer i,j,jj,kk
 
     modelinvalid=.true.
     print *,'searching for model'
+jj=0
     do while(modelinvalid)
-      if(StepType==1)then   !Log-normal step
+jj=jj+1
+      if(StepType==1)then                    !Log-normal step
         prop12=0.
         prop21=0.
         do j=1,NWI
@@ -138,7 +142,7 @@
             prop21=prop21+log(T0I(i,j))+log(TsI(i,j))+log(DcI(i,j))
           enddo
         enddo
-      else                  !Normal step
+      elseif(StepType==2)then                 !Normal step
         prop12=log(1.)
         prop21=log(1.)
         do j=1,NWI
@@ -148,10 +152,52 @@
             DcI(i,j)=DcA(i,j,ichain)+gasdev(iseed)*StepSizeD
           enddo
         enddo
+      else                                    !Testing new steps (log-normal + even periodic extension)
+        prop12=0.
+        prop21=0.
+        do j=1,NWI
+          do i=1,NLI
+            T0I(i,j)=(T0A(i,j,ichain)-strinixMin)*exp(gasdev(iseed)*StepSizeT0)+strinixMin !Log-normal + even periodic extension
+            if(T0I(i,j)>strinixMax)then
+                T0I(i,j)=strinixMax**2/T0I(i,j)
+                if(T0I(i,j)<strinixMin)T0I(i,j)=T0A(i,j,ichain)
+            endif
+            prop12=prop12+log(T0A(i,j,ichain)-strinixMin)
+            prop21=prop21+log(T0I(i,j)-strinixMin)
+            
+            kk=int(dble(nzt-nfs-nabc-1)/dble(NWI-1)*(j-1)+nabc+1)
+            SEold=TsA(i,j,ichain)*normstress(kk)+coh(1,kk)-T0A(i,j,ichain)                 !Assuming coh is constant along strike!
+            SEnew=SEold*exp(gasdev(iseed)*StepSizeTs)
+            prop12=prop12+log(abs(SEold))
+            prop21=prop21+log(abs(SEnew))
+            TsI(i,j)=(SEnew+T0I(i,j)-coh(1,kk))/normstress(kk)                             !Assuming coh is constant along strike!
+
+            DcI(i,j)=(DcA(i,j,ichain)-Dcmin)*exp(gasdev(iseed)*StepSizeD)+Dcmin            !Log-normal + even periodic extension
+            if(DcI(i,j)>Dcmax)then
+                DcI(i,j)=Dcmax**2/DcI(i,j)
+                if(DcI(i,j)<Dcmin)DcI(i,j)=DcA(i,j,ichain)
+            endif
+            prop12=prop12+log(DcA(i,j,ichain)-Dcmin)
+            prop21=prop21+log(DcI(i,j)-Dcmin)
+
+!            gasdev1=exp(gasdev(iseed)*StepSizeD)
+!            DcI(i,j) = (Dcmin+Dcmax*(DcA(i,j,ichain)-Dcmin)/(Dcmax-DcA(i,j,ichain))*gasdev1)/(1.+(DcA(i,j,ichain)-Dcmin)/(Dcmax-DcA(i,j,ichain))*gasdev1);   !Logit-normal
+!            prop12=prop12+log(DcA(i,j,ichain)-Dcmin)+log(Dcmax-DcA(i,j,ichain))
+!            prop21=prop21+log(DcI(i,j)-Dcmin)+log(Dcmax-DcI(i,j))
+
+          enddo
+        enddo
       endif
       call inversion_modeltofd3d()
       call validatefd3dmodel(modelinvalid)
       continue
+
+!if(jj>1e6)then
+!  write(ifile+1000,'(100000E13.5)')MisfitA(ichain),VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),EgA(ichain),ErA(ichain)
+!  write(ifile+1000,'(100000E13.5)')0.,0.,T0I(:,:),TsI(:,:),DcI(:,:)
+!  stop
+!endif
+
     enddo
     print *,'done'
     call fd3d()

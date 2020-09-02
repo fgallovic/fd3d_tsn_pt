@@ -28,9 +28,11 @@
 #if defined MPI
     include 'mpif.h'
 #endif
-    integer i,k,it,itot,ncpu
+    integer i,j,k,kk,it,itot,ncpu
     real dum
     real,allocatable:: msfts(:,:)
+    real,allocatable,dimension (:,:):: sliprateoutX,sliprateoutZ
+    integer ito,ifrom,jto,jfrom
     logical err
 
     allocate(modtemp(nchains))
@@ -184,13 +186,41 @@
       close(ifile+2)
       call pt (99,0,0,0,0,modtemp,0.d0,0.d0,0,0.0,0,dir,nproc,rank,iprint)
     
-    elseif(RUNI==5)then  ! Create mtilde.dat (for plotting) from the latest result
-      OPEN(25, file='result/sliprate.res',FORM='UNFORMATTED',ACCESS='STREAM')
+    elseif(RUNI==5)then  ! Create mtilde.dat (for plotting) and/or calculate seismograms from the latest result
       write(*,*)'Reading slip rates...'
-!      do it = 1,ntfd
-!        read(25)sliprate(nabc+1:nxt-nabc,nabc+1:nzt-nfs,it)   !MUSI SE DOPROGRAMOVAT PREVOD NA MSR
-!      enddo
+      OPEN(25,file='result/sliprateX.res',FORM='UNFORMATTED',ACCESS='STREAM')
+      OPEN(26,file='result/sliprateZ.res',FORM='UNFORMATTED',ACCESS='STREAM')
+      MomentRate=0.
+      MSRX=0.
+      MSRZ=0.
+      allocate(sliprateoutX(nxt,nzt),sliprateoutZ(nxt,nzt))
+      do it = 1,ntfd
+        read(25,IOSTAT=i)sliprateoutX(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
+        if(i==-1)exit
+        read(26)sliprateoutZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
+        k=int(real(it-1)*dt/dtseis)+1
+        if(k<1.or.k>nSR)write(*,*)'CHYBA!',k,nSR
+        do j=1,NW
+          jto=max(1,int(dW/dh*j))+1+nabc
+          jfrom=min(jto,int(dW/dh*(j-1))+1)+1+nabc
+          do i=1,NL
+            ifrom=int(dL/dh*(i-1))+1+nabc
+            ito=int(dL/dh*i)+nabc
+            kk=((j-1)*NL+i-1)*nSR+k
+            MSRX(kk)=MSRX(kk)+sum(sliprateoutX(ifrom:ito,jfrom:jto))/dble((ito-ifrom+1)*(jto-jfrom+1)*(dtseis/dt))
+            MSRZ(kk)=MSRZ(kk)+sum(sliprateoutZ(ifrom:ito,jfrom:jto))/dble((ito-ifrom+1)*(jto-jfrom+1)*(dtseis/dt))
+          enddo
+        enddo
+        do j = nabc+1,nzt-nfs
+          do i = nabc+1,nxt-nabc
+            MomentRate(k)=MomentRate(k)+sqrt(sliprateoutX(i,j)**2+sliprateoutZ(i,j)**2)*muSource(i,j)*dh*dh/(dtseis/dt)
+          enddo
+        enddo
+      enddo
       close(25)
+      close(26)
+      deallocate(sliprateoutX,sliprateoutZ)
+      M0=sum(MomentRate(:))*dtseis
       ioutput=1
       CALL syntseis()
       if(iwaveform==1)then
