@@ -88,7 +88,7 @@
     iT1=T1/dtseis+1
     iT2=T2/dtseis+1
     nT=iT2-iT1+1
-    nSR=int(real(ntfd)/(dtseis/dt))
+    nSR=ceiling(real(ntfd)/(dtseis/dt))
     allocate(MSRX(NL*NW*nSR),MSRZ(NL*NW*nSR),MomentRate(nSR))
 
     if(iwaveform==0)return
