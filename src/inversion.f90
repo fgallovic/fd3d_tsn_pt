@@ -35,7 +35,7 @@
 	integer:: RUNI,NLI,NWI  
 !    real,allocatable,dimension(:,:):: TsI   !Test variables (for which misfit is calculated)
 !    real,allocatable,dimension(:,:,:):: TsA  !Array of variables in MC chains:
-    real,allocatable,dimension(:):: VRA, EgA, ErA, MisfitA
+    real,allocatable,dimension(:):: VRA, EgA, ErA, MisfitA,TshiftA, VRgpsA
 	real,allocatable,dimension(:,:,:):: ruptimeA,riseA,slipA,schangeA
 	real,allocatable :: pgaA(:,:,:),MwA(:),M0A(:),ruptdistA(:,:),MomentRateA(:,:)
     integer randseed,StepType
@@ -142,7 +142,7 @@
 #endif
 
     allocate(ruptimeA(nxt,nzt,nchains),riseA(nxt,nzt,nchains),slipA(nxt,nzt,nchains),schangeA(nxt,nzt,nchains))
-	allocate(VRA(nchains),EgA(nchains),ErA(nchains),MisfitA(nchains),M0A(nchains),MwA(nchains))
+	allocate(VRA(nchains),VRgpsA(nchains),EgA(nchains),ErA(nchains),MisfitA(nchains),M0A(nchains),MwA(nchains),TshiftA(nchains))
     
     !Read GFs and seismograms
     call readGFs()
@@ -161,7 +161,7 @@
     subroutine AdvanceChain(ichain,T,E,record_mcmc_now,iseed)   ! V E je stary misfit, nahradi se pripadne novym, pokud dojde k prijeti kroku
     use mod_ctrl, only : ifile
     use inversion_com
-    use waveforms_com, only : misfit,VR,iwaveform,NRseis,ruptdist,pgaD
+    use waveforms_com, only : misfit,VR,iwaveform,NRseis,ruptdist,pgaD,Tshift
     use SlipRates_com, only: Mw,M0,MomentRate
     use source_com
     use pml_com
@@ -297,21 +297,23 @@
 	  ErA(ichain)=Er
       M0A(ichain)=M0
       MwA(ichain)=Mw
+	  TshiftA(ichain)=Tshift
       if (iwaveform==2) then
         ruptdistA(:,ichain)=ruptdist(:)
         pgaA(:,:,ichain)=pgaD(:,:)
       endif
       VRA(ichain)=VR
+	  VRgpsA(ichain)=VRGPS
     endif
 
     !if (yn.and.(abs(T-1.0)<eps).and.record_mcmc_now) then  !write the accepted step
     if ((abs(T-1.0)<eps).and.record_mcmc_now) then  !write the present step whether accepted or not
       misfit=E
-      write(ifile,'(1000000E13.5)')misfit,VRA(ichain),nuclA(1:5, ichain),T0A(:,:,ichain),aA(:,:,ichain),baA(:,:,ichain),psiA(:,:,ichain),f0A(:,:,ichain),fwA(:,:,ichain),DcA(:,:,ichain),vwA(:,:,ichain),M0A(ichain),EgA(ichain),ErA(ichain)
+      write(ifile,'(1000000E13.5)')misfit,VRA(ichain),nuclA(1:5, ichain),T0A(:,:,ichain),aA(:,:,ichain),baA(:,:,ichain),psiA(:,:,ichain),f0A(:,:,ichain),fwA(:,:,ichain),DcA(:,:,ichain),vwA(:,:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
  !     write(ifile,'(1000000E13.5)')misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),Eg,Er
       flush(ifile)
       write(ifile+2)misfit,VRA(ichain),nuclA(1:5,ichain),T0A(:,:,ichain),aA(:,:,ichain),baA(:,:,ichain),psiA(:,:,ichain),f0A(:,:,ichain),fwA(:,:,ichain),DcA(:,:,ichain),vwA(:,:,ichain),ruptimeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),slipA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain), &
-          & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRateA(:,ichain)
+          & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRateA(:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
       flush(ifile+2)
       if (iwaveform==2) then
         write(ifile*10) (misfit,MwA(ichain),ruptdistA(jj,ichain),pgaA(jj,:,ichain)/100., jj=1,nrseis)
@@ -442,7 +444,7 @@
 	
     use mod_ctrl, only: nchains,rname,ierr,ifile
     use inversion_com
-    use waveforms_com, only : misfit,VR,Tshift,iwaveform,ruptdist,pgaD
+    use waveforms_com, only : misfit,VR,Tshift,iwaveform,ruptdist,pgaD,Tshift
     use source_com
     use SlipRates_com
 	use PostSeismic_com
@@ -506,6 +508,7 @@
     ErA(ichain)=Er
     M0A(ichain)=M0
     MwA(ichain)=Mw
+    TshiftA(ichain)=Tshift
     if (iwaveform==2) then
       ruptdistA(:,ichain)=ruptdist(:)
       pgaA(:,:,ichain)=pgaD(:,:)
@@ -523,7 +526,7 @@
     
     open(unit=ifile+1,file=trim(rname),status='replace',iostat=ierr)
     do ichain=1,nchains
-      write(ifile+1,'(100000E13.5)')MisfitA(ichain),VRA(ichain),nuclA(1:5,ichain),T0A(:,:,ichain),aA(:,:,ichain),baA(:,:,ichain),psiA(:,:,ichain),f0A(:,:,ichain),fwA(:,:,ichain),DcA(:,:,ichain),vwA(:,:,ichain)
+      write(ifile+1,'(100000E13.5)')MisfitA(ichain),VRA(ichain),nuclA(1:5,ichain),T0A(:,:,ichain),aA(:,:,ichain),baA(:,:,ichain),psiA(:,:,ichain),f0A(:,:,ichain),fwA(:,:,ichain),DcA(:,:,ichain),vwA(:,:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
     enddo
     close(ifile+1)
     
@@ -534,7 +537,7 @@
 	subroutine AdvanceChain(ichain,T,E,record_mcmc_now,iseed)   ! V E je stary misfit, nahradi se pripadne novym, pokud dojde k prijeti kroku
     use mod_ctrl, only : ifile
     use inversion_com
-    use waveforms_com, only : misfit,VR,iwaveform,NRseis,ruptdist,pgaD
+    use waveforms_com, only : misfit,VR,iwaveform,NRseis,ruptdist,pgaD,Tshift
     use SlipRates_com, only: Mw,M0,MomentRate
     use source_com
     use pml_com
@@ -623,7 +626,7 @@ jj=jj+1
       continue
 
 !if(jj>1e6)then
-!  write(ifile+1000,'(100000E13.5)')MisfitA(ichain),VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),EgA(ichain),ErA(ichain)
+!  write(ifile+1000,'(100000E13.5)')MisfitA(ichain),VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),EgA(ichain),ErA(ichain),TshiftA(ichain)
 !  write(ifile+1000,'(100000E13.5)')0.,0.,T0I(:,:),TsI(:,:),DcI(:,:)
 !  stop
 !endif
@@ -660,6 +663,7 @@ jj=jj+1
       ErA(ichain)=Er
       M0A(ichain)=M0
       MwA(ichain)=Mw
+      TshiftA(ichain)=Tshift
       if (iwaveform==2) then
         ruptdistA(:,ichain)=ruptdist(:)
         pgaA(:,:,ichain)=pgaD(:,:)
@@ -670,10 +674,10 @@ jj=jj+1
     !if (yn.and.(abs(T-1.0)<eps).and.record_mcmc_now) then  !write the accepted step
     if ((abs(T-1.0)<eps).and.record_mcmc_now) then  !write the present step whether accepted or not
       misfit=E
-      write(ifile,'(1000000E13.5)')misfit,VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain), M0A(ichain), EgA(ichain), ErA(ichain)
+      write(ifile,'(1000000E13.5)')misfit,VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
       flush(ifile)
       write(ifile+2)misfit,VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),ruptimeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),slipA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain), &
-          & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRateA(:,ichain),EgA(ichain),ErA(ichain)
+          & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRateA(:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
       flush(ifile+2)
       if (iwaveform==2) then
         write(ifile*10) (misfit,mwA(ichain),ruptdistA(jj,ichain),pgaA(jj,:,ichain)/100., jj=1,nrseis)
@@ -907,6 +911,7 @@ jj=jj+1
     ErA(ichain)=Er
     M0A(ichain)=M0
     MwA(ichain)=Mw
+    TshiftA(ichain)=Tshift
     if (iwaveform==2) then
       ruptdistA(:,ichain)=ruptdist(:)
       pgaA(:,:,ichain)=pgaD(:,:)
