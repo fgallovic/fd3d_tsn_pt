@@ -1124,19 +1124,21 @@
           d         = d1(i,nyt,k)
 #if defined FVW
           d         = d1(i,nyt,k)
-          sr = sqrt((2.*(abs(wX(i,k))+abs(wini(i,k))))**2+(2.*(abs(u1(i,nyt,k))+abs(uini(i,k))))**2)
+          sr = sqrt((2*wX(i,k)-wini(i,k))**2+(2*u1(i,nyt,k)-uini(i,k))**2)!sqrt((2.*(abs(wX(i,k))+abs(wini(i,k))))**2+(2.*(abs(u1(i,nyt,k))+abs(uini(i,k))))**2)
           cdelta = 2.*(dth/d)*SnX(i,k)*aX(i,k)
-          uw = asinh(exp(psiX(i,k)/aX(i,k))*sr/(2*v0))
+
+          uw = psiX(i,k)/aX(i,k) + log(sr/(2*v0)) + log(1.+sqrt(1.+1./(exp(psiX(i,k)/aX(i,k))*sr/(2*v0))))!asinh(exp(psiX(i,k)/aX(i,k))*sr/(2*v0))
           vtilde=-sqrt((wX(i,k) + 2.*(dth/d)*((RFz(i,k)+RFz(i-1,k)+RFz(i,k-1)+RFz(i-1,k-1))/4.-T0Z(i,k)))**2 &
             +(u1(i,nyt,k) +2.*(dth/d)*(RFx(i,k)-T0X(i,k)))**2)+2.*(dth/d)*coh(i,k)
           ferr = 10.
           j = 0
           jmax=100
-          do while (ferr>1e-5)
+          do while (abs(ferr)>1e-10)
+		  
             j = j+1
 			
-            fw =  vtilde + cdelta*uw + sinh(uw)*v0*exp(-psiX(i,k)/aX(i,k))
-            dfw = cdelta + cosh(uw)*v0*exp(-psiX(i,k)/aX(i,k))
+            fw =  vtilde + cdelta*uw + v0*0.5*(exp(-psiX(i,k)/aX(i,k)+uw)-exp(-psiX(i,k)/aX(i,k)-uw))!sinh(uw)*v0*exp(-psiX(i,k)/aX(i,k))
+            dfw = cdelta + v0*0.5*(exp(-psiX(i,k)/aX(i,k)+uw)+exp(-psiX(i,k)/aX(i,k)-uw))
             ferr = fw/dfw
             uw = uw - ferr
 
@@ -1145,10 +1147,9 @@
             ! pause
             endif
           enddo
-          u1(i,nyt,k)= (tx(i,k) + T0X(i,k))*(-sinh(uw))*v0*exp(-psiX(i,k)/aX(i,k))/tabsX(i,k) + uini(i,k)
-	!		if ((i.eq.200) .and. (k.eq.125)) then
-	!			print*, u1(i,nyt,k),fw, T0X(i,k), T0Xi(i,k)
-	!		endif
+
+          u1(i,nyt,k)= -(tx(i,k) + T0X(i,k))*v0*0.5*(exp(-psiX(i,k)/aX(i,k)+uw)-exp(-psiX(i,k)/aX(i,k)-uw))/tabsX(i,k) + uini(i,k)/2.
+
 #else
           u1(i,nyt,k) = u1(i,nyt,k) + (dth/d)*2*(tx(i,k) + RFx(i,k))
 #endif
@@ -1192,19 +1193,19 @@
           d         = d1(i,nyt,k)
 #if defined FVW
           d         = d1(i,nyt,k)
-          sr = sqrt((2.*(w1(i,nyt,k)-wini(i,k)))**2+(2.*(uZ(i,k)-uini(i,k)))**2)
+          sr = sqrt((2*w1(i,nyt,k)-wini(i,k))**2+(2*uZ(i,k)-uini(i,k))**2)
           cdelta = 2.*(dth/d)*SnZ(i,k)*aZ(i,k)
-          uw = asinh(exp(psiZ(i,k)/aZ(i,k))*sr/(2*v0))
+          uw = psiZ(i,k)/aZ(i,k) + log(sr/(2*v0)) + log(1.+sqrt(1.+1./(exp(psiZ(i,k)/aZ(i,k))*sr/(2*v0))))!asinh(exp(psiZ(i,k)/aZ(i,k))*sr/(2*v0))
           vtilde=-sqrt((w1(i,nyt,k) + 2.*(dth/d)*(RFz(i,k)-T0Z(i,k)))**2 &
             +(uZ(i,k) +2.*(dth/d)*((RFx(i,k)+RFx(i+1,k)+RFx(i,k+1)+RFx(i+1,k+1))/4.&
 			-(T0X(i,k)+T0X(i+1,k)+T0X(i,k+1)+T0X(i+1,k+1))/4.))**2) +2.*(dth/d)* coh(i,k)
           ferr = 10.
           j = 0
-          jmax=100
-          do while (ferr>1e-5)
+          jmax=1000
+          do while (abs(ferr)>1e-10)
             j = j+1
-            fw =  vtilde + cdelta*uw + sinh(uw)*v0*exp(-psiZ(i,k)/aZ(i,k))
-            dfw = cdelta + cosh(uw)*v0*exp(-psiZ(i,k)/aZ(i,k))
+            fw =  vtilde + cdelta*uw + v0*0.5*(exp(-psiZ(i,k)/aZ(i,k)+uw)-exp(-psiZ(i,k)/aZ(i,k)-uw))    !sinh(uw)*v0*exp(-psiZ(i,k)/aZ(i,k))
+            dfw = cdelta + v0*0.5*(exp(-psiZ(i,k)/aZ(i,k)+uw)+exp(-psiZ(i,k)/aZ(i,k)-uw))
             ferr = fw/dfw
             uw = uw - ferr
             if (jmax<j) then
@@ -1212,7 +1213,7 @@
               !pause
             endif
           enddo
-          w1(i,nyt,k)= (tz(i,k) + T0Z(i,k))*(- sinh(uw)*v0*exp(-psiZ(i,k)/aZ(i,k)))/tabsZ(i,k) + wini(i,k)
+          w1(i,nyt,k)= -(tz(i,k) + T0Z(i,k))*v0*0.5*(exp(-psiZ(i,k)/aZ(i,k)+uw)-exp(-psiZ(i,k)/aZ(i,k)-uw))/tabsZ(i,k) + wini(i,k)/2.
 #else
           w1(i,nyt,k) = w1(i,nyt,k) + (dth/d)*(2*(tz(i,k) + RFz(i,k)))
 #endif
@@ -2683,8 +2684,8 @@
       peakX=0.;DcX=0.;dynX=0.;T0X=0.
       peakZ=0.;DcZ=0.;dynZ=0.;T0Z=0.
       
-      do i=1,nxt
-        do k=1,nzt
+      do i=nabc,nxt-nabc
+        do k=nabc,nzt-nfs
 #if defined FVW
           aZ(i,k)=a(i,k)
           baZ(i,k)=ba(i,k)
@@ -2695,7 +2696,6 @@
 		  fwZ(i,k)=fw(i,k)
 		  f0Z(i,k)=f0(i,k)
 		  SnZ(i,k)=Sn(i,k)
-		  wini(i,k)=0.
 #else
           peakZ(i,k)=peak_xz(i,k)
           dynZ(i,k)=dyn_xz(i,k)
@@ -2705,8 +2705,8 @@
         enddo
       enddo
       
-      do i=2,nxt-1
-        do k=2,nzt-1
+      do i=nabc+1,nxt-nabc
+        do k=nabc+1,nzt-nfs
 #if defined FVW
           aX(i,k)=(aZ(i,k)+aZ(i-1,k)+aZ(i,k-1)+aZ(i-1,k-1))/4.
           baX(i,k)=(baZ(i,k)+baZ(i-1,k)+baZ(i,k-1)+baZ(i-1,k-1))/4.
@@ -2717,9 +2717,6 @@
 		  fwX(i,k)=(fwZ(i,k)+fwZ(i-1,k)+fwZ(i,k-1)+fwZ(i-1,k-1))/4.
 		  f0X(i,k)=(f0Z(i,k)+f0Z(i-1,k)+f0Z(i,k-1)+f0Z(i-1,k-1))/4.
 		  SnX(i,k)=(SnZ(i,k)+SnZ(i-1,k)+SnZ(i,k-1)+SnZ(i-1,k-1))/4.
-		  uini(i,k)= v0*exp(T0X(i,k)/(aX(i,k)*SnX(i,k))-psiX(i,k)/aX(i,k))/2.!sinh(T0X(i,k)/(aX(i,k)*SnX(i,k)))/exp(psiX(i,k)/aX(i,k))     
-		  
-		  !psi(i,k) = a(i,k)*(log((2*v0/(2*wini))) + log(sinh(striniZ(i,k)/(a(i,k)*Sn(i,k)))))
 #else
           peakX(i,k)=(peakZ(i,k)+peakZ(i-1,k)+peakZ(i,k-1)+peakZ(i-1,k-1))/4.
           dynX(i,k)=(dynZ(i,k)+dynZ(i-1,k)+dynZ(i,k-1)+dynZ(i-1,k-1))/4.

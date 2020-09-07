@@ -14,67 +14,111 @@
 
 
 
-      MODULE inversion_com
-#     if defined FVW
-      INTEGER:: RUNI,NLI,NWI  
-      REAL,ALLOCATABLE,DIMENSION(:,:):: T0I, aI, baI, psiI, f0I, fwI, DcI, vwI     !Test variables (for which misfit is calculated)
-      real,allocatable,dimension(:,:,:):: T0A, aA, baA, psiA, f0A, fwA, DcA, vwA   !Array of variables in MC chains:
-      REAL,ALLOCATABLE,DIMENSION(:,:,:):: ruptimeA,riseA,slipA,schangeA
-      REAL,ALLOCATABLE :: pgaA(:,:,:),mwA(:),ruptdistA(:,:),MomentRateA(:,:)
-      INTEGER randseed,StepType
-      REAL StepSizeT0,StepSizeTs,StepSizeD
+    module inversion_com
+
+#if defined FVW
+	
+    real,allocatable,dimension(:,:):: T0I, aI, baI, psiI, f0I, fwI, DcI, vwI     !Test variables (for which misfit is calculated)
+    real,allocatable,dimension(:,:,:):: T0A, aA, baA, psiA, f0A, fwA, DcA, vwA   !Array of variables in MC chains:
+	real,allocatable,dimension(:)::nucl
+	real,allocatable,dimension(:,:)::nuclA
+	
+    real::StepSizeT0, StepSizea, StepSizeba, StepSizepsi, StepSizef0, StepSizefw, StepSizeDc, StepSizevw  
+	real,allocatable,dimension(:):: StepSizenucl
+#else
+
+    real,allocatable,dimension(:,:):: DcI,T0I,TsI     !Test variables (for which misfit is calculated)
+    real,allocatable,dimension(:,:,:):: DcA,T0A,TsA   !Array of variables in MC chains:
+    real:: StepSizeT0,StepSizeTs,StepSizeD
+#endif
+    
+	integer:: RUNI,NLI,NWI  
+!    real,allocatable,dimension(:,:):: TsI   !Test variables (for which misfit is calculated)
+!    real,allocatable,dimension(:,:,:):: TsA  !Array of variables in MC chains:
+    real,allocatable,dimension(:):: VRA, EgA, ErA, MisfitA
+	real,allocatable,dimension(:,:,:):: ruptimeA,riseA,slipA,schangeA
+	real,allocatable :: pgaA(:,:,:),MwA(:),M0A(:),ruptdistA(:,:),MomentRateA(:,:)
+    integer randseed,StepType
 
 	  
-#     else
-
-
-      INTEGER:: RUNI,NLI,NWI  
-      REAL,ALLOCATABLE,DIMENSION(:,:):: DcI,T0I     !Test variables (for which misfit is calculated)
-      real,allocatable,dimension(:,:,:):: DcA,T0A   !Array of variables in MC chains:
-      REAL,ALLOCATABLE,DIMENSION(:,:,:):: ruptimeA,riseA,slipA,schangeA
-      REAL,ALLOCATABLE :: pgaA(:,:,:),mwA(:),ruptdistA(:,:),MomentRateA(:,:)
-      INTEGER randseed,StepType
-      REAL StepSizeT0,StepSizeTs,StepSizeD
-#     endif
-      REAL,ALLOCATABLE,DIMENSION(:,:):: TsI   !Test variables (for which misfit is calculated)
-      real,allocatable,dimension(:,:,:):: TsA  !Array of variables in MC chains:
-      real,allocatable,dimension(:):: MisfitA,VRA, EgA, ErA
-
-      END MODULE
+    end module
 
 
 
-	  
-    MODULE frictionconstraints_com
-      real:: DcMin,DcMax,strinixMin,strinixMax,peak_xzMin,peak_xzMax
-      integer:: ConstraintNucl
-      real:: NuclConstraintL,NuclConstraintW,NuclConstraintR
-      real :: OverstressConstraint
-    END MODULE
+#if defined FVW
+
+    module frictionconstraints_com
     
-    SUBROUTINE inversion_init()
-    USE inversion_com
-    USE mod_ctrl
-    USE frictionconstraints_com
-    USE waveforms_com
-    USE fd3dparam_com
-    USE source_com
-    USE mod_pgamisf, only : GMPE_id
-    USE SlipRates_com
-    IMPLICIT NONE
+	real:: T0Min, aMin, baMin, psiMin, f0Min, fwMin, DcMin, vwMin
+    real:: T0Max, aMax, baMax, psiMax, f0Max, fwMax, DcMax, vwMax
+	real, allocatable, dimension(:):: nuclMin, nuclMax
+    integer:: ConstraintNucl
+    real:: NuclConstraintL,NuclConstraintW,NuclConstraintR
+    real :: OverstressConstraint
     
+	end module
+	
+#else
+
+    module frictionconstraints_com
+	
+    real:: DcMin,DcMax,strinixMin,strinixMax,peak_xzMin,peak_xzMax
+    integer:: ConstraintNucl
+    real:: NuclConstraintL,NuclConstraintW,NuclConstraintR
+    real :: OverstressConstraint
+	
+    end module
+	
+#endif
+
+    subroutine inversion_init()
+    use inversion_com
+    use mod_ctrl
+    use frictionconstraints_com
+    use waveforms_com
+    use fd3dparam_com
+    use source_com
+    use mod_pgamisf, only : GMPE_id
+    use SlipRates_com
+	use PostSeismic_com
+    implicit none
+	
     open(10,FILE='inputinv.dat')
     
     read(10,*)RUNI
     read(10,*)NLI,NWI
     read(10,*)randseed
-    read(10,*)iwaveform
+    read(10,*)iwaveform, igps
+	
+#if defined FVW 
+	allocate(StepSizenucl(5), nuclMin(5), nuclMax(5))
+	
+    read(10,*)T0Min, aMin, baMin, psiMin, f0Min, fwMin, DcMin, vwMin
+    read(10,*)T0Max, aMax, baMax, psiMax, f0Max, fwMax, DcMax, vwMax
+	read(10,*)nuclMin(1:5)
+	read(10,*)nuclMax(1:5)
+
+#else
+
     read(10,*)strinixMin,strinixMax
     read(10,*)peak_xzMin,peak_xzMax
     read(10,*)DcMin,DcMax
     read(10,*)ConstraintNucl,NuclConstraintL,NuclConstraintW,NuclConstraintR,OverstressConstraint
+#endif	
+
+#if defined FVW 
+
+    read(10,*)StepType
+    read(10,*)StepSizeT0, StepSizea, StepSizeba, StepSizepsi, StepSizef0, StepSizefw, StepSizeDc, StepSizevw 
+    read(10,*)StepSizenucl(1),StepSizenucl(2),StepSizenucl(3),StepSizenucl(4),StepSizenucl(5)
+
+#else
+	
     read(10,*)StepType,StepSizeT0,StepSizeTs,StepSizeD
-    read(10,*)SigmaData,M0sigma    !M0 constraint applies only when M0sigma>0 (see evalmisfit())
+
+#endif	
+	
+	read(10,*)SigmaData,Mwsigma    !Mw constraint applies only when Mwsigma>0 (see evalmisfit())
     if (iwaveform==2) then !for gmpes read additional parameters:
        read(10,*) GMPE_id ! 1 for Zhao, 2 for Boore
        read(10,*) nper !here we define periods for which psa are calculated
@@ -82,40 +126,424 @@
        read(10,*) per(:) !periods stored here
     endif
     close(10)
+	
 #if defined FVW
+
     allocate(T0I(NLI,NWI), aI(NLI,NWI), baI(NLI,NWI), psiI(NLI,NWI), f0I(NLI,NWI), fwI(NLI,NWI), DcI(NLI,NWI), vwI(NLI, NWI))
     allocate(T0A(NLI,NWI,nchains), aA(NLI,NWI,nchains), baA(NLI,NWI,nchains), psiA(NLI,NWI,nchains))
-    allocate(f0A(NLI,NWI,nchains), fwA(NLI,NWI,nchains), DcA(NLI,NWI,nchains), vwA(NLI, NWI,nchains))
+	allocate(f0A(NLI,NWI,nchains), fwA(NLI,NWI,nchains), DcA(NLI,NWI,nchains), vwA(NLI, NWI,nchains))
+	allocate(nucl(5), nuclA(5,nchains)) !hx0, hz0, RR2, TT2, perturb
+	
 #else
-    allocate(DcI(NLI,NWI),T0I(NLI,NWI))
-    allocate(DcA(NLI,NWI,nchains),T0A(NLI,NWI,nchains))
+
+    allocate(DcI(NLI,NWI),T0I(NLI,NWI),TsI(NLI,NWI))
+    allocate(DcA(NLI,NWI,nchains),T0A(NLI,NWI,nchains),TsA(NLI,NWI,nchains))
+	
 #endif
-    allocate(TsI(NLI,NWI), TsA(NLI,NWI,nchains))
 
     allocate(ruptimeA(nxt,nzt,nchains),riseA(nxt,nzt,nchains),slipA(nxt,nzt,nchains),schangeA(nxt,nzt,nchains))
-    allocate(MisfitA(nchains),VRA(nchains),EgA(nchains),ErA(nchains))
+	allocate(VRA(nchains),EgA(nchains),ErA(nchains),MisfitA(nchains),M0A(nchains),MwA(nchains))
     
     !Read GFs and seismograms
-    CALL readGFs()
-    if(iwaveform==1)CALL readwaveforms()
-
+    call readGFs()
+    if(iwaveform==1)call readwaveforms()
+	
+	!Read postseismic GFs and deformation 
+	if (igps==1) call readSGFs()
+	
+	
     allocate(MomentRateA(nSr,nchains))
-    if (iwaveform==2) allocate(MwA(nchains),ruptdistA(NRseis,nchains),pgaA(NRseis,nper,nchains))
+    if (iwaveform==2) allocate(ruptdistA(NRseis,nchains),pgaA(NRseis,nper,nchains))
 
-    END
+    end
 
+#if defined FVW 
+    subroutine AdvanceChain(ichain,T,E,record_mcmc_now,iseed)   ! V E je stary misfit, nahradi se pripadne novym, pokud dojde k prijeti kroku
+    use mod_ctrl, only : ifile
+    use inversion_com
+    use waveforms_com, only : misfit,VR,iwaveform,NRseis,ruptdist,pgaD
+    use SlipRates_com, only: Mw,M0,MomentRate
+    use source_com
+    use pml_com
+    use fd3dparam_com
+    use PostSeismic_com
 
-    SUBROUTINE AdvanceChain(ichain,T,E,record_mcmc_now,iseed)   ! V E je stary misfit, nahradi se pripadne novym, pokud dojde k prijeti kroku
-    USE mod_ctrl, only : ifile
-    USE inversion_com
-    USE waveforms_com, only : misfit,VR,iwaveform,NRseis,ruptdist,pgaD
-    USE SlipRates_com, only: Mw,MomentRate
-    USE source_com
-    USE pml_com
-    USE fd3dparam_com
+    implicit none
+    
+    real,parameter:: eps=1.e-6
+    integer ichain,iseed
+    real*8 T,E,prop12,prop21
+    logical record_mcmc_now
+    real*8 newmisfit
+    real gasdev
+    logical  yn,modelinvalid
+    integer i,j,jj
+
+    modelinvalid=.true.
+    print *,'searching for model'
+    do while(modelinvalid)
+      if(StepType==1)then   !Log-normal step
+        prop12=0.
+        prop21=0.
+		!DcI(1,1)=DcA(1,1,ichain)*exp(gasdev(iseed)*StepSizeDc)
+		prop12=prop12+log(DcA(1,1,ichain))
+        prop21=prop21+log(DcI(1,1))
+		
+        do j=1,NWI
+          do i=1,NLI
+
+		    T0I(i,j)=T0A(i,j,ichain)*exp(gasdev(iseed)*StepSizeT0)
+            aI(i,j)=aA(i,j,ichain)*exp(gasdev(iseed)*StepSizea)
+            f0I(i,j)=f0A(i,j,ichain)*exp(gasdev(iseed)*StepSizef0)
+            DcI(i,j)=DcA(i,j,ichain)*exp(gasdev(iseed)*StepSizeDc)
+            DcI(i,j)=DcI(1,1)
+			
+            prop12=prop12+log(T0A(i,j,ichain))+log(aA(i,j,ichain))+log(f0A(i,j,ichain))+log(DcA(i,j,ichain))
+            prop21=prop21+log(T0I(i,j))+log(aI(i,j))+log(f0I(i,j))+log(DcI(i,j))
+			
+			!normal step for ba
+	        baI(i,j)=baA(i,j,ichain)+gasdev(iseed)*StepSizeba
+
+          enddo
+        enddo
+
+	  
+        nucl(3)=nuclA(3,ichain)*exp(gasdev(iseed)*StepSizenucl(3))
+        nucl(5)=nuclA(5,ichain)*exp(gasdev(iseed)*StepSizenucl(5))	  
+	  
+	    prop12=prop12+log(nuclA(3,ichain))+log(nuclA(5,ichain))
+	    prop21=prop21+log(nucl(3))+log(nucl(5))
+		
+      else                  !Normal step	  
+        prop12=log(1.)
+        prop21=log(1.)
+        do j=1,NWI
+          do i=1,NLI
+		  
+            T0I(i,j)=T0A(i,j,ichain)+gasdev(iseed)*StepSizeT0
+	        
+			aI(i,j)=aA(i,j,ichain)+gasdev(iseed)*StepSizea
+	        baI(i,j)=baA(i,j,ichain)+gasdev(iseed)*StepSizeba
+			
+	        !psiI(i,j)=psiA(i,j,ichain)+gasdev(iseed)*StepSizepsi
+	        
+			f0I(i,j)=f0A(i,j,ichain)+gasdev(iseed)*StepSizef0
+	        
+			!fwI(i,j)=fwA(i,j,ichain)+gasdev(iseed)*StepSizefw
+	        
+			DcI(i,j)=DcA(i,j,ichain)+gasdev(iseed)*StepSizeDc
+	        
+			!vwI(i,j)=vwA(i,j,ichain)+gasdev(iseed)*StepSizevw
+
+          enddo
+        enddo
+		
+		!nuclI(1)=nuclA(1,ichain)+gasdev(iseed)*StepSizenucl(1)	
+		
+		!nuclI(2)=nuclA(1,ichain)+gasdev(iseed)*StepSizenucl(2)	
+		
+		nucl(3)=nuclA(3,ichain)+gasdev(iseed)*StepSizenucl(3)	
+	
+		!nuclI(4)=nuclA(1,ichain)+gasdev(iseed)*StepSizenucl(4)	
+		
+		nucl(5)=nuclA(5,ichain)+gasdev(iseed)*StepSizenucl(5)	
+		
+
+		
+      endif
+	  
+      call inversion_modeltofd3d()
+      call validatefd3dmodel(modelinvalid)  
+      continue
+    enddo
+    print *,'done'
+    call fd3d()
+    call syntseis()
+	if (igps==1) then
+	  call CalcSyntGPS()
+	endif	 
+    if (iwaveform==1) then
+     call evalmisfit() 
+    elseif (iwaveform==2) then
+     call evalmisfit2()
+    endif
+    newmisfit=misfit
+
+    call PT_McMC_accept(T,E,prop21,newmisfit,prop12,yn,iseed) !TBD!
+    if (yn) then  !step accepted
+	
+      E=newmisfit
+	  T0A(:,:,ichain)=T0I(:,:)
+	  aA(:,:,ichain)=aI(:,:)
+	  baA(:,:,ichain)=baI(:,:)
+	  !psiA(:,:,ichain)=psiI(:,:)
+	  f0A(:,:,ichain)=f0I(:,:)
+	 ! fwA(:,:,ichain)=fwI(:,:)
+	  DcA(:,:,ichain)=DcI(:,:)
+	  !vwA(:,:,ichain)=vwI(:,:)
+	  nuclA(:,ichain)=nucl(:)
+      ruptimeA(:,:,ichain)=ruptime(:,:)
+      riseA(:,:,ichain)=rise(:,:)
+  
+#if defined DIPSLIP
+      slipA(:,:,ichain)=slipZ(:,:)
+      schangeA(:,:,ichain)=schangeZ(:,:)
+#else
+      slipA(:,:,ichain)=slipX(:,:)
+      schangeA(:,:,ichain)=schangeX(:,:)
+#endif
+      MomentRateA(:,ichain)=MomentRate(:)
+	  EgA(ichain)=Eg
+	  ErA(ichain)=Er
+      M0A(ichain)=M0
+      MwA(ichain)=Mw
+      if (iwaveform==2) then
+        ruptdistA(:,ichain)=ruptdist(:)
+        pgaA(:,:,ichain)=pgaD(:,:)
+      endif
+      VRA(ichain)=VR
+    endif
+
+    !if (yn.and.(abs(T-1.0)<eps).and.record_mcmc_now) then  !write the accepted step
+    if ((abs(T-1.0)<eps).and.record_mcmc_now) then  !write the present step whether accepted or not
+      misfit=E
+      write(ifile,'(1000000E13.5)')misfit,VRA(ichain),nuclA(1:5, ichain),T0A(:,:,ichain),aA(:,:,ichain),baA(:,:,ichain),psiA(:,:,ichain),f0A(:,:,ichain),fwA(:,:,ichain),DcA(:,:,ichain),vwA(:,:,ichain),M0A(ichain),EgA(ichain),ErA(ichain)
+ !     write(ifile,'(1000000E13.5)')misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),Eg,Er
+      flush(ifile)
+      write(ifile+2)misfit,VRA(ichain),nuclA(1:5,ichain),T0A(:,:,ichain),aA(:,:,ichain),baA(:,:,ichain),psiA(:,:,ichain),f0A(:,:,ichain),fwA(:,:,ichain),DcA(:,:,ichain),vwA(:,:,ichain),ruptimeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),slipA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain), &
+          & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRateA(:,ichain)
+      flush(ifile+2)
+      if (iwaveform==2) then
+        write(ifile*10) (misfit,MwA(ichain),ruptdistA(jj,ichain),pgaA(jj,:,ichain)/100., jj=1,nrseis)
+        flush(ifile*10)
+      endif
+    endif
+    
+    end
+	
+	subroutine validatefd3dmodel(modelinvalid)
+    use fd3dparam_com
+    use friction_com
+    use frictionconstraints_com
+    use pml_com
+    use source_com, only: ioutput
+    use medium_com
+    implicit none
+    logical  modelinvalid
+    real x,z,rr,x0,z0
+    integer i,j,nuclOK,ncent,nuclsize,meanoverstress
+    real, allocatable :: strengthexcess1(:,:)
+
+    modelinvalid=.true.
+  !  read(10,*)T0Min, aMin, baMin, psiMin, f0Min, fwMin, DcMin, vwMin
+  !  read(10,*)T0Max, aMax, baMax, psiMax, f0Max, fwMax, DcMax, vwMax
+!    print *,minval(dc),maxval(dc)
+!    write(*,*) minval(strinix),maxval(strinix)
+!Constraints on Min/Max values
+    do j=nabc+1,nzt-nfs
+      do i=nabc+1,nxt-nabc
+
+#if defined DIPSLIP
+
+        if(striniZ(i,j)<T0Min.or.striniZ(i,j)>T0Max)then
+        ! write(*,*)'Striniz',i,j,striniZ(i,j),T0Min,T0Max
+#else
+
+        if(striniX(i,j)<T0Min.or.striniX(i,j)>T0Max)then
+        ! write(*,*)'Strinix',i,j,striniX(i,j),T0Min,T0Max
+
+#endif
+          return
+        endif
+		
+        if(a(i,j)<aMin.or.a(i,j)>aMax)then
+		
+         ! write(*,*)'a',i,j,a(i,j)
+          return
+        endif
+		
+		if(ba(i,j)<baMin.or.ba(i,j)>baMax)then
+		
+        !  write(*,*)'ba',i,j,ba(i,j)
+          return
+        endif
+		
+!		if(psi(i,j)<psiMin.or.psi(i,j)>psiMax)then
+		
+!          write(*,*)'psi',i,j,psi(i,j)
+ !         return
+ !       endif
+		
+		if(f0(i,j)<f0Min.or.f0(i,j)>f0Max)then
+		
+        !  write(*,*)'f0',i,j,f0(i,j)
+          return
+        endif
+		
+ !       if(fw(i,j)<fwMin.or.fw(i,j)>fwMax)then
+		
+ !         write(*,*)'fw',i,j,fw(i,j)
+ !         return
+ !       endif
+		
+		if(Dc(i,j)<DcMin.or.Dc(i,j)>DcMax)then
+		
+         ! write(*,*)'Dc',i,j,Dc(i,j),Dcmin,DcMax
+          return
+        endif
+		
+		if (uini(i,j)>1.e-8) then
+          write(*,*)'uini',i,j,uini(i,j)
+          return
+        endif		  
+!		if(vw(i,j)<vwMin.or.vw(i,j)>vwMax)then
+		
+  !        write(*,*)'vw',i,j,vw(i,j),vwmin,vwMax
+!          return
+ !       endif
+
+      enddo
+    enddo
+
+ !   if(hx0<nuclMin(1).or.hx0>nuclMax(1))then
+		
+ !      write(*,*)'nucl',i, nucl(i)
+ !       return
+ !   endif	
+	
+!	if(hz0<nuclMin(2).or.hz0>nuclMax(2))then
+		
+!       write(*,*)'nucl',i, nucl(i)
+ !       return
+ !   endif	
+	
+	if(RR2<nuclMin(3).or.RR2>nuclMax(3))then
+		
+       write(*,*)'nucl3', RR2, nuclMin(3), nuclMax(3)
+       return
+    endif	
+	
+!	if(TT2<nuclMin(4).or.TT2>nuclMax(4))then
+		
+!       write(*,*)'nucl',i, nucl(i)
+!        return
+!    endif		
+	
+	if(perturb<nuclMin(5).or.perturb>nuclMax(5))then
+		
+       write(*,*)'nucl5',i, perturb
+       return
+    endif	
+    
+    modelinvalid=.false.   !All passed
+    end
+
+    subroutine InitiateChain(ichain,E,iseed) !Set all initial models
+	
+    use mod_ctrl, only: nchains,rname,ierr,ifile
+    use inversion_com
+    use waveforms_com, only : misfit,VR,Tshift,iwaveform,ruptdist,pgaD
+    use source_com
+    use SlipRates_com
+	use PostSeismic_com
+    
+	implicit none
+    
+	real*8 E
+    real dum
+    integer ichain,iseed
+    logical modelinvalid
+
+    if (RUNI==1) then
+      open(244,FILE='initialmodel.dat')
+      read(244,*)dum,dum,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:)
+      close(244)
+    elseif (RUNI==2) then
+      if(ichain==1)open(unit=ifile+1,file=trim(rname),status='old',iostat=ierr)
+      read(244,*)dum,dum,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:)
+      if(ichain==nchains)close(ifile+1)
+    endif
+    
+    call inversion_modeltofd3d()
+    call validatefd3dmodel(modelinvalid)
+    if(modelinvalid)write(*,*)'Initial model violates constraints!'
+
+    call fd3d()
+    call syntseis()
+	if (igps==1)then
+	  call CalcSyntGPS()
+	endif	 
+    if (iwaveform==1) then
+      call evalmisfit()
+      write(*,*)'Initial model VR: ',VR,' for shift',Tshift,'s', ', GPS VR: ', VRGPS
+    elseif (iwaveform==2) then
+      call evalmisfit2()
+    endif
+
+    E=misfit
+    MisfitA(ichain)=E
+    T0A(:,:,ichain)=T0I(:,:)
+    aA(:,:,ichain)=aI(:,:)
+    baA(:,:,ichain)=baI(:,:)
+	psiA(:,:,ichain)=psiI(:,:)
+    f0A(:,:,ichain)=f0I(:,:)
+    fwA(:,:,ichain)=fwI(:,:)
+	DCA(:,:,ichain)=DCI(:,:)
+    vwA(:,:,ichain)=vwI(:,:)
+    nuclA(1:5,ichain)=nucl(1:5)
+    ruptimeA(:,:,ichain)=ruptime(:,:)
+    riseA(:,:,ichain)=rise(:,:)
+#if defined DIPSLIP
+    slipA(:,:,ichain)=slipZ(:,:)
+    schangeA(:,:,ichain)=schangeZ(:,:)
+#else
+    slipA(:,:,ichain)=slipX(:,:)
+    schangeA(:,:,ichain)=schangeX(:,:)
+#endif
+    VRA(ichain)=VR
+    MomentRateA(:,ichain)=MomentRate(:)
+    EgA(ichain)=Eg
+    ErA(ichain)=Er
+    M0A(ichain)=M0
+    MwA(ichain)=Mw
+    if (iwaveform==2) then
+      ruptdistA(:,ichain)=ruptdist(:)
+      pgaA(:,:,ichain)=pgaD(:,:)
+    endif
+    
+    end
+
+    subroutine saveforrestart()
+    use mod_ctrl
+    use inversion_com
+    
+	implicit none
+    
+	integer ichain
+    
+    open(unit=ifile+1,file=trim(rname),status='replace',iostat=ierr)
+    do ichain=1,nchains
+      write(ifile+1,'(100000E13.5)')MisfitA(ichain),VRA(ichain),nuclA(1:5,ichain),T0A(:,:,ichain),aA(:,:,ichain),baA(:,:,ichain),psiA(:,:,ichain),f0A(:,:,ichain),fwA(:,:,ichain),DcA(:,:,ichain),vwA(:,:,ichain)
+    enddo
+    close(ifile+1)
+    
+    end	
+	
+#else	      ! Slip-weakening
+
+	subroutine AdvanceChain(ichain,T,E,record_mcmc_now,iseed)   ! V E je stary misfit, nahradi se pripadne novym, pokud dojde k prijeti kroku
+    use mod_ctrl, only : ifile
+    use inversion_com
+    use waveforms_com, only : misfit,VR,iwaveform,NRseis,ruptdist,pgaD
+    use SlipRates_com, only: Mw,M0,MomentRate
+    use source_com
+    use pml_com
+    use fd3dparam_com
+    use PostSeismic_com
     USE friction_com    !only for StepType=3
     USE frictionconstraints_com    !only for StepType=3
-    IMPLICIT NONE
+    implicit none
+    
     real,parameter:: eps=1.e-6
     integer ichain,iseed
     real*8 T,E,prop12,prop21
@@ -130,7 +558,7 @@
 jj=0
     do while(modelinvalid)
 jj=jj+1
-      if(StepType==1)then                    !Log-normal step
+      if(StepType==1)then   !Log-normal step
         prop12=0.
         prop21=0.
         do j=1,NWI
@@ -153,14 +581,15 @@ jj=jj+1
           enddo
         enddo
       else                                    !Testing new steps (log-normal + even periodic extension)
+
         prop12=0.
         prop21=0.
         do j=1,NWI
           do i=1,NLI
             T0I(i,j)=(T0A(i,j,ichain)-strinixMin)*exp(gasdev(iseed)*StepSizeT0)+strinixMin !Log-normal + even periodic extension
             if(T0I(i,j)>strinixMax)then
-                T0I(i,j)=strinixMax**2/T0I(i,j)
-                if(T0I(i,j)<strinixMin)T0I(i,j)=T0A(i,j,ichain)
+              T0I(i,j)=strinixMax**2/T0I(i,j)
+              if(T0I(i,j)<strinixMin)T0I(i,j)=T0A(i,j,ichain)
             endif
             prop12=prop12+log(T0A(i,j,ichain)-strinixMin)
             prop21=prop21+log(T0I(i,j)-strinixMin)
@@ -188,6 +617,7 @@ jj=jj+1
           enddo
         enddo
       endif
+
       call inversion_modeltofd3d()
       call validatefd3dmodel(modelinvalid)
       continue
@@ -202,6 +632,7 @@ jj=jj+1
     print *,'done'
     call fd3d()
     call syntseis()
+	if (igps==1) call CalcSyntGPS
     if (iwaveform==1) then
      call evalmisfit() 
     elseif (iwaveform==2) then
@@ -212,7 +643,6 @@ jj=jj+1
     call PT_McMC_accept(T,E,prop21,newmisfit,prop12,yn,iseed)
     if (yn) then  !step accepted
       E=newmisfit
-      MisfitA(ichain)=E
       T0A(:,:,ichain)=T0I(:,:)
       TsA(:,:,ichain)=TsI(:,:)
       DcA(:,:,ichain)=DcI(:,:)
@@ -228,9 +658,10 @@ jj=jj+1
       MomentRateA(:,ichain)=MomentRate(:)
       EgA(ichain)=Eg
       ErA(ichain)=Er
+      M0A(ichain)=M0
+      MwA(ichain)=Mw
       if (iwaveform==2) then
         ruptdistA(:,ichain)=ruptdist(:)
-        MwA(ichain)=mw
         pgaA(:,:,ichain)=pgaD(:,:)
       endif
       VRA(ichain)=VR
@@ -239,10 +670,10 @@ jj=jj+1
     !if (yn.and.(abs(T-1.0)<eps).and.record_mcmc_now) then  !write the accepted step
     if ((abs(T-1.0)<eps).and.record_mcmc_now) then  !write the present step whether accepted or not
       misfit=E
-      write(ifile,'(100000E13.5)')MisfitA(ichain),VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),EgA(ichain),ErA(ichain)
+      write(ifile,'(1000000E13.5)')misfit,VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain), M0A(ichain), EgA(ichain), ErA(ichain)
       flush(ifile)
-      write(ifile+2)MisfitA(ichain),VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),ruptimeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),slipA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain), &
-          & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRateA(:,ichain)
+      write(ifile+2)misfit,VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),ruptimeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),slipA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain), &
+          & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRateA(:,ichain),EgA(ichain),ErA(ichain)
       flush(ifile+2)
       if (iwaveform==2) then
         write(ifile*10) (misfit,mwA(ichain),ruptdistA(jj,ichain),pgaA(jj,:,ichain)/100., jj=1,nrseis)
@@ -250,17 +681,16 @@ jj=jj+1
       endif
     endif
     
-    END
+    end
 
-    
-    SUBROUTINE validatefd3dmodel(modelinvalid)
-    USE fd3dparam_com
-    USE friction_com
-    USE frictionconstraints_com
-    USE pml_com
-    USE source_com, only: ioutput
-    USE medium_com
-    IMPLICIT NONE
+	subroutine validatefd3dmodel(modelinvalid)
+    use fd3dparam_com
+    use friction_com
+    use frictionconstraints_com
+    use pml_com
+    use source_com, only: ioutput
+    use medium_com
+    implicit none
     logical  modelinvalid
     real x,z,rr,x0,z0
     integer i,j,nuclOK,ncent,nuclsize,meanoverstress
@@ -278,15 +708,15 @@ jj=jj+1
           return
         endif
 #if defined DIPSLIP
-        if(striniZ(i,j)-dyn_xz(i,j)<strinixMin.or.striniZ(i,j)-dyn_xz(i,j)>strinixMax)then
+        if(striniZ(i,j)<strinixMin.or.striniZ(i,j)>strinixMax)then
 !         write(*,*)'Strinix',i,j,striniZ(i,j),strinixMin,strinixMax
 #else
-        if(striniX(i,j)-dyn_xz(i,j)<strinixMin.or.striniX(i,j)-dyn_xz(i,j)>strinixMax)then
+        if(striniX(i,j)<strinixMin.or.striniX(i,j)>strinixMax)then
 !          write(*,*)'Strinix',i,j,striniX(i,j),strinixMin,strinixMax
 #endif
           return
         endif
-        if((peak_xz(i,j)-dyn_xz(i,j))/normstress(j)<peak_xzMin.or.(peak_xz(i,j)-dyn_xz(i,j))/normstress(j)>peak_xzMax)then
+        if(peak_xz(i,j)/normstress(j)<peak_xzMin.or.peak_xz(i,j)/normstress(j)>peak_xzMax)then
 !          write(*,*)'Peak_xz',i,j,peak_xz(i,j)
           return
         endif
@@ -416,17 +846,19 @@ jj=jj+1
     endif
     
     modelinvalid=.false.   !All passed
-    END
-    
+    end
 
-    SUBROUTINE InitiateChain(ichain,E,iseed) !Set all initial models
-    USE mod_ctrl, only: nchains,rname,ierr,ifile
-    USE inversion_com
-    USE waveforms_com, only : misfit,VR,Tshift,iwaveform,ruptdist,pgaD
-    USE source_com
-    USE SlipRates_com
-    IMPLICIT NONE
-    real*8 E
+    subroutine InitiateChain(ichain,E,iseed) !Set all initial models
+    use mod_ctrl, only: nchains,rname,ierr,ifile
+    use inversion_com
+    use waveforms_com, only : misfit,VR,Tshift,iwaveform,ruptdist,pgaD
+    use source_com
+    use SlipRates_com
+    use PostSeismic_com    
+    
+	implicit none
+    
+	real*8 E
     real dum
     integer ichain,iseed
     logical modelinvalid
@@ -441,14 +873,15 @@ jj=jj+1
       if(ichain==nchains)close(ifile+1)
     endif
     
-    CALL inversion_modeltofd3d()
-    CALL validatefd3dmodel(modelinvalid)
+    call inversion_modeltofd3d()
+    call validatefd3dmodel(modelinvalid)
     if(modelinvalid)write(*,*)'Initial model violates constraints!'
 
     call fd3d()
-    CALL syntseis()
+    call syntseis()
+	if (igps==1) call CalcSyntGPS
     if (iwaveform==1) then
-      CALL evalmisfit()
+      call evalmisfit()
       write(*,*)'Initial model VR: ',VR,' for shift',Tshift,'s'
     elseif (iwaveform==2) then
       call evalmisfit2()
@@ -472,20 +905,23 @@ jj=jj+1
     MomentRateA(:,ichain)=MomentRate(:)
     EgA(ichain)=Eg
     ErA(ichain)=Er
+    M0A(ichain)=M0
+    MwA(ichain)=Mw
     if (iwaveform==2) then
       ruptdistA(:,ichain)=ruptdist(:)
-      MwA(ichain)=mw
       pgaA(:,:,ichain)=pgaD(:,:)
     endif
     
-    END
+    end
 
 
-    SUBROUTINE saveforrestart()
-    USE mod_ctrl
-    USE inversion_com
-    IMPLICIT NONE
-    INTEGER ichain
+    subroutine saveforrestart()
+    use mod_ctrl
+    use inversion_com
+    
+	implicit none
+    
+	integer ichain
     
     open(unit=ifile+1,file=trim(rname),status='replace',iostat=ierr)
     do ichain=1,nchains
@@ -493,12 +929,16 @@ jj=jj+1
     enddo
     close(ifile+1)
     
-    END
-    
+    end	
+	
+#endif
+ 
 
     subroutine alloc_temp(iseed)
-    USE mod_ctrl
-    IMPLICIT NONE
+    use mod_ctrl
+	
+    implicit none
+	
     double precision :: r1,aval,bval,dx
     integer :: i,iseed
     real ran3
@@ -518,55 +958,58 @@ jj=jj+1
       
     i=nchains/4;modtemp(1:i) = tlow                   ! Force first i chains to be at tlow
 
-    END
+    end
     
     
-      Subroutine PT_McMC_accept(T,logPPD1,logQ12,logPPD2,logQ21,yn,iseed)
-       implicit none
-       Double precision              :: logPPD1,logPPD2
-       Double precision              :: logQ21,logQ12
-       Double precision              :: delS
-       Double precision              :: T
-       Logical                       :: yn
-       double precision :: a
-       integer :: iseed
-       real ran3
+    subroutine PT_McMC_accept(T,logPPD1,logQ12,logPPD2,logQ21,yn,iseed)
+    
+	implicit none
+    
+	double precision :: logPPD1,logPPD2
+    double precision :: logQ21,logQ12
+    double precision :: delS
+    double precision :: T
+    logical          :: yn
+    double precision :: a
+    integer          :: iseed
+    real             :: ran3
 
-       yn = .false.
-       delS = (logPPD1-logPPD2)/T
-       delS = delS + logQ12 - logQ21
+    yn = .false.
+    delS = (logPPD1-logPPD2)/T
+    delS = delS + logQ12 - logQ21
        
-       a = ran3(iseed)
-       if(log(a).le.delS)yn = .true.      ! swap successful
-      end subroutine
+    a = ran3(iseed)
+    if(log(a).le.delS)yn = .true.      ! swap successful
+    
+	end subroutine
 
     
-      FUNCTION gasdev(idum)
-      INTEGER idum
-      REAL gasdev
-      INTEGER iset
-      REAL fac,gset,rsq,v1,v2,ran3
-      SAVE iset,gset
-      DATA iset/0/
-      if (idum.lt.0) iset=0
-      if (iset.eq.0) then
-1       v1=2.*ran3(idum)-1.
-        v2=2.*ran3(idum)-1.
-        rsq=v1**2+v2**2
-        if(rsq.ge.1..or.rsq.eq.0.)goto 1
-        fac=sqrt(-2.*log(rsq)/rsq)
-        gset=v1*fac
-        gasdev=v2*fac
-        iset=1
-      else
-        gasdev=gset
-        iset=0
-      endif
-      return
-      END
-
+    function gasdev(idum)
     
- 
+    integer idum, iset
+    real gasdev
+    real fac,gset,rsq,v1,v2,ran3
+    save iset,gset
+    data iset/0/
+      
+	if (idum.lt.0) iset=0
+    if (iset.eq.0) then
+1     v1=2.*ran3(idum)-1.
+      v2=2.*ran3(idum)-1.
+      rsq=v1**2+v2**2
+      if(rsq.ge.1..or.rsq.eq.0.)goto 1
+      fac=sqrt(-2.*log(rsq)/rsq)
+      gset=v1*fac
+      gasdev=v2*fac
+      iset=1
+    else
+      gasdev=gset
+      iset=0
+    endif
+    return
+    
+	end
+
             FUNCTION ran3(idum)
             INTEGER idum
             INTEGER MBIG,MSEED,MZ

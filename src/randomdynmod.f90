@@ -1,3 +1,6 @@
+#if defined FVW
+
+#else
     MODULE randomdynmod_com
     REAL*8 dkx,dky
     INTEGER idum
@@ -109,8 +112,6 @@
     close(201)
     
     END
-    
-    
     
     SUBROUTINE randomize(A,B,NL,NW,EXPONENT,KC,Strength,Multiply,Apply)
     USE randomdynmod_com
@@ -364,5 +365,5 @@
 18    continue
       return
       END
-
+#endif
     

@@ -13,7 +13,7 @@
 
 
 !GFs for synthetic seismograms
-      real:: T,T1,T2,artifDT,M0aprior,M0sigma,leng,widt,elem,df
+      real:: T,T1,T2,artifDT,M0aprior,Mwsigma,leng,widt,elem,df
       real,allocatable,dimension(:,:):: H
       real,allocatable,dimension(:):: fc1,fc2
       integer,allocatable,dimension(:):: fcsta
@@ -227,7 +227,7 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     endif 
     
     END
-
+	
     SUBROUTINE syntseis()
     USE waveforms_com
     USE source_com
@@ -390,12 +390,16 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     END
     
 
-    SUBROUTINE evalmisfit()
-    USE waveforms_com
-    USE SlipRates_com
-    IMPLICIT NONE
+    subroutine evalmisfit()
+    use waveforms_com
+    use SlipRates_com
+    use PostSeismic_com
+    use ieee_arithmetic
+    
+	implicit none
+	
     real,parameter:: maxTshift=2.
-    real dumn,dump,normdatn,normdatp
+    real dumn,dump,normdatn,normdatp,dum2,norma2
     integer i,k,ims
     
     ims=int(maxTshift/dtseis)
@@ -423,8 +427,28 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
         VR=1.-dump/normdatp
       endif
     enddo
-    
-    if(M0sigma>0.)misfit=misfit+0.5*(M0/M0sigma-M0aprior/M0sigma)**2
+	
+	if (NGPS>0) then
+      dum2=0.
+      norma2=0.
+      do i=1,NGPS
+        dum2=dum2+0.5*sum((gpssyntN(1:NTSrv,i)-gpsrealN(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(1,i)**2
+        dum2=dum2+0.5*sum((gpssyntE(1:NTSrv,i)-gpsrealE(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(2,i)**2
+        dum2=dum2+0.5*sum((gpssyntZ(1:NTSrv,i)-gpsrealZ(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(3,i)**2
+        norma2=norma2+0.5*sum((gpsrealN(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(1,i)**2
+        norma2=norma2+0.5*sum((gpsrealE(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(2,i)**2
+        norma2=norma2+0.5*sum((gpsrealZ(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(3,i)**2
+	  enddo
+      if (ieee_is_nan(dum2)) then
+        dum2=1.e30
+        norma2=1.e1
+      endif
+      misfit=misfit + dum2
+      VRGPS=1.-dum2/norma2
+    end if	
+
+    !if(M0sigma>0.)misfit=misfit+0.5*(M0-M0aprior)**2/M0sigma**2
+    if(Mwsigma>0.)misfit=misfit+0.5*(2./3.*log10(M0/M0aprior)/Mwsigma)**2
     
     END
 
@@ -447,7 +471,6 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
 
     misfit=1.e30
     misf=0.
-    mw=(log10(m0)-9.1)/1.5
     diff=0.
     nstat=0 
     pgaM=0.
@@ -501,9 +524,9 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
      do i=1,nper
       do jj=1,nrseis
        if (kmask(jj)) then
-          call pga_theor(ruptdist(jj),mw,per(i),pgaM(jj,i),PGAsigma(jj,i),PGAtau(jj,i))
+          call pga_theor(ruptdist(jj),Mw,per(i),pgaM(jj,i),PGAsigma(jj,i),PGAtau(jj,i))
           misf=misf+(log(pgaD(jj,i))-pgam(jj,i))**2/(PGAsigma(jj,i)**2) !first part difference from the mean value for each station for particular event
-          if (ioutput==1) write(2223,*) mw,ruptdist(jj),per(i),exp(pgaM(jj,i))/100.,pgaD(jj,i)/100.,PGAsigma(jj,i),PGAtau(jj,i)
+          if (ioutput==1) write(2223,*) Mw,ruptdist(jj),per(i),exp(pgaM(jj,i))/100.,pgaD(jj,i)/100.,PGAsigma(jj,i),PGAtau(jj,i)
        endif
       enddo
       if (ioutput==1) write(2223,*)

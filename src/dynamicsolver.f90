@@ -21,6 +21,7 @@
     USE mod_ctrl
     USE pml_com
     USE SlipRates_com
+   	use PostSeismic_com
 #if defined GPUMPI
     USE openacc
 #endif
@@ -108,9 +109,11 @@
       CALL readinversionresult()
       ioutput=1
       if(iwaveform==0)write(*,*)'Note: No seismogram calculation.'
+#if !defined FVW
       if(RUNI==10)then
         CALL randomdynmod(nxt,nzt,dh,striniZ,peak_xz,Dc)
       endif
+#endif
       if(RUNI==0)then
         write(*,*)'Note: Saving normal stress profile.'
         open(719,FILE='normalstressprofile.dat')
@@ -120,11 +123,9 @@
         close(719)
       endif
       write(*,*)'Running dynamic rupture simulation...'
-#if defined FVW
-	err=.false.
-#else
-    CALL validatefd3dmodel(err)  
-#endif
+
+      CALL validatefd3dmodel(err)  
+
       if(err)then
         write(*,*)'Forward model violates constraints!'
       else
@@ -140,12 +141,41 @@
       print *,'Energy efficiency:               ',output_param(6)/(output_param(5)+output_param(6))
       print *,'-----------------------------------------------------'
       call syntseis()
+	    if (igps.eq.1) call CalcSyntGPS()
+
+#if defined FVW
       if(iwaveform==1)then
         call evalmisfit()
         write(*,*)'Variance reduction: ',VR,' for shift',Tshift,'s'
+        write(*,*)'GPS Variance reduction: ',VRGPS
         call plotseis()
         open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
-        write(594,'(100000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),Eg,Er
+        write(594,'(100000E13.5)')misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),M0,Eg,Er
+        close(594)
+        open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
+        write(594)misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:)
+        close(594)
+      elseif (iwaveform==2) then
+        call evalmisfit2()
+        open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
+        write(594,'(100000E13.5)')misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),M0,Eg,Er
+        close(594)
+        open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
+        write(594)misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:)
+        close(594)
+      endif
+
+#else
+
+      if(iwaveform==1)then
+        call evalmisfit()
+        write(*,*)'Variance reduction: ',VR,' for shift',Tshift,'s'
+        if(igps==1)write(*,*)'GPS Variance reduction: ',VRGPS
+        call plotseis()
+        open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
+        write(594,'(100000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),M0,Eg,Er
         close(594)
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
@@ -154,13 +184,15 @@
       elseif (iwaveform==2) then
         call evalmisfit2()
         open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
-        write(594,'(100000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),Eg,Er
+        write(594,'(100000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),M0,Eg,Er
         close(594)
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
           & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:)
         close(594)
       endif
+
+#endif
       
     elseif(RUNI==1)then  ! Inversion from an initial model
       write(*,*)'Running inversion:'
@@ -221,6 +253,7 @@
       close(26)
       deallocate(sliprateoutX,sliprateoutZ)
       M0=sum(MomentRate(:))*dtseis
+      Mw=(log10(M0)-9.1)/1.5
       ioutput=1
       CALL syntseis()
       if(iwaveform==1)then
