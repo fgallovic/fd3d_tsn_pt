@@ -71,8 +71,8 @@
     do j=1,NDIS
       do i=1,MDIS
         k=k+1
-		i3=1+(i-1)*gkoef
-		j3=1+(j-1)*gkoef
+		i3=nabc+1+(i-1)*gkoef
+		j3=nabc+1+(j-1)*gkoef
 		!G(k)=mu1(i3,nyt,j3)
 		slip(k)=slipX(i3,j3)
 		!koef(k)=2*(lam1(i3,nyt,j3)+mu1(i3,nyt,j3))/(lam1(i3,nyt,j3)+2*mu1(i3,nyt,j3))
@@ -82,8 +82,8 @@
 	px=nxt/2
 	pz=nzt/2
 	Gtemp=mu1(px,nyt,pz)
-	G2B=Gtemp/2.d0/sqrt(mu1(pz,nyt,pz)/d1(px,nyt,pz))
-	koeftemp=2*(lam1(px,nyt,pz)+mu1(px,nyt,pz))/(lam1(px,nyt,pz)+2*mu1(px,nyt,pz))
+	G2B=Gtemp/2.d0/sqrt(Gtemp/d1(px,nyt,pz))
+	koeftemp=2*(lam1(px,nyt,pz)+Gtemp)/(lam1(px,nyt,pz)+2*Gtemp)
 	!print*, koeftemp
 	
   !close(102)
@@ -160,24 +160,30 @@
         vars(k)=0.
 		vars(k+MNDIS)=0.
 		ni=0
-        do j2=1,gkoef+1
-        do i2=1,gkoef+1
-		  i3=nabc+1+(i-1)*gkoef - gkoef/2 +i2
-		  j3=nabc+1+(j-1)*gkoef - gkoef/2 +j2
+		if (gkoef>1) then
+          do j2=1,gkoef+1
+          do i2=1,gkoef+1
+		    i3=nabc+1+(i-1)*gkoef - gkoef/2 +i2
+		    j3=nabc+1+(j-1)*gkoef - gkoef/2 +j2
 
 		  !i3=nabc+i!+1
 		  !j3=nabc+j!+1
-          if ((i3>nabc).AND.(i3<nxt-nabc+1)) then	
-          if ((j3>nabc).AND.(j3<nzt-nfs+1)) then		
-		    ni=ni+1
-		    vars(k)=vars(k)+abs(sqrt((sliprateoutX(i3,j3)+2*uini(i3,j3))**2+sliprateoutZ(i3,j3)**2))!vars(k)+sqrt(**2)!+sliprateoutZ(i3,j3)**2)
-            vars(k+MNDIS)=vars(k+MNDIS)+psiout(i3,j3)
-		  endif
-		  endif
-        enddo
-        enddo
-		vars(k)=vars(k)/ni
-		vars(k+MNDIS)=vars(k+MNDIS)/ni
+            if ((i3>nabc).AND.(i3<nxt-nabc+1)) then	
+            if ((j3>nabc).AND.(j3<nzt-nfs+1)) then		
+		      ni=ni+1
+		      vars(k)=vars(k)+abs(sqrt((sliprateoutX(i3,j3)+2*uini(i3,j3))**2+sliprateoutZ(i3,j3)**2))!vars(k)+sqrt(**2)!+sliprateoutZ(i3,j3)**2)
+              vars(k+MNDIS)=vars(k+MNDIS)+psiout(i3,j3)
+		    endif
+		    endif
+          enddo
+          enddo
+		  vars(k)=vars(k)/ni
+		  vars(k+MNDIS)=vars(k+MNDIS)/ni
+		else
+		  vars(k)=abs(sqrt((sliprateoutX(nabc+i,nabc+j)+2*uini(nabc+i,nabc+j))**2+sliprateoutZ(nabc+i,nabc+j)**2))!vars(k)+sqrt(**2)!+sliprateoutZ(i3,j3)**2)
+          vars(k+MNDIS)=psiout(nabc+i,nabc+j)		
+		
+		endif
       enddo
     !  dum=dy*(dble(j)-.5d0)
     !  if(dum>Z0-LC/2.d0.and.dum<Z0+LC/2.d0) vars(MDIS/4:MDIS/4*3+1,j)=10.d0*vars(MDIS/4:MDIS/4*3+1,j)
@@ -388,6 +394,7 @@
 	  
 	  !open(111,FILE='mtildeS.txt')
 16    continue
+        !print*, x, tout
         call rates(x,y,scennum,dydx)
         yscal=abs(y)+abs(h*dydx)+TINY
 	    slip(1:MNDIS)=slip(1:MNDIS)+y(1:MNDIS)*hdid
@@ -419,7 +426,7 @@
 			  !write(111,*)MSX(k2)
             enddo
           enddo
-		  tout=tout+dtout
+		  tout=TS(kout)+dtout
 
 		endif
 	    
@@ -451,18 +458,33 @@
           endif
 		  
           if((x-x2)*(x2-x1).ge.0.d0)then
-
+            
 	        ystart=y
             if(kmax.ne.0)then
               kount=kount+1
             endif
+			if (kout<NTS) then
+			print*, tout
+			    do j=kout,NTS
+			        TS(j)=tout
+					MSX((j-1)*NL*NW+1:j*NL*NW)=MSX((kout-2)*NL*NW+1:(kout-1)*NL*NW)
+					tout=tout+dtout
+			    enddo
+			endif
             return
           endif
 		
        !   if(abs(hnext).lt.hmin) pause 'stepsize smaller than minimum in odeint'
             h=hnext
             if(MAXSTP>0.and.nstp>MAXSTP)then
-          !    pause 'too many steps in odeint'
+              print*, 'too many steps in odeint'
+			  if (kout<NTS) then
+			    do j=kout,NTS
+			        TS(j)=tout
+					MSX((j-1)*NL*NW+1:j*NL*NW)=MSX((kout-2)*NL*NW+1:(kout-1)*NL*NW)
+					tout=tout+dtout
+			    enddo
+			  endif
               return
 	        endif
 	      if (abs(maxvel)<1.e-12) then
@@ -470,7 +492,7 @@
 			if (kout<NTS) then
 			    do j=kout,NTS
 			        TS(j)=tout
-					MSX((j-1)*NL*NW:j*NL*NW)=MSX((kout-2)*NL*NW+1:(kout-1)*NL*NW)
+					MSX((j-1)*NL*NW+1:j*NL*NW)=MSX((kout-2)*NL*NW+1:(kout-1)*NL*NW)
 					tout=tout+dtout
 			    enddo
 			endif
@@ -615,9 +637,10 @@
 		  do i=1,NGPS
             gpssyntN(j,i)=dot_product(MSXtemp(1:NL*NW),gpsgfN(1:NL*NW,i))
 	        gpssyntE(j,i)=dot_product(MSXtemp(1:NL*NW),gpsgfE(1:NL*NW,i))
-	        gpssyntZ(j,i)=dot_product(MSXtemp(1:NL*NW),gpsgfZ(1:NL*NW,i))	 
+	        gpssyntZ(j,i)=dot_product(MSXtemp(1:NL*NW),gpsgfZ(1:NL*NW,i))	
 		    write (10,'(3E13.5)', advance="no") gpssyntN(j,i), gpssyntE(j,i), gpssyntZ(j,i)			
           enddo
+		  
 		  write(10,*)
 		  exit
 		endif
@@ -681,19 +704,19 @@
       startx=((1-1)+margin/2.)/3.
 	  write(205,'(3E13.5)')startx,starty
       do k=1,NTSrv
-        write(205,'(3E13.5)')startx+stept*(k),starty+stepa(j)*gpsrealN(k,i)
+        write(205,'(3E13.5)')startx+stept*(k),starty+stepa(j)*gpsrealN(k,j)
       enddo
       write(205,*)
       startx=((2-1)+margin/2.)/3.
 	  write(205,'(3E13.5)')startx,starty
       do k=1,NTSrv
-        write(205,'(3E13.5)')startx+stept*(k),starty+stepa(j)*gpsrealE(k,i)
+        write(205,'(3E13.5)')startx+stept*(k),starty+stepa(j)*gpsrealE(k,j)
       enddo
       write(205,*)
       startx=((3-1)+margin/2.)/3.
 	  write(205,'(3E13.5)')startx,starty
       do k=1,NTSrv
-        write(205,'(3E13.5)')startx+stept*(k),starty+stepa(j)*gpsrealZ(k,i)
+        write(205,'(3E13.5)')startx+stept*(k),starty+stepa(j)*gpsrealZ(k,j)
       enddo
       write(205,*)
     enddo
@@ -705,19 +728,19 @@
       startx=((1-1)+margin/2.)/3.
 	  write(205,'(3E13.5)')startx,starty
       do k=1,NTSrv
-        write(205,'(3E13.5)')startx+stept*k,starty+stepa(j)*gpssyntN(k,i)
+        write(205,'(3E13.5)')startx+stept*k,starty+stepa(j)*gpssyntN(k,j)
       enddo
       write(205,*)
       startx=((2-1)+margin/2.)/3.
 	  write(205,'(3E13.5)')startx,starty
       do k=1,NTSrv
-        write(205,'(3E13.5)')startx+stept*k,starty+stepa(j)*gpssyntE(k,i)
+        write(205,'(3E13.5)')startx+stept*k,starty+stepa(j)*gpssyntE(k,j)
       enddo
       write(205,*)
       startx=((3-1)+margin/2.)/3.
 	  write(205,'(3E13.5)')startx,starty
       do k=1,NTSrv
-        write(205,'(3E13.5)')startx+stept*k,starty+stepa(j)*gpssyntZ(k,i)
+        write(205,'(3E13.5)')startx+stept*k,starty+stepa(j)*gpssyntZ(k,j)
       enddo
       write(205,*)
     enddo

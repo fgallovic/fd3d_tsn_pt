@@ -393,13 +393,13 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     subroutine evalmisfit()
     use waveforms_com
     use SlipRates_com
-    use PostSeismic_com
-    use ieee_arithmetic
+	use PostSeismic_com
+	use ieee_arithmetic
     
 	implicit none
 	
     real,parameter:: maxTshift=2.
-    real dumn,dump,normdatn,normdatp,dum2,norma2
+    real dumn,dump,normdatn,normdatp,dum2,norma2, dum3
     integer i,k,ims
     
     ims=int(maxTshift/dtseis)
@@ -428,26 +428,39 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
       endif
     enddo
 	
+	print*,'seis misfit: ', misfit
+	
 	if (NGPS>0) then
-      dum2=0.
-      norma2=0.
-      do i=1,NGPS
-        dum2=dum2+0.5*sum((gpssyntN(1:NTSrv,i)-gpsrealN(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(1,i)**2
-        dum2=dum2+0.5*sum((gpssyntE(1:NTSrv,i)-gpsrealE(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(2,i)**2
-        dum2=dum2+0.5*sum((gpssyntZ(1:NTSrv,i)-gpsrealZ(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(3,i)**2
-        norma2=norma2+0.5*sum((gpsrealN(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(1,i)**2
-        norma2=norma2+0.5*sum((gpsrealE(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(2,i)**2
-        norma2=norma2+0.5*sum((gpsrealZ(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(3,i)**2
-	  enddo
-      if (ieee_is_nan(dum2)) then
-        dum2=1.e30
-        norma2=1.e1
-      endif
-      misfit=misfit + dum2
-      VRGPS=1.-dum2/norma2
-    end if	
+	
+	   dum2=0.
+	   norma2=0.
+	   dum3=0.
+	   do i=1,NGPS
+        
+		dum2=dum2+0.5*sum((gpssyntN(2:NTSrv,i)-gpsrealN(2:NTSrv,i))**2)*SigmaGPS**2/gpssigma(1,i)**2
+	    dum2=dum2+0.5*sum((gpssyntE(2:NTSrv,i)-gpsrealE(2:NTSrv,i))**2)*SigmaGPS**2/gpssigma(2,i)**2
+	    dum2=dum2+0.5*sum((gpssyntZ(2:NTSrv,i)-gpsrealZ(2:NTSrv,i))**2)*SigmaGPS**2/gpssigma(3,i)**2
+		
+		dum3=dum3+0.5*((gpssyntN(1,i)-gpsrealN(1,i))**2)*SigmaGPS**2/gpssigma(1,i)**2
+	    dum3=dum3+0.5*((gpssyntE(1,i)-gpsrealE(1,i))**2)*SigmaGPS**2/gpssigma(2,i)**2
+	    dum3=dum3+0.5*((gpssyntZ(1,i)-gpsrealZ(1,i))**2)*SigmaGPS**2/gpssigma(3,i)**2
+		
+	    norma2=norma2+0.5*sum((gpsrealN(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(1,i)**2
+		norma2=norma2+0.5*sum((gpsrealE(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(2,i)**2
+		norma2=norma2+0.5*sum((gpsrealZ(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(3,i)**2
+	   enddo
+	   
+	   if (ieee_is_nan(dum2)) then
+	     dum2=1.e30
+		 dum3=1.e30
+		 norma2=1.e1
+	   endif
+	   
+       print*, 'GPS misfit', dum3, dum2
+	   misfit=misfit + dum2 + dum3
+	   VRGPS=1.-(dum2+dum3)/norma2
 
-    !if(M0sigma>0.)misfit=misfit+0.5*(M0-M0aprior)**2/M0sigma**2
+    end if	
     if(Mwsigma>0.)misfit=misfit+0.5*(2./3.*log10(M0/M0aprior)/Mwsigma)**2
     
     END
