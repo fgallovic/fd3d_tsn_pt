@@ -699,6 +699,7 @@ if (ieee_is_nan(maxvelX)) exit
                 do i=1,NL
 		          kk=kk+1
                   MSX(kk)=MSX(kk)+MSRX(kk+(k-1)*NL*NW)*dtseis
+				  MSZ(kk)=MSZ(kk)+MSRZ(kk+(k-1)*NL*NW)*dtseis
                 enddo
             enddo
         enddo
@@ -826,7 +827,11 @@ if (ieee_is_nan(maxvelX)) exit
           open(295,FILE='mtildeT.dat')
           open(296,FILE='mtildeS.dat')
           do k=1,NL*NW*NTS
+#if defined DIPSLIP
+            write (296,*) MSZ(k)
+#else
             write (296,*) MSX(k)
+#endif
           enddo
           do k=1,NTS
             write(295,*) TS(k)

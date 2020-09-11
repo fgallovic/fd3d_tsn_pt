@@ -123,7 +123,7 @@
 	
 	MODULE PostSeismic_com
 	
-      REAL,allocatable,dimension(:):: MSX, TS, gpsrealT
+      REAL,allocatable,dimension(:):: MSX, MSZ, TS, gpsrealT
 	  REAL,allocatable,dimension(:,:):: gpssyntN, gpssyntE, gpssyntZ
 	  REAL,allocatable,dimension(:,:):: gpsrealN, gpsrealE, gpsrealZ
 	  REAL,allocatable,dimension(:,:):: gpsgfN, gpsgfE, gpsgfZ, gpssigma

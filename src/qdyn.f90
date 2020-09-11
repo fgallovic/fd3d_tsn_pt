@@ -523,12 +523,13 @@
 	
 	close (10)
     
-	allocate(MSX(NL*NW*NTS),TS(NTS))
+	allocate(MSX(NL*NW*NTS),MSZ(NL*NW*NTS),TS(NTS))
 	allocate(gpsgfN(NL*NW,NGPS),gpsgfE(NL*NW,NGPS),gpsgfZ(NL*NW,NGPS))
 	allocate(gpssyntN(NTSrv,NGPS),gpssyntE(NTSrv,NGPS),gpssyntZ(NTSrv,NGPS))
 	allocate(gpsrealN(NTSrv,NGPS), gpsrealE(NTSrv,NGPS), gpsrealZ(NTSrv,NGPS), gpsrealT(NTSrv))
 
 	MSX=0.
+	MSZ=0.
 	TS=0.
 	gpsgfN=0.
 	gpsgfE=0.
@@ -592,10 +593,13 @@
 	implicit none
 	
 	integer i,j,k,kk, jto2, jfrom2, jto, jfrom, i2, j2
-	real, allocatable, dimension(:):: MSXtemp
+	real, allocatable, dimension(:):: MSXtemp,MSZtemp 
 	real stallocN, stallocE
 	
-	allocate(MSXtemp(NL*NW))
+	allocate(MSXtemp(NL*NW),MSZtemp(NL*NW))
+	
+	MSXtemp=0.
+	MSZtemp=0.
 	
 	open(10,file='gpssyntnez.dat',action='write')
 	
@@ -621,23 +625,34 @@
 	  do j2=1,NTS
 	    
 		if (gpsrealT(j)<=TS(j2)) then
-		  
-		  jfrom=(j2-2)*NL*NW+1
-		  jto=(j2-1)*NL*NW		
-		  jfrom2=(j2-1)*NL*NW+1
-		  jto2=(j2)*NL*NW		
+	
 		  if (NTS.eq.1) then
 		    MSXtemp(1:NL*NW)=MSX(1:NL*NW)
+			MSZtemp(1:NL*NW)=MSZ(1:NL*NW)
 		  else
-		    MSXtemp(1:NL*NW)=(MSX(jfrom:jto)*(TS(j2)-gpsrealT(j))+MSX(jfrom2:jto2)*(gpsrealT(j)-TS(j2-1)))&
-		    /(TS(j2)-TS(j2-1))
+		    jfrom=(j2-2)*NL*NW+1
+		    jto=(j2-1)*NL*NW		
+		    jfrom2=(j2-1)*NL*NW+1
+		    jto2=(j2)*NL*NW	
+		    if (j2==1) then
+			  print*, 'error - gpsreaT(1) has to be > 0'
+			endif
+			MSXtemp(1:NL*NW)=(MSX(jfrom:jto)*(TS(j2)-gpsrealT(j))+MSX(jfrom2:jto2)*(gpsrealT(j)-TS(j2-1)))&
+		    /(TS(j2)-TS(j2-1))	
+			!no postseismic slip for dipslip earthquakes!
 		  endif
 		  
 		  write (10,'(3E13.5)', advance="no") gpsrealT(j)
 		  do i=1,NGPS
+#if defined DIPSLIP
+            gpssyntN(j,i)=dot_product(MSZtemp(1:NL*NW),gpsgfN(1:NL*NW,i))
+	        gpssyntE(j,i)=dot_product(MSZtemp(1:NL*NW),gpsgfE(1:NL*NW,i))
+	        gpssyntZ(j,i)=dot_product(MSZtemp(1:NL*NW),gpsgfZ(1:NL*NW,i))	
+#else
             gpssyntN(j,i)=dot_product(MSXtemp(1:NL*NW),gpsgfN(1:NL*NW,i))
 	        gpssyntE(j,i)=dot_product(MSXtemp(1:NL*NW),gpsgfE(1:NL*NW,i))
 	        gpssyntZ(j,i)=dot_product(MSXtemp(1:NL*NW),gpsgfZ(1:NL*NW,i))	
+#endif
 		    write (10,'(3E13.5)', advance="no") gpssyntN(j,i), gpssyntE(j,i), gpssyntZ(j,i)			
           enddo
 		  
@@ -661,9 +676,6 @@
 	close(11)
 	deallocate(MSXtemp)
 	call plotgps()
-
-	
-
 
 	END 
 	
