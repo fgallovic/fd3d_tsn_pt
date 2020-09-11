@@ -593,7 +593,7 @@
 	
 	integer i,j,k,kk, jto2, jfrom2, jto, jfrom, i2, j2
 	real, allocatable, dimension(:):: MSXtemp
-	real stallocN, stallocZ
+	real stallocN, stallocE
 	
 	allocate(MSXtemp(NL*NW))
 	
@@ -650,12 +650,12 @@
     close(10)	
 	
 	open(10,file='mtildeslip2D-sGPS.out',action='write')
-	open(11,file='gpsstat.dat')
+	open(11,file='stations-GPS.dat')
 	open(12,file='mtildeslip2D-sGPSend.out',action='write')
 	do i=1,NGPS
-		read (11,*) stallocN, stallocZ 
-	    write(10,'(5E13.5)') stallocN, stallocZ, gpssyntN(1,i), gpssyntE(1,i), gpssyntZ(1,i)	
-	    write(12,'(5E13.5)') stallocN, stallocZ, gpssyntN(NTSrv,i)-gpssyntN(1,i), gpssyntE(NTSrv,i)-gpssyntE(1,i), gpssyntZ(NTSrv,i)-gpssyntZ(1,i)	
+		read (11,*) stallocN, stallocE 
+	    write(10,'(5E13.5)') stallocN, stallocE, gpssyntN(1,i), gpssyntE(1,i), gpssyntZ(1,i)	
+	    write(12,'(5E13.5)') stallocN, stallocE, gpssyntN(NTSrv,i)-gpssyntN(1,i), gpssyntE(NTSrv,i)-gpssyntE(1,i), gpssyntZ(NTSrv,i)-gpssyntZ(1,i)	
 	enddo
 	close(10)
 	close(11)
