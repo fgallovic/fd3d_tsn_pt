@@ -953,11 +953,11 @@
     do k=nabc+1,nzt-nfs
       ZS=dh*(k-1-nabc)
       kk=min(NWI-1,int(ZS/DW)+1)
-      u=(ZS-DW*(kk-1))/DW
+      u=min(1.,(ZS-DW*(kk-1))/DW)
       do i=nabc+1,nxt-nabc
         XS=dh*(i-1-nabc)
         ii=min(NLI-1,int(XS/DL)+1)
-        t=(XS-DL*(ii-1))/DL
+        t=min(1.,(XS-DL*(ii-1))/DL)
         Dc(i,k)     =(1.-t)*(1.-u)*DcI(ii,kk)+t*(1.-u)*DcI(ii+1,kk)+t*u*DcI(ii+1,kk+1)+(1.-t)*u*DcI(ii,kk+1)
         dyn_xz(i,k)=dyn*normstress(k)
         peak_xz(i,k)=((1.-t)*(1.-u)*TsI(ii,kk)+t*(1.-u)*TsI(ii+1,kk)+t*u*TsI(ii+1,kk+1)+(1.-t)*u*TsI(ii,kk+1))*normstress(k)+dyn_xz(i,k)

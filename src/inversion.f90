@@ -702,8 +702,8 @@ jj=jj+1
 
     modelinvalid=.true.
 
-!    print *,minval(dc),maxval(dc)
-!    write(*,*) minval(strinix),maxval(strinix)
+!   write(*,*) minval(Dc(nabc+1:nzt-nfs,nabc+1:nxt-nabc)),maxval(Dc(nabc+1:nzt-nfs,nabc+1:nxt-nabc))
+!   write(*,*) minval(striniX(nabc+1:nzt-nfs,nabc+1:nxt-nabc)),maxval(striniX(nabc+1:nzt-nfs,nabc+1:nxt-nabc))
 !Constraints on Min/Max values
     do j=nabc+1,nzt-nfs
       do i=nabc+1,nxt-nabc
@@ -720,7 +720,7 @@ jj=jj+1
 #endif
           return
         endif
-        if(peak_xz(i,j)/normstress(j)<peak_xzMin.or.peak_xz(i,j)/normstress(j)>peak_xzMax)then
+        if((peak_xz(i,j)-dyn_xz(i,j))/normstress(j)<peak_xzMin.or.(peak_xz(i,j)-dyn_xz(i,j))/normstress(j)>peak_xzMax)then
 !          write(*,*)'Peak_xz',i,j,peak_xz(i,j)
           return
         endif
