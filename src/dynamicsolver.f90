@@ -52,8 +52,8 @@
 #if defined GPUMPI
     i=acc_get_num_devices(acc_device_nvidia)
     if(i>1.and.mrank>0)then    !assuming two GPUs at the node; selecting GPU according to even/odd mrank
-      write(*,*)'  Node ',mrank,' has ',i,' GPUs; running on GPU #',mod(mrank,2),'.'
-      call acc_set_device_num(mod(mrank,2), acc_device_nvidia)
+      write(*,*)'  Node ',mrank,' has ',i,' GPUs; running on GPU #',mod(mrank,i),'.'
+      call acc_set_device_num(mod(mrank,i), acc_device_nvidia)
     endif
 #endif
 
