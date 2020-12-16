@@ -52,8 +52,8 @@
       REAL    :: maxvelX,maxvelZ,maxvelsave,tint, tint2, eraddt !Maximum velocities, temporary variables, time integrated part of radiated energy
       real    :: dht, ek, es, ef, c1, c2
       integer :: i,j,it,k, nxe, nxb, nyb, nye, nzb, nze
-      integer :: ifrom,ito,jfrom,jto,kk
-      real    :: rup_tresh, rv, cz, efracds
+      integer :: ifrom,ito,jfrom,jto,kk,ii,jj
+      real    :: rup_tresh, rv, cz, efracds, alphakoef
       real,allocatable,dimension (:,:):: distX,distZ
       real,allocatable,dimension (:):: erad, efrac, schangef
       real,allocatable,dimension (:,:,:)::slipt
@@ -159,7 +159,9 @@
         do k = nabc+1,nzt-nfs
           do i = nabc+1,nxt-nabc
             write(95,*) mu1(i,nysc,k)
-            write(96,'(11E13.5)') T0XI(i,k),T0X(i,k),T0Z(i,k), aZ(i,k),baZ(i,k),uini(i,k), psiZ(i,k), SnZ(i,k), DCZ(i,k), f0Z(i,k), vpls(i,k)
+            write(96,'(100E13.5)') real(T0X(i,k),4),real(T0Z(i,k),4), real(aZ(i,k),4),real(baZ(i,k),4),real(vwZ(i,k),4), real(SnZ(i,k),4), real(DCZ(i,k),4),real(log10(uini(i,k)),4),real(psiZ(i,k),4)&
+			real(uini(i,k)*((DCZ(i,k)/v0)*exp((psiZ(i,k)-f0Z(i,k))/(baZ(i,k)+aZ(i,k))))/DCZ(i,k),4), real(SnZ(i,k)*aZ(i,k)*(log(2*(uini(i,k)/(2*v0)))+(((f0Z(i,k)+(baZ(i,k)+aZ(i,k))*log(v0/uini(i,k)))/aZ(i,k)))),4),  real(f0Z(i,k)-baZ(i,k)*log(uini(i,k)/v0),4),&
+			real(((DCZ(i,k)/v0)*exp((psiZ(i,k)-f0Z(i,k))/(baZ(i,k)+aZ(i,k)))),4)
           enddo
         enddo
         close(95)
@@ -345,7 +347,7 @@
         _ACC_PARALLEL
         _ACC_LOOP
         do i = nabc+1,nxt-nabc
-          pdz = ((xz(i+1,nysc,k-1) - xz(i,nysc,k-1))/(2.*4.) + (zz(i,nysc,k+1) - zz(i,nysc,k))/(2.*2.) - yz(i,nysc-1,k-1)/4.)
+          pdz = ((xz(i+1,nysc,k-1) - xz(i,nysc,k-1))/(2.*4) + (zz(i,nysc,k+1) - zz(i,nysc,k))/(2.*2.) - yz(i,nysc-1,k-1)/(4.))
           avdz(i,k)= damp_s*(pdz - avdz(i,k))
           RFz(i,k) = pdz + avdz(i,k)
           tz(i,k) = -RFz(i,k) - 0.5*d1(i,nysc,k)*dht*w1(i,nysc,k)/2.
@@ -369,6 +371,7 @@
           tz(i,nzt-1)=-tz(i,nzt-3)
 		  RFx(i,nzt-1)=RFx(i,nzt-2)
 		!  RFz(i,nzt-1)=-RFz(i,nzt-3)
+		
         enddo
         _ACC_END_PARALLEL
 #endif
@@ -378,8 +381,8 @@
         !Traction interpolation in staggered positions
         _ACC_PARALLEL
         _ACC_LOOP_COLLAPSE_2
-        do k = nabc+1,nzt-nfs
-          do i = nabc+1,nxt-nabc
+        do k = nabc+1,nzt-nfs-1
+          do i = nabc+1,nxt-nabc-1
             tint=(tx(i,k)+T0X(i,k)+tx(i+1,k)+T0X(i+1,k)+tx(i,k+1)+T0X(i,k+1)+tx(i+1,k+1)+T0X(i+1,k+1))/4.
             tabsZ(i,k) = sqrt(tint**2 + (tz(i,k)+T0Z(i,k))**2)
             tint=(tz(i,k)+T0Z(i,k)+tz(i-1,k)+T0Z(i-1,k)+tz(i,k-1)+T0Z(i,k-1)+tz(i-1,k-1)+T0Z(i-1,k-1))/4.
@@ -387,6 +390,19 @@
 	        uZ(i,k)=(U1(I,NYSC,K)+U1(I+1,NYSC,K)+U1(I,NYSC,K+1)+U1(I+1,NYSC,K+1))/4.
 	        wX(i,k)=(w1(I,NYSC,K)+w1(I-1,NYSC,K)+w1(I,NYSC,K-1)+w1(I-1,NYSC,K-1))/4.
           enddo
+        enddo
+        _ACC_END_PARALLEL
+		
+		i=nxt-nabc 		
+		_ACC_PARALLEL
+        _ACC_LOOP
+        do k = nabc+1,nzt-nfs-1
+            tint=(tx(i,k)+T0X(i,k)+tx(i,k+1)+T0X(i,k+1))/2.
+            tabsZ(i,k) = sqrt(tint**2 + (tz(i,k)+T0Z(i,k))**2)
+            tint=(tz(i,k)+T0Z(i,k)+tz(i-1,k)+T0Z(i-1,k)+tz(i,k-1)+T0Z(i,k-1)+tz(i-1,k-1)+T0Z(i-1,k-1))/4.
+            tabsX(i,k) = sqrt((tx(i,k)+T0X(i,k))**2 + (tint)**2)
+	        uZ(i,k)=(U1(I,NYSC,K)+U1(I,NYSC,K+1))/2.
+	        wX(i,k)=(w1(I,NYSC,K)+w1(I-1,NYSC,K)+w1(I,NYSC,K-1)+w1(I-1,NYSC,K-1))/4.
         enddo
         _ACC_END_PARALLEL
 		
@@ -402,7 +418,16 @@
 	        uZ(i,k)=(U1(I,NYSC,K)+U1(I+1,NYSC,K))/2.
 	        wX(i,k)=(w1(I,NYSC,K)+w1(I-1,NYSC,K)+w1(I,NYSC,K-1)+w1(I-1,NYSC,K-1))/4.
           enddo
-        _ACC_END_PARALLEL		  
+        _ACC_END_PARALLEL
+		
+        i=nxt-nabc
+	k=nzt-nfs
+        tint=(tx(i,k)+T0X(i,k))
+        tabsZ(i,k) = sqrt(tint**2 + (tz(i,k)+T0Z(i,k))**2)
+        tint=(tz(i,k)+T0Z(i,k)+tz(i-1,k)+T0Z(i-1,k)+tz(i,k-1)+T0Z(i,k-1)+tz(i-1,k-1)+T0Z(i-1,k-1))/4.
+        tabsX(i,k) = sqrt((tx(i,k)+T0X(i,k))**2 + (tint)**2)
+	    uZ(i,k)=U1(I,NYSC,K)
+	    wX(i,k)=(w1(I,NYSC,K)+w1(I-1,NYSC,K)+w1(I,NYSC,K-1)+w1(I-1,NYSC,K-1))/4.
 		  
         _ACC_PARALLEL
         _ACC_LOOP_COLLAPSE_2
@@ -487,7 +512,7 @@
         _ACC_PARALLEL
         _ACC_LOOP
         do k = nabc+1,nzt-nfs-1!+1
-          do i = nabc+1,nxt-nabc!+1
+          do i = nabc+1,nxt-nabc-1!+1
 #if defined FVW			
             sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I+1,NYSC,K)-2.*U1(I,NYSC,K+1)-2.*U1(I+1,NYSC,K+1))/4.
 	        sliprateoutZ(i,k) = - 2.*W1(I,NYSC,K)
@@ -506,6 +531,32 @@
           enddo
         enddo
         _ACC_END_PARALLEL
+		
+        i=nxt-nabc
+        _ACC_PARALLEL
+        _ACC_LOOP
+        do k = nabc+1,nzt-nfs-1!+1
+#if defined FVW			
+            sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I,NYSC,K+1))/2.
+	        sliprateoutZ(i,k) = - 2.*W1(I,NYSC,K)
+            slipZ(i,k)=slipZ(i,k)-2.*w1(i,nysc,k)*dt!+abs(2.*w1(i,nysc,k)*dt)!
+            slipX(i,k)=slipX(i,k)-2.*uZ(i,k)*dt!+abs(2.*w1(i,nysc,k)*dt)!           
+#else
+            SCHANGEZ(I,K) = tz(i,k) + T0Z(i,k)
+            sliprateoutZ(i,k) = - 2.*W1(I,NYSC,K)
+            SCHANGEX(I,K) = (tx(i,k)+T0X(i,k)+tx(i,k+1)+T0X(i,k+1))/2.
+            sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I,NYSC,K+1))/2.
+            slipZ(i,k)=slipZ(i,k)-2.*w1(i,nysc,k)*dt!+abs(2.*w1(i,nysc,k)*dt)
+            slipX(i,k)=slipX(i,k)-2.*uZ(i,k)*dt!+abs(2.*uZ(i,k)*dt)
+#endif 
+            efracds=efracds+sqrt(schangeX(i,k)**2+schangeZ(i,k)**2)*sqrt((2.*w1(i,nysc,k)*dt)**2+(2.*uZ(i,k)*dt)**2)
+            eraddt=eraddt+(schangeX(i,k)-t0X(i,k))*sliprateoutX(i,k)*dt+(schangeZ(i,k)-t0Z(i,k))*sliprateoutZ(i,k)*dt
+
+        enddo
+        _ACC_END_PARALLEL
+
+
+
 		
         k=nzt-nfs!+1
 
@@ -676,7 +727,8 @@ if (ieee_is_nan(maxvelX)) exit
           if(maxvelX<=0.01*maxvelsave)exit
 #endif
         endif
-		! output waveforms
+
+! output waveforms
 		
 !		if ((time .GE. waveT) .AND. (waveT .NE. 0.)) then
 !			waveT=0.;
@@ -692,6 +744,32 @@ if (ieee_is_nan(maxvelX)) exit
 	  if (igps==1) then
 #if defined FVW	  
 	    call QDYN3D()
+        !do k=1,nSr 
+        !    kk=0
+        !    do j=1,NW
+        !        do i=1,NL
+		!          kk=((j-1)*NL+i-1)*nSR!kk=kk+1
+        !          MSX(kk)=MSX(kk)+MSRX(kk+(k-1)*NL*NW)*dtseis
+	!			  MSZ(kk)=MSZ(kk)+MSRZ(kk+(k-1)*NL*NW)*dtseis
+    !            enddo
+    !        enddo
+    !    enddo
+!		TS(1)=0.
+!		kk=0
+!        do j=1,NW
+!          do i=1,NL		
+!			kk=kk+1
+!			ii=int((i-0.5)*(nxt-2*nabc)/NL)
+!			jj=int((j-0.5)*(nzt-nabc-nfs)/NW)
+!			alphakoef=aZ(ii,jj)*SnZ(ii,jj)*5000/mu1(nxt/2,nyt,nzt/2)!(ii,nyt,jj)
+!		    do k=2,NTS
+!		      TS(k)=TS(k-1)+(T2S-T1S)/real(NTS-1)
+!		      MSX(kk+(k-1)*NL*NW)=MSX(kk)+alphakoef*log(alphakoef*MSRX(kk+(NSr-1)*NL*NW)*TS(k) + 1.)
+!		    enddo
+!		  enddo
+!		enddo
+		
+		
 #else
         do k=1,nSr 
             kk=0

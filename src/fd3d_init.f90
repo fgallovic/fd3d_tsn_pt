@@ -123,11 +123,12 @@
 	
 	MODULE PostSeismic_com
 	
-      REAL,allocatable,dimension(:):: MSX, MSZ, TS, gpsrealT
+      REAL,allocatable,dimension(:):: MSX, MSZ, TS
 	  REAL,allocatable,dimension(:,:):: gpssyntN, gpssyntE, gpssyntZ
-	  REAL,allocatable,dimension(:,:):: gpsrealN, gpsrealE, gpsrealZ
+	  REAL,allocatable,dimension(:,:):: gpsrealN, gpsrealE, gpsrealZ, gpsrealT
 	  REAL,allocatable,dimension(:,:):: gpsgfN, gpsgfE, gpsgfZ, gpssigma
-	  REAL :: T1S,T2S,SigmaGPS, gpsweight, VRGPS
+	  integer,allocatable,dimension(:)::gpsrealTN
+	  REAL :: T1S,T2S,SigmaGPS,SigmaGPS2, gpsweight, VRGPS
 	  integer :: NTS, NGPS, igps, NTSrv
 	  
 	END MODULE
@@ -826,20 +827,16 @@
         f0(i,k)     = (1.-t)*(1.-u)*f0I(ii,kk)+t*(1.-u)*f0I(ii+1,kk)+t*u*f0I(ii+1,kk+1)+(1.-t)*u*f0I(ii,kk+1)
         fw(i,k)     = (1.-t)*(1.-u)*fwI(ii,kk)+t*(1.-u)*fwI(ii+1,kk)+t*u*fwI(ii+1,kk+1)+(1.-t)*u*fwI(ii,kk+1)
         vw(i,k)     = (1.-t)*(1.-u)*vwI(ii,kk)+t*(1.-u)*vwI(ii+1,kk)+t*u*vwI(ii+1,kk+1)+(1.-t)*u*vwI(ii,kk+1)
-		uini(i,k)   = 1.e-12
+   
+
 #if defined DIPSLIP
+		wini(i,k)   = (1.-t)*(1.-u)*viniI(ii,kk)+t*(1.-u)*viniI(ii+1,kk)+t*u*viniI(ii+1,kk+1)+(1.-t)*u*viniI(ii,kk+1)
         striniZ(i,k)= (1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)+coh(i,k)
-		!psi(i,k)=f0(i,k)-a(i,k)*log(vpls(i,k)*Sn(i,k)*(f0(i,k)-fw(i,k))/v0)
-		
-		
         psi(i,k) = a(i,k)*(log((2*v0/(2*wini(i,k)))) + log(sinh(striniZ(i,k)/(a(i,k)*Sn(i,k)))))
         striniX(i,k)= 0.
 #else
+		uini(i,k)   = (1.-t)*(1.-u)*viniI(ii,kk)+t*(1.-u)*viniI(ii+1,kk)+t*u*viniI(ii+1,kk+1)+(1.-t)*u*viniI(ii,kk+1)
         striniX(i,k)= (1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)+coh(i,k)
-		!psi(i,k)=f0(i,k)-a(i,k)*log(vpls(i,k)*Sn(i,k)*(f0(i,k)-fw(i,k))/v0)
-		!uini(i,k)= 2*v0*0.5*(exp(-psi(i,k)/a(i,k)+striniX(i,k)/(a(i,k)*Sn(i,k)))-exp(-psi(i,k)/a(i,k)-striniX(i,k)/(a(i,k)*Sn(i,k))))
-        
-		
 		psi(i,k) = a(i,k)*(log((2*v0/(2*uini(i,k)))) + log(sinh(striniX(i,k)/(a(i,k)*Sn(i,k)))))
         striniZ(i,k)= 0.
 #endif
@@ -913,7 +910,7 @@
     real dum
 
     open(244,FILE='forwardmodel.dat')
-    read(244,*)dum,dum, nucl(1:5), T0I(:,:),aI(:,:), baI(:,:), psiI(:,:), f0I(:,:), fwI(:,:), DcI(:,:), vwI(:,:)
+    read(244,*)dum,dum, nucl(1:5), T0I(:,:),aI(:,:), baI(:,:), psiI(:,:), f0I(:,:), fwI(:,:), DcI(:,:), vwI(:,:), viniI(:,:)
     close(244)
     
     CALL inversion_modeltofd3d()
