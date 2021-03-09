@@ -395,11 +395,12 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     use SlipRates_com
 	use PostSeismic_com
 	use ieee_arithmetic
+	use source_com, only: ioutput
     
 	implicit none
 	
     real,parameter:: maxTshift=2.
-    real dumn,dump,normdatn,normdatp,dum2,norma2, dum3
+    real dumn,dump,normdatn,normdatp,dum2,norma2,dum3,norma3,temp2
     integer i,k,ims
     
     ims=int(maxTshift/dtseis)
@@ -435,36 +436,50 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
 	   dum2=0.
 	   norma2=0.
 	   dum3=0.
+	   norma3=0.
 	   do i=1,NGPS
-        
-		dum2=dum2+0.5*sum((gpssyntN(2:NTSrv,i)-gpsrealN(2:NTSrv,i))**2)*SigmaGPS**2/gpssigma(1,i)**2
-	    dum2=dum2+0.5*sum((gpssyntE(2:NTSrv,i)-gpsrealE(2:NTSrv,i))**2)*SigmaGPS**2/gpssigma(2,i)**2
-	    dum2=dum2+0.5*sum((gpssyntZ(2:NTSrv,i)-gpsrealZ(2:NTSrv,i))**2)*SigmaGPS**2/gpssigma(3,i)**2
-		
-		dum3=dum3+0.5*((gpssyntN(1,i)-gpsrealN(1,i))**2)*SigmaGPS**2/gpssigma(1,i)**2
+	   
+	    dum3=dum3+0.5*((gpssyntN(1,i)-gpsrealN(1,i))**2)*SigmaGPS**2/gpssigma(1,i)**2
 	    dum3=dum3+0.5*((gpssyntE(1,i)-gpsrealE(1,i))**2)*SigmaGPS**2/gpssigma(2,i)**2
 	    dum3=dum3+0.5*((gpssyntZ(1,i)-gpsrealZ(1,i))**2)*SigmaGPS**2/gpssigma(3,i)**2
 		
-	    norma2=norma2+0.5*sum((gpsrealN(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(1,i)**2
-		norma2=norma2+0.5*sum((gpsrealE(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(2,i)**2
-		norma2=norma2+0.5*sum((gpsrealZ(1:NTSrv,i))**2)*SigmaGPS**2/gpssigma(3,i)**2
+	    norma3=norma3+0.5*((gpsrealN(1,i))**2)*SigmaGPS**2/gpssigma(1,i)**2
+	    norma3=norma3+0.5*((gpsrealE(1,i))**2)*SigmaGPS**2/gpssigma(2,i)**2
+	    norma3=norma3+0.5*((gpsrealZ(1,i))**2)*SigmaGPS**2/gpssigma(3,i)**2
+
+	    if (gpsrealTN(i)>1) then
+		   temp2=gpssyntN(1,i)-gpsrealN(1,i)
+		   dum2=dum2+0.5*sum((gpssyntN(2:gpsrealTN(i),i)-gpsrealN(2:gpsrealTN(i),i)-temp2)**2)*SigmaGPS2**2/gpssigma(1,i)**2
+	       temp2=gpssyntE(1,i)-gpsrealE(1,i)
+		   dum2=dum2+0.5*sum((gpssyntE(2:gpsrealTN(i),i)-gpsrealE(2:gpsrealTN(i),i)-temp2)**2)*SigmaGPS2**2/gpssigma(2,i)**2
+	       temp2=gpssyntZ(1,i)-gpsrealZ(1,i)
+		   dum2=dum2+0.5*sum((gpssyntZ(2:gpsrealTN(i),i)-gpsrealZ(2:gpsrealTN(i),i)-temp2)**2)*SigmaGPS2**2/gpssigma(3,i)**2
+		endif
+
+	    norma2=norma2+0.5*sum((gpsrealN(1:gpsrealTN(i),i)-gpsrealN(1,i))**2)*SigmaGPS2**2/gpssigma(1,i)**2
+		norma2=norma2+0.5*sum((gpsrealE(1:gpsrealTN(i),i)-gpsrealE(1,i))**2)*SigmaGPS2**2/gpssigma(2,i)**2
+		norma2=norma2+0.5*sum((gpsrealZ(1:gpsrealTN(i),i)-gpsrealZ(1,i))**2)*SigmaGPS2**2/gpssigma(3,i)**2
 	   enddo
-	   
+
 	   if (ieee_is_nan(dum2)) then
 	     dum2=1.e30
 		 dum3=1.e30
 		 norma2=1.e1
 	   endif
-	   
-       print*, 'GPS misfit', dum3, dum2
+	   print*,'GPS misfit: ', dum2, dum3, norma2, norma3
 	   misfit=misfit + dum2 + dum3
-	   VRGPS=1.-(dum2+dum3)/norma2
-
-    end if	
+	   VRGPS=1.-(dum2/norma2+dum3/norma3)
+	   
+	   if (ioutput.EQ.1) then
+	        open(3141,file='result/misfit.dat')  
+		    write(3141,'(2E13.5)') misfit - (dum2+dum3), (dum2+dum3)
+			close(3141)
+	   endif
+    end if
+	
     if(Mwsigma>0.)misfit=misfit+0.5*(2./3.*log10(M0/M0aprior)/Mwsigma)**2
     
     END
-
 
     subroutine evalmisfit2() !old type of misfit calculation
     use mod_pgamisf

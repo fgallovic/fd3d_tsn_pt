@@ -1,16 +1,14 @@
 #if defined FVW
-	MODULE RATESTATE
-      USE MKL_DFTI                         ! MKL
-      INTEGER MDIS,NDIS,MNDIS,MNDIS2,fft(2)
+   MODULE RATESTATE
+      INTEGER MDIS,NDIS,MNDIS,MNDIS2,fft(2),MDISFT,NDISFT
       REAL*8 VPL,DX,DY,VS, G2B
       REAL*8 dtRATE,dtRUPT,dtSLIP
       REAL*8,ALLOCATABLE:: stresstep(:),tangstep(:),rupttime(:),timedcff(:)
       INTEGER,ALLOCATABLE:: ruptloc(:)
-      REAL*8,ALLOCATABLE:: slip(:),ruptsnapshot(:,:)
+      REAL*8,ALLOCATABLE:: slip(:),ruptsnapshot(:,:),slipOUT(:,:)
       COMPLEX*16,ALLOCATABLE:: Kij(:),varsc(:)
-      TYPE(DFTI_DESCRIPTOR), POINTER :: Desc_Handle
-	  integer gkoef
-	  double precision dhh
+      integer gkoef
+      double precision dhh
     END MODULE
 	
     Subroutine QDYN3D
@@ -37,25 +35,38 @@
 	integer :: px, pz
     integer i,j,k,istatus,nsaves, i2, i3, j2, j3, ni
 
-
-    !MDIS=256*4;NDIS=128*2
-	gkoef=4
-	dhh=dh*gkoef
-	MDIS=((nxt-2*nabc-1)/gkoef)+1    
-	NDIS=((nzt-nfs-nabc-1)/gkoef)+1  
+	!gkoef je v fd3d_init
+	dhh=dh*gkoef  
 	
+	do i=1,100
+	  if (MDIS<=2**i) then
+	    MDISFT=2**i
+	    exit
+	  endif
+	enddo
+	
+	do i=1,100
+	  if (NDIS<=2**i) then
+	    NDISFT=2**i
+	    exit
+	  endif
+	enddo
+	print*, MDISFT, NDISFT
     MNDIS=MDIS*NDIS;MNDIS2=MDIS*NDIS*2
     scenarios=1
-    allocate(Kij(MDIS*NDIS*8))
-    allocate(slip(MNDIS),varsc(MDIS*NDIS*8))
+    allocate(Kij(MDISFT*NDISFT*8))
+    allocate(slip(MNDIS),varsc(MDISFT*NDISFT*8))
     allocate(vars(MNDIS2))
     allocate(stresstep(scenarios),tangstep(scenarios),timedcff(scenarios))
     allocate(ruptsnapshot(scenarios,MNDIS))
     timedcff(1)=0.
 	stresstep(1)=0.
 	tangstep(1)=0.
-    
-    fft(1)=NDIS*4;fft(2)=MDIS*2
+	slipOUT=0.
+    Kij=0.
+	
+	
+    fft(1)=NDISFT*4;fft(2)=MDISFT*2
     VPL=0.
 
     DX=dhh
@@ -75,6 +86,7 @@
 		j3=nabc+1+(j-1)*gkoef
 		!G(k)=mu1(i3,nyt,j3)
 		slip(k)=slipX(i3,j3)
+		slipOUT(1,k)=slip(k)
 		!koef(k)=2*(lam1(i3,nyt,j3)+mu1(i3,nyt,j3))/(lam1(i3,nyt,j3)+2*mu1(i3,nyt,j3))
 		!write(102,*)G(k),G2B(k),koef(k)
       enddo
@@ -93,18 +105,18 @@
     write(*,*)'h/h*=',max(DX,DY)/hstar
     write(*,*)'hmax=',2.d0*Gtemp/pi/SnZ(nxt/2,nzt/2)/maxval(baZ)*maxval(DcZ)
 
-    do i=1,MDIS*2
-      do j=1,NDIS*4
-        if(i>MDIS)then
-          I1m=(dble(MDIS*2-i+1)-.5d0)*DX
-          I1p=(dble(MDIS*2-i+1)+.5d0)*DX
+    do i=1,MDISFT*2
+      do j=1,NDISFT*4
+        if(i>MDISFT)then
+          I1m=(dble(MDISFT*2-i+1)-.5d0)*DX
+          I1p=(dble(MDISFT*2-i+1)+.5d0)*DX
         else
           I1m=(dble(i-1)-.5d0)*DX
           I1p=(dble(i-1)+.5d0)*DX
         endif
-        if(j>NDIS*2)then
-          I2m=(dble(NDIS*4-j+1)-.5d0)*DY
-          I2p=(dble(NDIS*4-j+1)+.5d0)*DY
+        if(j>NDISFT*2)then
+          I2m=(dble(NDISFT*4-j+1)-.5d0)*DY
+          I2p=(dble(NDISFT*4-j+1)+.5d0)*DY
         else
           I2m=(dble(j-1)-.5d0)*DY
           I2p=(dble(j-1)+.5d0)*DY
@@ -132,26 +144,21 @@
 		  ! endif
 		
 		! endif
-		Kij((i-1)*NDIS*4+j)=Gtemp/4.d0/pi*(koeftemp*(1.d0/I1m*(I2p/I1mI2p-I2m/I1mI2m)-1.d0/I1p*(I2p/I1pI2p-I2m/I1pI2m))+1.d0/I2m*(I1p/I1pI2m-I1m/I1mI2m)-1.d0/I2p*(I1p/I1pI2p-I1m/I1mI2p))/dble(MDIS*NDIS*8)
+		Kij((i-1)*NDISFT*4+j)=Gtemp/4.d0/pi*(koeftemp*(1.d0/I1m*(I2p/I1mI2p-I2m/I1mI2m)-1.d0/I1p*(I2p/I1pI2p-I2m/I1pI2m))+1.d0/I2m*(I1p/I1pI2m-I1m/I1mI2m)-1.d0/I2p*(I1p/I1pI2p-I1m/I1mI2p))/dble(MDISFT*NDISFT*8)
       enddo
     enddo
 	
-	!open(102,FILE='kij.txt')
+    !open(102,FILE='kij.txt')
     !write(102,'(E18.11)')real(Kij)
     !close(102)
-	
-    istatus=DftiCreateDescriptor(Desc_Handle,DFTI_DOUBLE,DFTI_COMPLEX,2,fft)
-    istatus=DftiCommitDescriptor(Desc_Handle)
-    istatus=DftiComputeForward  (Desc_Handle,Kij)
-
-
+    call fourn(Kij,fft,2,1)		
     write(*,*)'Serial version.'
     ifrom=1
     ito=1
-    !open(110,FILE='varsmax2.txt')
     if (ioutput.eq.1) then	
-	  open(112,FILE='slip.txt')
-	endif
+        open(112,FILE='slip.txt')
+        open(110,FILE='varsmax2.txt')
+    endif
    ! open(104,FILE='friction.txt')
    ! open(114,FILE='slipslices.txt')
    ! open(115,form='binary',FILE='timefunc.dat')
@@ -205,33 +212,35 @@
     time0=T1S
     time2=T2S
     dxsav=(time2-time0)/dble(kmax-1)
-	  if (ioutput.eq.1) then
+    if (ioutput.eq.1) then
 	open(102,FILE='vars.txt')
-    write(102,'(E18.11)')vars
-    close(102)	
-	endif
+        write(102,'(E18.11)')vars
+        close(102)	
+    endif
     CALL odeint(vars,time0,time2,time,eps,h1,hmin,nok,nbad,ruptongoing,1,1)
+	do k=1,MNDIS
 	
+	    slipOUT(2,k)=slip(k)
+	    
+	enddo
 	!open(102,FILE='vars.txt')
     !write(102,'(E18.11)')vars
     ! close(102)	
     if (ioutput.eq.1) then
-	    close(112)
-	endif
-	!close(110)
+        close(112)
+        close(110)
+    endif
     deallocate(Kij)
     deallocate(slip,varsc)
     deallocate(vars)
     deallocate(stresstep,tangstep,timedcff)
     deallocate(ruptsnapshot)
-    istatus=DftiFreeDescriptor(Desc_Handle)
 
     END
 
 
 
     SUBROUTINE rates(t,vars,s,varsdx)
-    USE MKL_DFTI
     USE RATESTATE	
 	use fd3dparam_com
 	use medium_com
@@ -246,19 +255,17 @@
     varsc=0.
 !$OMP parallel do private(i,j,idum,varsdum) DEFAULT(SHARED) SCHEDULE(DYNAMIC,10)
     do i=1,MDIS
-      idum=(i+MDIS/2)*NDIS*4-NDIS*2
+      idum=(i+MDISFT/2)*NDISFT*4-NDISFT*2
       do j=1,NDIS
         varsdum=vars(i+(j-1)*MDIS)
         varsc(idum-j+1)=varsdum
         varsc(idum+j)=varsdum
       enddo
-      varsc(idum+NDIS+1:idum+NDIS*3)=0.d0
     enddo
 !$OMP end parallel do
-
-    istatus=DftiComputeForward(Desc_Handle,varsc)
+    call fourn(varsc,fft,2,1)
     varsc=varsc*Kij
-    istatus=DftiComputeBackward(Desc_Handle,varsc)
+    call fourn(varsc,fft,2,-1)
   !  write(114,*) varsc(1:8*MNDIS)
 	!write(114,*) ' '
 !$OMP parallel do private(i,j,k,i3,j3,flv,fss,psiss,xx,dsdv,dsds) DEFAULT(SHARED) SCHEDULE(DYNAMIC,10)
@@ -266,38 +273,26 @@
     do j=1,NDIS
       do i=1,MDIS
 	    k=k+1
-		!right side - evolution of state variable
-		i3=nabc+1+(i-1)*gkoef
-		j3=nabc+1+(j-1)*gkoef
+	    !right side - evolution of state variable
+	    i3=nabc+1+(i-1)*gkoef
+            j3=nabc+1+(j-1)*gkoef
+            aII=aZ(i3,j3)		
+	    flv = f0Z(i3,j3) - baZ(i3,j3)*log(abs(vars(k))/v0)
+	    fss=fwZ(i3,j3) + (flv - fwZ(i3,j3))/((1. + (abs(vars(k))/vwZ(i3,j3))**8)**(1./8.))
+            psiss = aII*(log(sinh(fss/aII)) + log(2.*v0/abs(vars(k)))) 		
+            varsdx(k+MNDIS)=-abs(vars(k))/DCZ(i3,j3)*(vars(MNDIS+k)-psiss)   !1.d0-vars(k)*vars(k+MNDIS)/DC(k)-ALPHAl(k)*vars(k+MNDIS)/Bl(k)*SIGD(i,j)/SIG(i,j)
+	    !right side - velocity	
 		
-		aII=aZ(i3,j3)
-		
-		flv = f0Z(i3,j3) - baZ(i3,j3)*log(abs(vars(k))/v0)
-		fss=fwZ(i3,j3) + (flv - fwZ(i3,j3))/((1. + (abs(vars(k))/vwZ(i3,j3))**8)**(1./8.))
-        psiss = aII*(log(sinh(fss/aII)) + log(2.*v0/abs(vars(k)))) 
-		
-        varsdx(k+MNDIS)=-abs(vars(k))/DCZ(i3,j3)*(vars(MNDIS+k)-psiss)   !1.d0-vars(k)*vars(k+MNDIS)/DC(k)-ALPHAl(k)*vars(k+MNDIS)/Bl(k)*SIGD(i,j)/SIG(i,j)
-
-		!right side - velocity	
-		
-		xx=abs(vars(k))/(2.*v0)*exp(vars(MNDIS+k)/aII)
+            xx=abs(vars(k))/(2.*v0)*exp(vars(MNDIS+k)/aII)
 	!	if (vars(k)>0) then
-		dsdv=aII*1./(abs(vars(k))/(2.*v0)*sqrt(1.+1./(xx*xx)))*(1.+xx/sqrt(xx*xx+1.))*1./(2.*v0)
+	    dsdv=aII*1./(abs(vars(k))/(2.*v0)*sqrt(1.+1./(xx*xx)))*(1.+xx/sqrt(xx*xx+1.))*1./(2.*v0)
 	!	else 
 	!	dsdv=-aZ(i3,j3)*1./(xx+sqrt(xx*xx+1))*(1.+xx/sqrt(xx*xx+1.))*1./(2.*v0)*exp(vars(MDIS+k)/aZ(i3,j3))
 	!	endif
-		dsds=1./(abs(vars(k))/(2.*v0)*sqrt(1.+1./(xx*xx)))*(1.+xx/sqrt(xx*xx+1))*abs(vars(k))/(2.*v0)
+	    dsds=1./(abs(vars(k))/(2.*v0)*sqrt(1.+1./(xx*xx)))*(1.+xx/sqrt(xx*xx+1))*abs(vars(k))/(2.*v0)
 		
-        varsdx(k)=dble(varsc((i+MDIS/2-1)*NDIS*4+j+NDIS*2)-SnZ(i3,j3)*dsds*varsdx(k+MNDIS))/(SnZ(i3,j3)*dsdv+G2B)!G2B(k))
-		!if (varsdx(k)>1.) then
-		!print*, vars(k+MNDIS),varsdx(k+MNDIS), vars(k),varsdx(k), psiss, fss, flv, k
-		!pause
-		!endif
-		!if (k==493) then
-	!		print*, vars(k+MNDIS),varsdx(k+MNDIS), vars(k),varsdx(k), psiss, fss, flv, k, xx, dsds, dsdv, vars(MNDIS+k)/aZ(i3,j3)
-!		    pause
-		
-		!endif
+            varsdx(k)=dble(varsc((i+MDISFT/2-1)*NDISFT*4+j+NDISFT*2)-SnZ(i3,j3)*dsds*varsdx(k+MNDIS))/(SnZ(i3,j3)*dsdv+G2B)!G2B(k))
+
       enddo
     enddo
     !write(114,*)  ' '
@@ -373,6 +368,79 @@
       endif
     END
 	
+	SUBROUTINE fourn(data,nn,ndim,isign)
+      INTEGER isign,ndim,nn(ndim)
+      DOUBLE PRECISION data(*)
+      INTEGER i1,i2,i2rev,i3,i3rev,ibit,idim,ifp1,ifp2,ip1,ip2,ip3,k1,k2,n,nprev,nrem,ntot
+      DOUBLE PRECISION tempi,tempr
+      DOUBLE PRECISION theta,wi,wpi,wpr,wr,wtemp
+      ntot=1
+      do 11 idim=1,ndim
+        ntot=ntot*nn(idim)
+11    continue
+      nprev=1
+      do 18 idim=1,ndim
+        n=nn(idim)
+        nrem=ntot/(n*nprev)
+        ip1=2*nprev
+        ip2=ip1*n
+        ip3=ip2*nrem
+        i2rev=1
+        do 14 i2=1,ip2,ip1
+          if(i2.lt.i2rev)then
+            do 13 i1=i2,i2+ip1-2,2
+              do 12 i3=i1,ip3,ip2
+                i3rev=i2rev+i3-i2
+                tempr=data(i3)
+                tempi=data(i3+1)
+                data(i3)=data(i3rev)
+                data(i3+1)=data(i3rev+1)
+                data(i3rev)=tempr
+                data(i3rev+1)=tempi
+12            continue
+13          continue
+          endif
+          ibit=ip2/2
+1         if ((ibit.ge.ip1).and.(i2rev.gt.ibit)) then
+            i2rev=i2rev-ibit
+            ibit=ibit/2
+          goto 1
+          endif
+          i2rev=i2rev+ibit
+14      continue
+        ifp1=ip1
+2       if(ifp1.lt.ip2)then
+          ifp2=2*ifp1
+          theta=isign*6.28318530717959d0/(ifp2/ip1)
+          wpr=-2.d0*sin(0.5d0*theta)**2
+          wpi=sin(theta)
+          wr=1.d0
+          wi=0.d0
+          do 17 i3=1,ifp1,ip1
+            do 16 i1=i3,i3+ip1-2,2
+              do 15 i2=i1,ip3,ifp2
+                k1=i2
+                k2=k1+ifp1
+                tempr=dble(wr)*data(k2)-dble(wi)*data(k2+1)
+                tempi=dble(wr)*data(k2+1)+dble(wi)*data(k2)
+                data(k2)=data(k1)-tempr
+                data(k2+1)=data(k1+1)-tempi
+                data(k1)=data(k1)+tempr
+                data(k1+1)=data(k1+1)+tempi
+15            continue
+16          continue
+            wtemp=wr
+            wr=wr*wpr-wi*wpi+wr
+            wi=wi*wpr+wtemp*wpi+wi
+17        continue
+          ifp1=ifp2
+        goto 2
+        endif
+        nprev=n*nprev
+18    continue
+      return
+      END
+
     SUBROUTINE odeint(ystart,x1,x2,x,eps,h1,hmin,nok,nbad,ruptongoing,scennum)
       USE RATESTATE
 	  USE PostSeismic_com
@@ -447,8 +515,8 @@
 	    
      !   write(110,'(10000E13.5)')x,y(1:MNDIS)
       !  write(115)x,hdid,sumacc,sumvel,sumslip,maxvel,maxacc
-	    if (ioutput.eq.1) then
-        write(112,'(E18.11,1000000E13.5)')x,slip(1:MNDIS)!, y(1+MNDIS:2*MNDIS)
+	if (ioutput.eq.1) then
+            write(112,'(E18.11,1000000E13.5)')x,slip(1:MNDIS)!, y(1+MNDIS:2*MNDIS)
         endif
 
         if(kmax.gt.0)then
@@ -738,8 +806,11 @@
     do j=1,NGPS
       maxampl(j)=0.
       maxampl(j)=max(maxampl(j),maxval(abs(gpssyntN(:,j)-gpssyntN(1,j))))
+	  maxampl(j)=max(maxampl(j),maxval(abs(gpsrealN(:,j)-gpsrealN(1,j))))
       maxampl(j)=max(maxampl(j),maxval(abs(gpssyntE(:,j)-gpssyntE(1,j))))
+	  maxampl(j)=max(maxampl(j),maxval(abs(gpsrealE(:,j)-gpsrealE(1,j))))
       maxampl(j)=max(maxampl(j),maxval(abs(gpssyntZ(:,j)-gpssyntZ(1,j))))
+	  maxampl(j)=max(maxampl(j),maxval(abs(gpsrealZ(:,j)-gpsrealZ(1,j))))
       stepa(j)=.5/dble(NGPS)*(1.-margin)/maxampl(j)
     enddo
 

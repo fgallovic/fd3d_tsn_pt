@@ -79,8 +79,10 @@
       integer:: j
 #if defined DIPSLIP
       normstress=max(1.e5,8520.*dh*real(nzt-nfs-j)*sin(dip/180.*pi))
+      !normstress=min(18.*dh*real(nzt-nfs-j)*sin(dip/180.*pi)/1.e3,100.);normstress=1.e6*max(1.,normstress)
 #else
       normstress=max(1.e5,16200.*dh*real(nzt-nfs-j)*sin(dip/180.*pi))
+      !normstress=min(18.*dh*real(nzt-nfs-j)*sin(dip/180.*pi)/1.e3,100.);normstress=1.e6*max(1.,normstress)
 #endif
       END FUNCTION
       
@@ -144,6 +146,10 @@
       USE pml_com
       USE traction_com
       USE SlipRates_com
+#if defined FVW
+      USE RATESTATE, only: gkoef, MDIS, NDIS, slipOUT
+#endif
+	  
       IMPLICIT NONE
       
       integer nxtT, nytT, nztT
@@ -203,7 +209,10 @@
 	  allocate(f0Z(nxt,nzt),fwZ(nxt,nzt),SnZ(nxt,nzt))
 	  allocate(uini(nxt,nzt),wini(nxt,nzt),t0Xi(nxt,nzt),t0Zi(nxt,nzt))
 	  perturb=0.
-
+	  gkoef=4
+	  MDIS=((nxt-2*nabc-1)/gkoef)+1    
+	  NDIS=((nzt-nfs-nabc-1)/gkoef)+1 
+	  allocate(slipOUT(2,MDIS*NDIS))
 #else
 
       allocate(striniZ(nxt,nzt),striniX(nxt,nzt),peak_xz(nxt,nzt),Dc(nxt,nzt),dyn_xz(nxt,nzt))
@@ -814,11 +823,11 @@
     do k=nabc+1,nzt-nfs
       ZS=dh*(k-1-nabc)
       kk=min(NWI-1,int(ZS/DW)+1)
-      u=(ZS-DW*(kk-1))/DW
+      u=min(1.,(ZS-DW*(kk-1))/DW)
       do i=nabc+1,nxt-nabc
         XS=dh*(i-1-nabc)
         ii=min(NLI-1,int(XS/DL)+1)
-        t=(XS-DL*(ii-1))/DL
+        t=min(1.,(XS-DL*(ii-1))/DL) 
         Dc(i,k)     = (1.-t)*(1.-u)*DcI(ii,kk)+t*(1.-u)*DcI(ii+1,kk)+t*u*DcI(ii+1,kk+1)+(1.-t)*u*DcI(ii,kk+1)
         Sn(i,k)     = normstress(k)
         a(i,k)      = (1.-t)*(1.-u)*aI(ii,kk)+t*(1.-u)*aI(ii+1,kk)+t*u*aI(ii+1,kk+1)+(1.-t)*u*aI(ii,kk+1)
@@ -954,7 +963,7 @@
       do i=nabc+1,nxt-nabc
         XS=dh*(i-1-nabc)
         ii=min(NLI-1,int(XS/DL)+1)
-        t=min(1.,(XS-DL*(ii-1))/DL)
+        t=min(1.,(XS-DL*(ii-1))/DL) 
         Dc(i,k)     =(1.-t)*(1.-u)*DcI(ii,kk)+t*(1.-u)*DcI(ii+1,kk)+t*u*DcI(ii+1,kk+1)+(1.-t)*u*DcI(ii,kk+1)
         dyn_xz(i,k)=dyn*normstress(k)
         peak_xz(i,k)=((1.-t)*(1.-u)*TsI(ii,kk)+t*(1.-u)*TsI(ii+1,kk)+t*u*TsI(ii+1,kk+1)+(1.-t)*u*TsI(ii,kk+1))*normstress(k)+dyn_xz(i,k)

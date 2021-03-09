@@ -25,6 +25,7 @@
 !    real,allocatable,dimension(:,:,:):: TsA  !Array of variables in MC chains:
     real,allocatable,dimension(:):: VRA, EgA, ErA, MisfitA,TshiftA, VRgpsA
 	real,allocatable,dimension(:,:,:):: ruptimeA,riseA,slipA,schangeA
+	real,allocatable,dimension(:,:,:):: slipOUTA
 	real,allocatable :: pgaA(:,:,:),MwA(:),M0A(:),ruptdistA(:,:),MomentRateA(:,:)
     integer randseed,StepType
 
@@ -52,6 +53,7 @@
     use mod_pgamisf, only : GMPE_id
     use SlipRates_com
 	use PostSeismic_com
+    USE RATESTATE, only: MDIS, NDIS
     implicit none
 	
     open(10,FILE='inputinv.dat')
@@ -84,6 +86,7 @@
     allocate(T0I(NLI,NWI), aI(NLI,NWI), baI(NLI,NWI), psiI(NLI,NWI), f0I(NLI,NWI), fwI(NLI,NWI), DcI(NLI,NWI), vwI(NLI, NWI), viniI(NLI, NWI))
     allocate(T0A(NLI,NWI,nchains), aA(NLI,NWI,nchains), baA(NLI,NWI,nchains), psiA(NLI,NWI,nchains))
 	allocate(f0A(NLI,NWI,nchains), fwA(NLI,NWI,nchains), DcA(NLI,NWI,nchains), vwA(NLI, NWI,nchains), viniA(NLI, NWI,nchains))
+	allocate(slipOUTA(2,MDIS*NDIS,nchains))
 	allocate(nucl(5), nuclA(5,nchains)) !hx0, hz0, RR2, TT2, perturb
     allocate(ruptimeA(nxt,nzt,nchains),riseA(nxt,nzt,nchains),slipA(nxt,nzt,nchains),schangeA(nxt,nzt,nchains))
 	allocate(VRA(nchains),VRgpsA(nchains),EgA(nchains),ErA(nchains),MisfitA(nchains),M0A(nchains),MwA(nchains),TshiftA(nchains))
@@ -110,7 +113,8 @@
     use fd3dparam_com
     use PostSeismic_com
 	use frictionconstraints_com, only : viniMin, vwMin
-
+	use RATESTATE, only:slipOUT
+	
     implicit none
     
     real,parameter:: eps=1.e-6
@@ -139,27 +143,26 @@
             aI(i,j)=aA(i,j,ichain)*exp(gasdev(iseed)*StepSizea)
             f0I(i,j)=f0A(i,j,ichain)*exp(gasdev(iseed)*StepSizef0)
             DcI(i,j)=DcA(i,j,ichain)*exp(gasdev(iseed)*StepSizeDc)
-            baI(i,j)=(baA(i,j,ichain)+aI(i,j))*exp(gasdev(iseed)*StepSizeba)-aI(i,j)
+            baI(i,j)=(baA(i,j,ichain)+aA(i,j,ichain))*exp(gasdev(iseed)*StepSizeba)-aA(i,j,ichain)
            ! DcI(i,j)=DcI(1,1)
-			
-            prop12=prop12+log(T0A(i,j,ichain))+log(aA(i,j,ichain))+log(f0A(i,j,ichain))+log(DcA(i,j,ichain))+log(vwA(i,j,ichain))+log(viniA(i,j,ichain))+log(baA(i,j,ichain)+aA(i,j,ichain))
-            prop21=prop21+log(T0I(i,j))+log(aI(i,j))+log(f0I(i,j))+log(DcI(i,j))+log(vwI(i,j))+log(viniI(i,j))+log(baI(i,j)+aI(i,j))
 			
 			!normal step for ba
 	        !baI(i,j)=baA(i,j,ichain)+gasdev(iseed)*StepSizeba
-			
+            prop12=prop12+log(T0A(i,j,ichain))+log(aA(i,j,ichain))+log(f0A(i,j,ichain))+log(DcA(i,j,ichain))+log(baA(i,j,ichain)+aA(i,j,ichain))
+            prop21=prop21+log(T0I(i,j))+log(aI(i,j))+log(f0I(i,j))+log(DcI(i,j))+log(baI(i,j)+aI(i,j))			
 			!vini and vw change only in velocity strenghtening zone
 			if (baI(i,j)<0.) then
 			  vwI(i,j)=vwA(i,j,ichain)*exp(gasdev(iseed)*StepSizevw)
 			  viniI(i,j)=viniA(i,j,ichain)*exp(gasdev(iseed)*StepSizevini)
+			  prop12=prop12+log(vwA(i,j,ichain))+log(viniA(i,j,ichain))
+			  prop21=prop21+log(vwI(i,j))+log(viniI(i,j))
 			else
 			  vwI(i,j)=0.1
 			  viniI(i,j)=1.e-12
 			endif
-
-          enddo
+			
+		 enddo
         enddo
-
 	  
         nucl(3)=nuclA(3,ichain)*exp(gasdev(iseed)*StepSizenucl(3))
         nucl(5)=nuclA(5,ichain)*exp(gasdev(iseed)*StepSizenucl(5))	  
@@ -252,6 +255,9 @@
       M0A(ichain)=M0
       MwA(ichain)=Mw
 	  TshiftA(ichain)=Tshift
+	  slipOUTA(:,:,ichain)=slipOUT(:,:)
+	  
+	  
       if (iwaveform==2) then
         ruptdistA(:,ichain)=ruptdist(:)
         pgaA(:,:,ichain)=pgaD(:,:)
@@ -267,7 +273,7 @@
  !     write(ifile,'(1000000E13.5)')misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),Eg,Er
       flush(ifile)
       write(ifile+2)misfit,VRA(ichain),nuclA(1:5,ichain),T0A(:,:,ichain),aA(:,:,ichain),baA(:,:,ichain),psiA(:,:,ichain),f0A(:,:,ichain),fwA(:,:,ichain),DcA(:,:,ichain),vwA(:,:,ichain),viniA(:,:,ichain),ruptimeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),slipA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain), &
-          & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRateA(:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
+          & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRateA(:,ichain),slipOUTA(1,:,ichain),slipOUTA(2,:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
       flush(ifile+2)
       if (iwaveform==2) then
         write(ifile*10) (misfit,MwA(ichain),ruptdistA(jj,ichain),pgaA(jj,:,ichain)/100., jj=1,nrseis)

@@ -159,9 +159,17 @@
         do k = nabc+1,nzt-nfs
           do i = nabc+1,nxt-nabc
             write(95,*) mu1(i,nysc,k)
-            write(96,'(100E13.5)') real(T0X(i,k),4),real(T0Z(i,k),4), real(aZ(i,k),4),real(baZ(i,k),4),real(vwZ(i,k),4), real(SnZ(i,k),4), real(DCZ(i,k),4),real(log10(uini(i,k)),4),real(psiZ(i,k),4)&
-			real(uini(i,k)*((DCZ(i,k)/v0)*exp((psiZ(i,k)-f0Z(i,k))/(baZ(i,k)+aZ(i,k))))/DCZ(i,k),4), real(SnZ(i,k)*aZ(i,k)*(log(2*(uini(i,k)/(2*v0)))+(((f0Z(i,k)+(baZ(i,k)+aZ(i,k))*log(v0/uini(i,k)))/aZ(i,k)))),4),  real(f0Z(i,k)-baZ(i,k)*log(uini(i,k)/v0),4),&
-			real(((DCZ(i,k)/v0)*exp((psiZ(i,k)-f0Z(i,k))/(baZ(i,k)+aZ(i,k)))),4)
+            write(96,'(100E13.5)') real(T0X(i,k),4),&
+			real(T0Z(i,k),4), &
+			real(aZ(i,k),4),&
+			real(baZ(i,k),4),&
+			real(vwZ(i,k),4),&
+			real(SnZ(i,k),4),&
+			real(DCZ(i,k),4),&
+			real(log10(uini(i,k)),4),&
+			real(psiZ(i,k),4)
+			!real(uini(i,k)*((DCZ(i,k)/v0)*exp((psiZ(i,k)-f0Z(i,k))/(baZ(i,k)+aZ(i,k))))/DCZ(i,k),4), real(SnZ(i,k)*aZ(i,k)*(log(2*(uini(i,k)/(2*v0)))+(((f0Z(i,k)+(baZ(i,k)+aZ(i,k))*log(v0/uini(i,k)))/aZ(i,k)))),4),  real(f0Z(i,k)-baZ(i,k)*log(uini(i,k)/v0),4),&
+			!real(((DCZ(i,k)/v0)*exp((psiZ(i,k)-f0Z(i,k))/(baZ(i,k)+aZ(i,k)))),4)
           enddo
         enddo
         close(95)
@@ -727,8 +735,7 @@ if (ieee_is_nan(maxvelX)) exit
           if(maxvelX<=0.01*maxvelsave)exit
 #endif
         endif
-
-! output waveforms
+		! output waveforms
 		
 !		if ((time .GE. waveT) .AND. (waveT .NE. 0.)) then
 !			waveT=0.;

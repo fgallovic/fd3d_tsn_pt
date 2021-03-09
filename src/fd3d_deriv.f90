@@ -20,6 +20,7 @@
 #define _ACC_LOOP_COLLAPSE_2 !$acc loop collapse (2)
 #define _ACC_LOOP_COLLAPSE_3 !$acc loop collapse (3)
 #define _ACC_END_PARALLEL    !$acc end parallel
+#define _ACC_LOOP            !$acc loop
 !----------------------------------------------------------
       subroutine dvel(nxt,nyt,nzt,dt,dh)
       USE pml_com
@@ -769,6 +770,7 @@
       USE pml_com
       USE displt_com
       USE strfld_com
+	  USE medium_com
 !----------------------------------------------------------
 !     2th order finite-difference of stresses at boundaries
 !     nxt   nodal points in x dir  (integer)(sent)
@@ -788,8 +790,8 @@
       call sxy0(nabc+1,nxt-nabc, nyt-1, nyt-1, nabc+1,nzt-nfs,dh,dt)
       call sxz0(nabc+1,nxt-nabc, nyt-1, nyt-1, nabc+1,nzt-nfs,dh,dt)
       call syz0(nabc+1,nxt-nabc, nyt-1, nyt-1, nabc+1,nzt-nfs,dh,dt)
-      
-      _ACC_PARALLEL
+	  
+	  _ACC_PARALLEL
       _ACC_LOOP_COLLAPSE_2
       do i = 1,nxt
         do k = 1,nzt
@@ -1022,12 +1024,20 @@
 
       _ACC_PARALLEL
       _ACC_LOOP_COLLAPSE_2
-      do j=2,nyt-1       !mozna nyt
+      do j=2,nyt-1     !mozna nyt
         do i=2,nxt-1
           v1(i,j,nzt+1)=v1(i,j,nzt)-(w1(i,j+1,nzt)-w1(i,j,nzt))
         enddo
       enddo
       _ACC_END_PARALLEL
+	  
+        _ACC_PARALLEL
+        _ACC_LOOP
+        do i=2,nxt-1
+          v1(i,nyt,nzt+1)=v1(i,nyt-1,nzt)
+        enddo
+        _ACC_END_PARALLEL
+
 
       _ACC_PARALLEL
       _ACC_LOOP_COLLAPSE_2
@@ -1037,11 +1047,13 @@
           xm=mu1(i,j,nzt+1)
           a1=2.*xl
           b1=xl+2.*xm
+		  !w1(i,j,nzt+1)=w1(i,j,nzt)-(a/b)*(u1(i+1,j,nzt+1)-u1(i,j,nzt+1)+v1(i,j,nzt+1)-v1(i,j-1,nzt+1))
           w1(i,j,nzt+1)=+(w1(i,j,nzt-1)-(a1/b1)*(u1(i+1,j,nzt)-u1(i,j,nzt)+u1(i+1,j,nzt+1)-u1(i,j,nzt+1) &
             +v1(i,j,nzt)-v1(i,j-1,nzt)+v1(i,j,nzt+1)-v1(i,j-1,nzt+1)))
         enddo
       enddo
-      _ACC_END_PARALLEL
+      _ACC_END_PARALLEL      
+
       
       end subroutine
 !----------------------------------------------------------
@@ -1300,6 +1312,38 @@
         enddo
       enddo
       _ACC_END_PARALLEL
+	  
+	!  k = nzt-nfs
+	!  _ACC_PARALLEL
+    !  _ACC_LOOP
+    !    do i = nabc+1,nxt-nabc
+    !      xl = lam1(i,nyt,k)
+    !      xm = mu1(i,nyt,k)
+    !      a  = xl + 2.*xm
+    !      b  = xl
+!
+ !         diff1=c1*(u1(i+1,nyt,k) - u1(i,nyt,k)) + c2*(u1(i+2,nyt,k) - u1(i-1,nyt,k)) 
+  !        !diff3=c1*(w1(i,nyt,k)   - w1(i,nyt,k-1)) + c2*(w1(i,nyt,k+1) - w1(i,nyt,k-2))
+   !       ! diff1=(u1(i+1,nyt,k) - u1(i,nyt,k))
+    !       diff3=(w1(i,nyt,k)   - w1(i,nyt,k-1))*4./3.
+!        
+ !         v1t(i,k)=v1(i,nyt-1,k) - b*(diff1 + diff3)/(2*a)
+!
+ !         xx(i,nyt,k) = xx(i,nyt,k)               +  &
+  !          dth*a*(diff1)                         +  &
+   !         dth*b*(2*(v1t(i,k) - v1(i,nyt-1,k)) +  &
+    !        diff3)
+     !     yy(i,nyt,k) = yy(i,nyt,k)               +  &
+      !      dth*a*2*(v1t(i,k) - v1(i,nyt-1,k))    +  &
+       !     dth*b*(diff1                          +  &
+        !    diff3)
+!          zz(i,nyt,k) = zz(i,nyt,k)               +  &
+ !           dth*a*(diff3)                         +  &
+  !          dth*b*(diff1                          +  &
+  !         2*(v1t(i,k) - v1(i,nyt-1,k)))
+   !     enddo
+
+    !  _ACC_END_PARALLEL
 
       end subroutine
 !----------------------------------------------------------
