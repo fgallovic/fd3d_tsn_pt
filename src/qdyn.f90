@@ -719,7 +719,7 @@
 	do i=1,NGPS	
 	  do j=1,gpsrealTN(i)
 	    do j2=1,NTS
-	    
+	
 		if (gpsrealT(j,i)<=TS(j2)) then
 	
 		  if (NTS.eq.1) then
@@ -804,6 +804,7 @@
     !stept=1./dble(3)*(1.-margin)/(NTSrv)
     jj=0
     do j=1,NGPS
+      if (gpsrealTN(j)>1) then
       maxampl(j)=0.
       maxampl(j)=max(maxampl(j),maxval(abs(gpssyntN(:,j)-gpssyntN(1,j))))
 	  maxampl(j)=max(maxampl(j),maxval(abs(gpsrealN(:,j)-gpsrealN(1,j))))
@@ -812,12 +813,13 @@
       maxampl(j)=max(maxampl(j),maxval(abs(gpssyntZ(:,j)-gpssyntZ(1,j))))
 	  maxampl(j)=max(maxampl(j),maxval(abs(gpsrealZ(:,j)-gpsrealZ(1,j))))
       stepa(j)=.5/dble(NGPS)*(1.-margin)/maxampl(j)
+      endif
     enddo
 
     open(205,FILE='gpsplot.real.dat')
     jj=0
     do j=1,NGPS
-	 if (gpsrealTN(j)>1) then
+      if (gpsrealTN(j)>1) then
       starty=((NGPS-j+1)+margin/2.)/dble(NGPS+1)
       startx=((1-1)+margin/2.)/2.
 	  write(205,'(3E13.5)')startx,starty
@@ -838,13 +840,13 @@
       !  write(205,'(3E13.5)')startx+stept*(k),starty+stepa(j)*(gpsrealZ(k,j)-gpsrealZ(1,j))
       !enddo
       !write(205,*)
-	 endif
+      endif
     enddo
 	
     close(205)
     open(205,FILE='gpsplot.synt.dat')
     do j=1,NGPS
-	 if (gpsrealTN(j)>1) then
+      if (gpsrealTN(j)>1) then
       starty=((NGPS-j+1)+margin/2.)/dble(NGPS+1)
       startx=((1-1)+margin/2.)/2.
 	  stept=1./dble(3)*(1.-margin)/(gpsrealT(gpsrealTN(j),j))
@@ -865,7 +867,7 @@
       !  write(205,'(3E13.5)')startx+stept*k,starty+stepa(j)*(gpssyntZ(k,j)-gpssyntZ(1,j))
       !enddo
       !write(205,*)
-	 endif
+      endif
     enddo
     close(205)
 

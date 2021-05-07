@@ -454,28 +454,31 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
 		   dum2=dum2+0.5*sum((gpssyntE(2:gpsrealTN(i),i)-gpsrealE(2:gpsrealTN(i),i)-temp2)**2)*SigmaGPS2**2/gpssigma(2,i)**2
 	       temp2=gpssyntZ(1,i)-gpsrealZ(1,i)
 		   dum2=dum2+0.5*sum((gpssyntZ(2:gpsrealTN(i),i)-gpsrealZ(2:gpsrealTN(i),i)-temp2)**2)*SigmaGPS2**2/gpssigma(3,i)**2
-		endif
-
 	    norma2=norma2+0.5*sum((gpsrealN(1:gpsrealTN(i),i)-gpsrealN(1,i))**2)*SigmaGPS2**2/gpssigma(1,i)**2
 		norma2=norma2+0.5*sum((gpsrealE(1:gpsrealTN(i),i)-gpsrealE(1,i))**2)*SigmaGPS2**2/gpssigma(2,i)**2
 		norma2=norma2+0.5*sum((gpsrealZ(1:gpsrealTN(i),i)-gpsrealZ(1,i))**2)*SigmaGPS2**2/gpssigma(3,i)**2
+		endif
 	   enddo
 
-	   if (ieee_is_nan(dum2)) then
-	     dum2=1.e30
-		 dum3=1.e30
-		 norma2=1.e1
-	   endif
+!	   if (ieee_is_nan(dum2)) then
+!	     dum2=1.e30
+!		 dum3=1.e30
+!		 norma2=1.e1
+!	   endif
 	   print*,'GPS misfit: ', dum2, dum3, norma2, norma3
 	   misfit=misfit + dum2 + dum3
-	   VRGPS=1.-(dum2/norma2+dum3/norma3)
-	   
+           if (norma2>0.) then
+	     VRGPS=1.-(dum2/norma2+dum3/norma3)
+           else
+	     VRGPS=1.-(dum3/norma3)
+	   endif
+
 	   if (ioutput.EQ.1) then
 	        open(3141,file='result/misfit.dat')  
 		    write(3141,'(2E13.5)') misfit - (dum2+dum3), (dum2+dum3)
 			close(3141)
 	   endif
-    end if
+    endif
 	
     if(Mwsigma>0.)misfit=misfit+0.5*(2./3.*log10(M0/M0aprior)/Mwsigma)**2
     
