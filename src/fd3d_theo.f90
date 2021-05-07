@@ -751,7 +751,7 @@ if (ieee_is_nan(maxvelX)) exit
 	  if (igps==1) then
 #if defined FVW	  
 	    call QDYN3D()
-        !do k=1,nSr 
+        !do k=1,nGPS
         !    kk=0
         !    do j=1,NW
         !        do i=1,NL
@@ -778,7 +778,7 @@ if (ieee_is_nan(maxvelX)) exit
 		
 		
 #else
-        do k=1,nSr 
+        do k=1,nGPS 
             kk=0
             do j=1,NW
                 do i=1,NL

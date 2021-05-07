@@ -613,8 +613,8 @@
     close(244)
     striniZ=0.
     coh=0.
-    do k=1,nzt-2
-        do i = 1,nxt
+    do i = 1,nxt
+      do k=1,nzt-2
         striniX(i,k)=T0
 
           if ((((real(i)-1.)*dh-hx0>= -hdelta/2.0) .and. ((real(i)-1.)*dh-hx0 <= hdelta/2.0)) &
@@ -685,8 +685,8 @@
     coh=1.e6
 
     striniX=0.
-    do k=2,nzt-2
-      do i = 1,nxt
+    do i = 1,nxt
+      do k=2,nzt-2
         sigma_n=sn*dh*(real(nzt-2-k))
         peak_xz(i,k)=sigma_n*muso
         dyn_xz(i,k) = sigma_n*mud
@@ -760,8 +760,8 @@
     coh=1.e6
 
     striniZ=0.
-    do k=2,nzt-2
-      do i = 1,nxt
+    do i = 1,nxt
+      do k=2,nzt-2
         sigma_n=sn*dh*(real(nzt-2-k)+0.5)
         peak_xz(i,k)=sigma_n*muso
         dyn_xz(i,k) = sigma_n*mud
