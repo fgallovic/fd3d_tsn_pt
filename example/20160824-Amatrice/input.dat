@@ -4,7 +4,7 @@ Length of seismograms (in sec)
 102.4  12.  22. 57.
 Artificial time shift, number of segments, timeshift for plotting
 20.   1   -1.
-No. of recievers
+No. of recievers, No. of GPS stations
 20 0
 No. of Greens computed along strike (dip), discretization along strike (dip)
 60  28

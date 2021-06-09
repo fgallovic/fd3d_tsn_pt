@@ -1,7 +1,7 @@
 0              ! 0=forward calculation, 1=start inversion, 2=restart inversion
 13 8           ! Number of model parameters (discretization)
 -123           ! Random seed
-1              ! Calculate waveforms? Reset to 1 if running inversion
+1  0           ! Calculate waveforms? Calculate GPS?
 0.       1.e8  ! T0 constraint (min, max)
 0.       2.    ! MuS constraint (min, max)
 0.14     5.    ! Dc constraint (min, max)
