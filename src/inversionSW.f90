@@ -229,6 +229,7 @@ jj=jj+1
         pgaA(:,:,ichain)=pgaD(:,:)
       endif
       VRA(ichain)=VR
+      VRgpsA(ichain)=VRGPS
     endif
 
     !if (yn.and.(abs(T-1.0)<eps).and.record_mcmc_now) then  !write the accepted step
@@ -466,6 +467,7 @@ jj=jj+1
     schangeA(:,:,ichain)=schangeX(:,:)
 #endif
     VRA(ichain)=VR
+    VRgpsA(ichain)=VRGPS
     MomentRateA(:,ichain)=MomentRate(:)
     EgA(ichain)=Eg
     ErA(ichain)=Er
