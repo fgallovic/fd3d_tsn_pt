@@ -53,9 +53,9 @@
       real    :: dht, ek, es, ef, c1, c2
       integer :: i,j,it,k, nxe, nxb, nyb, nye, nzb, nze
       integer :: ifrom,ito,jfrom,jto,kk,ii,jj
-      real    :: rup_tresh, rv, cz, efracds, alphakoef
+      real    :: rup_tresh, rv, cz, efracds, alphakoef, schangef
       real,allocatable,dimension (:,:):: distX,distZ
-      real,allocatable,dimension (:):: erad, efrac, schangef
+      real,allocatable,dimension (:):: erad, efrac, timek
       real,allocatable,dimension (:,:,:)::slipt
 !     real,allocatable,dimension (:,:,:):: waveU,waveV,waveW
 #if defined FVW
@@ -75,7 +75,7 @@
       allocate(sliprateoutX(nxt,nzt),sliprateoutZ(nxt,nzt),distX(nxt,nzt),distZ(nxt,nzt))
       allocate(omega_pml(nabc-1), omegaR_pml(nabc-1),omega_pmlM(nabc-1), omegaR_pmlM(nabc-1))
       allocate(au1(nxt,nzt),av1(nxt,nzt),aw1(nxt,nzt))
-      allocate(erad(nSR), efrac(nSR), slipt(nxt,nzt,nSR), schangef(nSR))
+      allocate(erad(nSR), efrac(nSR), slipt(nxt,nzt,nSR),timek(nSR))
 !   allocate(waveU(nxt,nyt,nzt),waveV(nxt,nyt,nzt),waveW(nxt,nyt,nzt))
 #if defined FVW
 	  allocate(psiout(nxt,nzt))
@@ -90,12 +90,13 @@
       au1=0.; av1=0.; aw1=0 
       MSRX=0.; MSRZ=0.; MomentRate=0.
       distX=0.; distZ=0.
-      rup_tresh=1.e-3 !	Rate treshold for rupture time calculation
+      rup_tresh=1e-3 !	Rate treshold for rupture time calculation
       c1  = 9./8. !	4th order central FD formula parameters	
       c2  = -1./24.
       tabsX=0.; tabsZ=0.
       sliprateoutZ=0.; sliprateoutX=0.
       SCHANGEZ=0.; SCHANGEX=0.
+	  timek=0.
       tabs=0.; 
       slipX=0.; slipZ=0.
       efrac=0.;erad=0.;eraddt=0.;efracds=0.;schangef=0.;slipt=0.
@@ -112,8 +113,10 @@
       tabsZ=1.
 	  T0XI=T0X
 	  T0ZI=T0Z
+	  RFx=1.
+	  RFz=1.
       psiout=0.
-
+	  
 !   Nucleation for fast velocity  weakening friction
 !#if defined DIPSLIP
 !    do k = nabc-1,nzt-2
@@ -130,19 +133,21 @@
 !      enddo
 !    enddo
 !#else
-    do k = nabc-1,nzt-2
-      do i = nabc-1,nxt-nabc
-        hx = real(i)*dh
-        hz = real(k)*dh
-        rr = (hx-hx0)**2 + (hz-hz0)**2
-        if (rr<RR2) then
-          FXZ=1. !Alternatively smooth nucl. FXZ=exp(rr/(rr-RR2))
-        else
-          FXZ = 0.
-        endif
-          T0X(i,k) = T0X(i,k)+ SnX(i,k)*perturb*FXZ  !SnX(i,k)*(f0X(i,k) + perturb*FXZ)
-      enddo
-    enddo
+
+!Fromer version of nucleation used in the Napa inversion!!!!
+  !  do k = nabc-1,nzt-2	
+  !    do i = nabc-1,nxt-nabc
+  !      hx = real(i)*dh
+  !      hz = real(k)*dh
+  !      rr = (hx-hx0)**2 + (hz-hz0)**2
+  !      if (rr<RR2) then
+  !        FXZ=1.! !Alternatively smooth nucl. FXZ=exp(rr/(rr-RR2))
+  !      else
+  !        FXZ = 0.
+  !      endif
+  !        T0X(i,k) = T0X(i,k)+ SnX(i,k)*perturb*FXZ  !SnX(i,k)*(f0X(i,k) + perturb*FXZ)
+  !    enddo
+  !  enddo
 !#endif
 	
 #endif
@@ -167,9 +172,8 @@
 			real(SnZ(i,k),4),&
 			real(DCZ(i,k),4),&
 			real(log10(uini(i,k)),4),&
-			real(psiZ(i,k),4)
-			!real(uini(i,k)*((DCZ(i,k)/v0)*exp((psiZ(i,k)-f0Z(i,k))/(baZ(i,k)+aZ(i,k))))/DCZ(i,k),4), real(SnZ(i,k)*aZ(i,k)*(log(2*(uini(i,k)/(2*v0)))+(((f0Z(i,k)+(baZ(i,k)+aZ(i,k))*log(v0/uini(i,k)))/aZ(i,k)))),4),  real(f0Z(i,k)-baZ(i,k)*log(uini(i,k)/v0),4),&
-			!real(((DCZ(i,k)/v0)*exp((psiZ(i,k)-f0Z(i,k))/(baZ(i,k)+aZ(i,k)))),4)
+			real(psiZ(i,k),4),&
+			real(DCX(i,k)*log(v0/uini(i,k)),4)
           enddo
         enddo
         close(95)
@@ -212,8 +216,7 @@
         OPEN(28, file='result/shearstressX.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
         OPEN(41, file='result/waveformX.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
         OPEN(42, file='result/waveformY.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
-        OPEN(43, file='result/waveformZ.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')		
-        ! OPEN(29, file='result/sliprateY.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
+        OPEN(43, file='result/waveformZ.res',FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')	
       endif
       
       CALL CPU_TIME(CPUT1)
@@ -244,6 +247,7 @@
       !$ACC      COPYIN (aX,baX,psiX,vwX,SnX,f0X,fwX)&
       !$ACC      COPYIN (aZ,baZ,psiZ,vwZ,SnZ,f0Z,fwZ)&
       !$ACC      COPYIN (uini,wini,t0xi,t0zi)&
+      !$ACC      COPYIN (T0XI)&
 #endif
 #if defined FSPACE
       !$ACC      COPYIN (u51,u52,u53,v51,v52,v53,w51,w52,w53)&
@@ -280,8 +284,10 @@
 !-------------------------------------------------------------
         call dvel(nxt,nyt-2,nzt,dt,dh)   !Apply 4th-order differencing to interior particle velocities
         call bnd2d(nxt,nyt,nzt,dt,dh)    !Compute velocities of 2nd order accuracy near fault and apply symmetry in normal component
-        call tasu1(nxt,nysc,nzt,dt,dh)   !Compute velocities at fault boundary
+        if (it>1) then
+		call tasu1(nxt,nysc,nzt,dt,dh)   !Compute velocities at fault boundary
         call tasw1(nxt,nysc,nzt,dt,dh)
+		endif
         call pml_uvw (nxt,nyt,nzt,dt,dh) !Absorbing condition
 #if !defined FSPACE
         call fuvw(nxt,nyt,nzt-nfs)       !Stress free condition
@@ -429,7 +435,7 @@
         _ACC_END_PARALLEL
 		
         i=nxt-nabc
-	k=nzt-nfs
+	    k=nzt-nfs
         tint=(tx(i,k)+T0X(i,k))
         tabsZ(i,k) = sqrt(tint**2 + (tz(i,k)+T0Z(i,k))**2)
         tint=(tz(i,k)+T0Z(i,k)+tz(i-1,k)+T0Z(i-1,k)+tz(i,k-1)+T0Z(i,k-1)+tz(i-1,k-1)+T0Z(i-1,k-1))/4.
@@ -445,7 +451,8 @@
             u1out=-sqrt(W1(I,NYSC,K)**2+uZ(i,k)**2)
 
 #if defined FVW
-            sr=sqrt((2*w1(i,nyt,k)-wini(i,k))**2+(2*uZ(i,k)-uini(i,k))**2)                               !sqrt((2.*(abs(w1(i,nysc,k))+abs(wini(i,k))))**2+(2.*(abs(uZ(i,k))+abs(uini(i,k))))**2)
+            
+            sr=sqrt((2*w1(i,nyt,k)-wini(i,k))**2+(2*uZ(i,k)-uini(i,k))**2)                          
             flv = f0Z(i,k) - baZ(i,k)*log(sr/v0)
             fss = fwZ(i,k) + (flv - fwZ(i,k))/((1. + (sr/vwZ(i,k))**8)**(1./8.))
             psiss = aZ(i,k)*(log(sinh(fss/aZ(i,k))) + log(2*v0/(sr))) 
@@ -456,9 +463,10 @@
             schangeZ(I,K) = (tz(i,k) + t0Z(i,k))*friction/tabs! - t0Z(i,k)
             psiout(i,k)=psiZ(i,k)
 			if (abs(2*u1out)>rup_tresh) then
-                if (ruptime(i,k).ne.1.e4) rise(i,k) = time
-                if (ruptime(i,k).eq.1.e4) ruptime(i,k) = time
+                if (ruptime(i,k).eq.1.e4) ruptime(i,k) = time				
             endif
+
+
 #else
             if (distZ(i,k).le.DcZ(i,k)) then
               friction = peakZ(i,k) * (1.0 - distZ(i,k)/DcZ(i,k)) + dynZ(i,k)*distZ(i,k)/DcZ(i,k) + coh(i,k)
@@ -490,7 +498,7 @@
             u1out=-sqrt(wX(i,k)**2+U1(I,NYSC,K)**2)
             
 #if defined FVW
-            sr=sqrt((2*wX(i,k)-wini(i,k))**2+(2*u1(i,nyt,k)-uini(i,k))**2)!sqrt((abs(wini(i,k))+2.*(abs(wX(i,k)))))**2+(abs(uini(i,k))+2.*abs(u1(i,nyt,k)))**2)
+            sr=sqrt((2*wX(i,k)-wini(i,k))**2+(2*u1(i,nyt,k)-uini(i,k))**2)
             flv = f0X(i,k) - baX(i,k)*log(sr/v0)
             fss = fwX(i,k) + (flv - fwX(i,k))/((1. + (sr/vwX(i,k))**8)**(1./8.))
             psiss = aX(i,k)*(log(sinh(fss/aX(i,k))) + log(2*v0/(sr))) 
@@ -498,7 +506,6 @@
             friction  = SnX(i,k) * aX(i,k)*asinh(sr*exp(psiX(i,k)/aX(i,k))/(2*v0)) 	+ coh(i,k)		
             distX(i,k) = distX(i,k)  - 2*u1out*dt
             schangeX(I,K) = (tx(i,k) + t0X(i,k))*friction/tabs! - t0X(i,k)
-
             
 #else
             if (distX(i,k).le.Dc(i,k)) then
@@ -524,19 +531,19 @@
 #if defined FVW			
             sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I+1,NYSC,K)-2.*U1(I,NYSC,K+1)-2.*U1(I+1,NYSC,K+1))/4.
 	        sliprateoutZ(i,k) = - 2.*W1(I,NYSC,K)
-            slipZ(i,k)=slipZ(i,k)-2.*w1(i,nysc,k)*dt!+abs(2.*w1(i,nysc,k)*dt)!
-            slipX(i,k)=slipX(i,k)-2.*uZ(i,k)*dt!+abs(2.*w1(i,nysc,k)*dt)!           
+            slipZ(i,k)=slipZ(i,k)-2.*w1(i,nysc,k)*dt
+            slipX(i,k)=slipX(i,k)-2.*uZ(i,k)*dt 		
 #else
             SCHANGEZ(I,K) = tz(i,k) + T0Z(i,k)
             sliprateoutZ(i,k) = - 2.*W1(I,NYSC,K)
             SCHANGEX(I,K) = (tx(i,k)+T0X(i,k)+tx(i+1,k)+T0X(i+1,k)+tx(i,k+1)+T0X(i,k+1)+tx(i+1,k+1)+T0X(i+1,k+1))/4.
             sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I+1,NYSC,K)-2.*U1(I,NYSC,K+1)-2.*U1(I+1,NYSC,K+1))/4.
-            slipZ(i,k)=slipZ(i,k)-2.*w1(i,nysc,k)*dt!+abs(2.*w1(i,nysc,k)*dt)
-            slipX(i,k)=slipX(i,k)-2.*uZ(i,k)*dt!+abs(2.*uZ(i,k)*dt)
+            slipZ(i,k)=slipZ(i,k)-2.*w1(i,nysc,k)*dt
+            slipX(i,k)=slipX(i,k)-2.*uZ(i,k)*dt
 #endif 
-            efracds=efracds+sqrt(schangeX(i,k)**2+schangeZ(i,k)**2)*sqrt((2.*w1(i,nysc,k)*dt)**2+(2.*uZ(i,k)*dt)**2)
+            efracds=efracds+schangeX(i,k)*sliprateoutX(i,k)*dt+schangeZ(i,k)*sliprateoutZ(i,k)*dt
             eraddt=eraddt+(schangeX(i,k)-t0X(i,k))*sliprateoutX(i,k)*dt+(schangeZ(i,k)-t0Z(i,k))*sliprateoutZ(i,k)*dt
-          enddo
+		  enddo
         enddo
         _ACC_END_PARALLEL
 		
@@ -547,25 +554,21 @@
 #if defined FVW			
             sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I,NYSC,K+1))/2.
 	        sliprateoutZ(i,k) = - 2.*W1(I,NYSC,K)
-            slipZ(i,k)=slipZ(i,k)-2.*w1(i,nysc,k)*dt!+abs(2.*w1(i,nysc,k)*dt)!
-            slipX(i,k)=slipX(i,k)-2.*uZ(i,k)*dt!+abs(2.*w1(i,nysc,k)*dt)!           
+            slipZ(i,k)=slipZ(i,k)-2.*w1(i,nysc,k)*dt
+            slipX(i,k)=slipX(i,k)-2.*uZ(i,k)*dt     		
 #else
             SCHANGEZ(I,K) = tz(i,k) + T0Z(i,k)
             sliprateoutZ(i,k) = - 2.*W1(I,NYSC,K)
             SCHANGEX(I,K) = (tx(i,k)+T0X(i,k)+tx(i,k+1)+T0X(i,k+1))/2.
             sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I,NYSC,K+1))/2.
-            slipZ(i,k)=slipZ(i,k)-2.*w1(i,nysc,k)*dt!+abs(2.*w1(i,nysc,k)*dt)
-            slipX(i,k)=slipX(i,k)-2.*uZ(i,k)*dt!+abs(2.*uZ(i,k)*dt)
+            slipZ(i,k)=slipZ(i,k)-2.*w1(i,nysc,k)*dt
+            slipX(i,k)=slipX(i,k)-2.*uZ(i,k)*dt
 #endif 
-            efracds=efracds+sqrt(schangeX(i,k)**2+schangeZ(i,k)**2)*sqrt((2.*w1(i,nysc,k)*dt)**2+(2.*uZ(i,k)*dt)**2)
+            efracds=efracds+schangeX(i,k)*sliprateoutX(i,k)*dt+schangeZ(i,k)*sliprateoutZ(i,k)*dt
             eraddt=eraddt+(schangeX(i,k)-t0X(i,k))*sliprateoutX(i,k)*dt+(schangeZ(i,k)-t0Z(i,k))*sliprateoutZ(i,k)*dt
-
         enddo
         _ACC_END_PARALLEL
 
-
-
-		
         k=nzt-nfs!+1
 
 	_ACC_PARALLEL
@@ -600,8 +603,6 @@
 		
         ! if(ioutput.eq.1) then
 		! if ((time .GE. waveT) .AND. (waveT .NE. 0.)) then
-        
-        
 !		! _ACC_PARALLEL
 !        ! _ACC_LOOP_COLLAPSE_3
 !		   do k=1,nzt
@@ -615,7 +616,8 @@
 !		   enddo
 !        ! _ACC_END_PARALLEL
 !         endif
-!         endif      
+!         endif  
+    
 #if defined TPV103
 !   Smooth nucleation for the tpv104 benchmark
         if ((time-dt/2.) <= TT2) then
@@ -674,7 +676,34 @@
         endif
 #endif
 
-		
+#if defined FVW
+!Smooth nucleation for inversion
+		if ((time) <= TT2) then
+        
+          if ((time) < TT2) then
+            GT=exp(((time)-TT2)**2/((time)*((time)-2*TT2)))
+          else
+            GT=1.
+          endif
+_ACC_PARALLEL
+_ACC_LOOP_COLLAPSE_2
+          do k = nabc-1,nzt-2
+            do i = nabc-1,nxt-nabc
+              hx = real(i)*dh
+              hz = real(k)*dh
+              rr = (hx-hx0)**2 + (hz-hz0)**2
+              if (rr<RR2) then
+                FXZ=exp(rr/(rr-RR2))!FXZ=1.
+              else
+                FXZ = 0.
+              endif
+                T0X(i,k) = T0XI(i,k)+ SnX(i,k)*perturb*FXZ*GT  
+            enddo
+          enddo
+_ACC_END_PARALLEL
+        endif
+#endif
+
         !$ACC END DATA
         if(ioutput.eq.1) then
 #if defined FVW
@@ -684,13 +713,13 @@
           WRITE(27) sliprateoutX(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
           WRITE(26) SCHANGEZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
           WRITE(28) SCHANGEX(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
-!          write(29) v1t(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
           do i=1,Nstations
             write (30+i,*)seisU(i),seisV(i),seisW(i)
           enddo
         endif
  
         k=int(real(it-1)*dt/dtseis)+1
+		timek(k)=time
         if(k<1.or.k>nSR)write(*,*)'CHYBA!',k,nSR
         do j=1,NW
           jto=max(1,int(dW/dh*j))+1+nabc
@@ -720,13 +749,13 @@
         enddo
         efrac(k)=efracds
         erad(k)=tint2-eraddt
-      
+		
         if(mod(it,int(1./dt))==0)then
           maxvelZ=maxval(sliprateoutZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
           maxvelX=maxval(sliprateoutX(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
           write(*,*)'Time: ',time,'Slip rate max: ',maxvelX,maxvelZ
-if(sqrt(maxvelX**2+maxvelZ**2)<1.e-6)exit
-if (ieee_is_nan(maxvelX)) exit
+!if(sqrt(maxvelX**2+maxvelZ**2)<1.e-6)exit
+!if (ieee_is_nan(maxvelX)) exit
 #if defined DIPSLIP
           if(maxvelZ>maxvelsave)maxvelsave=maxvelZ
           if(maxvelZ<=0.01*maxvelsave)exit
@@ -743,16 +772,19 @@ if (ieee_is_nan(maxvelX)) exit
 !			WRITE(42) waveV(1:nxt,1:nyt,1:nzt)
 !			WRITE(43) waveW(1:nxt,1:nyt,1:nzt)
 !		endif
-		
-		
+
       enddo ! --- End of the time loop
 	  
-	  
+!===============================================================================================================================================
+!Postprocessing
+!===============================================================================================================================================
+
 	  if (igps==1) then
 #if defined FVW	  
 	    call QDYN3D()
         !MSX=0.
-        !do k=1,nSR
+		!MSZ=0.    
+        !do k=1,nSr 
         !    kk=0
         !    do j=1,NW
         !        do i=1,NL
@@ -762,25 +794,11 @@ if (ieee_is_nan(maxvelX)) exit
     !            enddo
     !        enddo
     !    enddo
-!		TS(1)=0.
-!		kk=0
-!        do j=1,NW
-!          do i=1,NL		
-!			kk=kk+1
-!			ii=int((i-0.5)*(nxt-2*nabc)/NL)
-!			jj=int((j-0.5)*(nzt-nabc-nfs)/NW)
-!			alphakoef=aZ(ii,jj)*SnZ(ii,jj)*5000/mu1(nxt/2,nyt,nzt/2)!(ii,nyt,jj)
-!		    do k=2,NTS
-!		      TS(k)=TS(k-1)+(T2S-T1S)/real(NTS-1)
-!		      MSX(kk+(k-1)*NL*NW)=MSX(kk)+alphakoef*log(alphakoef*MSRX(kk+(NSr-1)*NL*NW)*TS(k) + 1.)
-!		    enddo
-!		  enddo
-!		enddo
-		
 		
 #else
         MSX=0.
-        do k=1,nSR 
+		MSZ=0.
+        do k=1,NSr
             kk=0
             do j=1,NW
                 do i=1,NL
@@ -792,11 +810,27 @@ if (ieee_is_nan(maxvelX)) exit
         enddo
 #endif	 
       endif	 
+	  
       !$ACC END DATA
-
+#if defined FVW	  
+      if(ioutput.eq.1) then
+	  	do k=1,NSr
+        do j = nabc+1,nzt-nfs
+          do i = nabc+1,nxt-nabc
+			 if ((slipt(i,j,k) >= 0.9*maxval(slipt(i,j,:))).and.(rise(i,j)==0.)) then
+				rise(i,j)=timek(k)-ruptime(i,j)
+			 endif
+          enddo
+        enddo		
+		enddo
+	  endif
+#else
+	rise=rise-ruptime
+#endif
       SCHANGEZ(:,:)=SCHANGEZ(:,:)-T0Z(:,:)   !stress drop
       SCHANGEX(:,:)=SCHANGEX(:,:)-T0X(:,:)
-      
+    !  schangef=sum(distZ*sqrt((schangeX+T0X)**2+(schangeZ+T0Z)**2))
+
       deallocate(u1,v1,w1)
       deallocate(xx,yy,zz,xy,yz,xz)
       deallocate(tx,tz,v1t,avdx,avdz, RFx,RFz)
@@ -831,8 +865,6 @@ if (ieee_is_nan(maxvelX)) exit
         close(26)
         close(27)
         close(28)
-    !   close(29)
-        
         close(31)
         close(32)
         close(33)
@@ -847,8 +879,6 @@ if (ieee_is_nan(maxvelX)) exit
 		close(42)
 		close(43)
       endif
-      
-      rise=rise-ruptime
       
       tmax            = -1.
       output_param(1) =  0.
@@ -868,29 +898,25 @@ if (ieee_is_nan(maxvelX)) exit
           else
             output_param(4) = 0.0
           endif
-          do j=1,NSr
-             schangef(j)=schangef(j)+slipt(i,k,j)*sqrt((schangeX(i,k)+t0X(i,k))**2+(schangeZ(i,k)+t0Z(i,k))**2)
-          enddo
         enddo
       enddo
     ! output_param(5) = (1./2.)**sum(peak_xz*Dc)/dble((nxt-2*nabc)*(nzt-nfs-nabc))
     ! output_param(6) = (1./2.)*output_param(4)*(output_param(2)/(mu_mean*output_param(3)))
       M0=output_param(2)
       Mw=(log10(M0)-9.1)/1.5
-	  
+      schangef=sum(slipX*(schangeX+T0X)+slipZ*(schangeZ+T0Z)) 
+
       do k=1,nSR
-        if ((efrac(k)-schangef(k))*dh**2>0.) Eg=(efrac(k)-schangef(k))*dh**2
+        if ((efrac(k)-schangef)*dh**2>0.) Eg=(efrac(k)-schangef)*dh**2
         if (erad(k)*dh**2>0.) Er=erad(k)*dh**2		   
       enddo
       output_param(5)=Eg
       output_param(6)=Er
+
 !---------------------------
 ! Write down the output
 !---------------------------
-        do k=1,nSR
-		   if ((efrac(k)-schangef(k))*dh**2>0.) Eg=(efrac(k)-schangef(k))*dh**2
-		   if (erad(k)*dh**2>0.) Er=erad(k)*dh**2		   
-        enddo
+
       if (ioutput.eq.1) then
         open(96,file='result/risetime.res')
         open(97,file='result/ruptime.res')
@@ -989,6 +1015,6 @@ if (ieee_is_nan(maxvelX)) exit
         close(503)
       endif
 
-      deallocate(efrac,schangef,erad,slipt)
+      deallocate(efrac,erad,slipt)
 
       END SUBROUTINE
