@@ -184,7 +184,7 @@
         do k = nabc+1,nzt-nfs
           do i = nabc+1,nxt-nabc
             write(95,*) mu1(i,nysc,k)
-            write(96,'(5E13.5)') T0X(i,k),T0Z(i,k),peak_xz(i,k),Dc(i,k),peak_xz(i,k)/normstress(k)
+            write(96,'(5E13.5)') striniX(i,k),striniZ(i,k),peak_xz(i,k),Dc(i,k),peak_xz(i,k)/normstress(k)
           enddo
         enddo
         close(95)
