@@ -175,7 +175,7 @@
         if(igps==1)write(*,*)'GPS Variance reduction: ',VRgps
         call plotseis()
         open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
-        write(594,'(100000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),M0,Eg,Er,Tshift,VRgps
+        write(594,'(1000000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),M0,Eg,Er,Tshift,VRgps
         close(594)
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
@@ -184,7 +184,7 @@
       elseif (iwaveform==2) then
         call evalmisfit2()
         open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
-        write(594,'(100000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),M0,Eg,Er,Tshift,VRgps
+        write(594,'(1000000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),M0,Eg,Er,Tshift,VRgps
         close(594)
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
@@ -192,7 +192,7 @@
         close(594)
       else
         open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
-        write(594,'(100000E13.5)')-1.,-1.,T0I(:,:),TsI(:,:),DcI(:,:),M0,Eg,Er,-1.,-1.
+        write(594,'(1000000E13.5)')-1.,-1.,T0I(:,:),TsI(:,:),DcI(:,:),M0,Eg,Er,-1.,-1.
         close(594)
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
         write(594)-1.,-1.,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
