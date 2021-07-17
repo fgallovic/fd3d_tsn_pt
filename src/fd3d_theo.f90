@@ -709,10 +709,13 @@ _ACC_END_PARALLEL
 #if defined FVW
           WRITE(24) psiout(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
 #endif
+#if defined DIPSLIP
           WRITE(25) sliprateoutZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
-          WRITE(27) sliprateoutX(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
           WRITE(26) SCHANGEZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
+#else
+          WRITE(27) sliprateoutX(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
           WRITE(28) SCHANGEX(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
+#endif
           do i=1,Nstations
             write (30+i,*)seisU(i),seisV(i),seisW(i)
           enddo
@@ -920,10 +923,13 @@ _ACC_END_PARALLEL
       if (ioutput.eq.1) then
         open(96,file='result/risetime.res')
         open(97,file='result/ruptime.res')
+#if defined DIPSLIP
+        open(94,file='result/slipZ.res')
+        open(95,file='result/stressdropZ.res')
+#else
         open(98,file='result/slipX.res')
         open(99,file='result/stressdropX.res')
-        open(95,file='result/stressdropZ.res')
-        open(94,file='result/slipZ.res')
+#endif
         open(297,FILE='mtildeX.dat')
         open(298,FILE='mtildeZ.dat')
         open(299,FILE='mtildemomentrate.dat')
@@ -961,10 +967,13 @@ _ACC_END_PARALLEL
           do i = nabc+1,nxt-nabc
             write(96,*) rise(i,k)
             write(97,*) ruptime(i,k)
-            write(98,*) slipX(i,k)
+#if defined DIPSLIP
             write(94,*) slipZ(i,k)
-            write(99,*) schangeX(i,k)
             write(95,*) schangeZ(i,k)
+#else
+            write(98,*) slipX(i,k)
+            write(99,*) schangeX(i,k)
+#endif
           enddo
         enddo
         close(96)
