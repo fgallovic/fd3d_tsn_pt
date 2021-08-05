@@ -757,12 +757,12 @@ _ACC_END_PARALLEL
           maxvelZ=maxval(sliprateoutZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
           maxvelX=maxval(sliprateoutX(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
           write(*,*)'Time: ',time,'Slip rate max: ',maxvelX,maxvelZ
-!if(sqrt(maxvelX**2+maxvelZ**2)<1.e-6)exit
-!if (ieee_is_nan(maxvelX)) exit
 #if defined DIPSLIP
+          if(maxvelZ<1.e-8)exit
           if(maxvelZ>maxvelsave)maxvelsave=maxvelZ
           if(maxvelZ<=0.01*maxvelsave)exit
 #else
+          if(maxvelX<1.e-8)exit
           if(maxvelX>maxvelsave)maxvelsave=maxvelX
           if(maxvelX<=0.01*maxvelsave)exit
 #endif

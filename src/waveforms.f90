@@ -557,7 +557,7 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
        if (kmask(jj)) then
           call pga_theor(ruptdist(jj),Mw,per(i),pgaM(jj,i),PGAsigma(jj,i),PGAtau(jj,i))
           misf=misf+(log(pgaD(jj,i))-pgam(jj,i))**2/(PGAsigma(jj,i)**2) !first part difference from the mean value for each station for particular event
-          if (ioutput==1) write(2223,*) Mw,ruptdist(jj),per(i),exp(pgaM(jj,i))/100.,pgaD(jj,i)/100.,PGAsigma(jj,i),PGAtau(jj,i)
+          if (ioutput==1) write(2223,'(7E13.5)') Mw,ruptdist(jj),per(i),exp(pgaM(jj,i))/100.,pgaD(jj,i)/100.,PGAsigma(jj,i),PGAtau(jj,i)
        endif
       enddo
       if (ioutput==1) write(2223,*)
