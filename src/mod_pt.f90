@@ -15,7 +15,7 @@ real ::       swaprate = 1.0d0        ! Rate at which exchange swaps are propose
                               ! Set this value to zero to turn off Parallel Tempering altogether.     
 !real :: swaprate = 0.0d0       ! Turn off parallel tempering to allow performance comparison
 
-integer ::      nsteps   = 5000         ! Number of chain steps per temperature
+integer ::      nsteps   = 500000         ! Number of chain steps per temperature
 integer ::      iburn    = 0         ! Number of burn in samples
 integer ::      nchains = 8            ! Define number of chains per processor
 double precision ::       tlow  = 1.d0            ! Lowest temperature of chains

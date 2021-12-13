@@ -77,12 +77,16 @@
       IMPLICIT NONE
       real:: normstress
       integer:: j
+#if defined FSPACE
+      normstress=100.e6
+#else
 #if defined DIPSLIP
       normstress=max(1.e5,8520.*dh*real(nzt-nfs-j)*sin(dip/180.*pi))
       !normstress=min(18.*dh*real(nzt-nfs-j)*sin(dip/180.*pi)/1.e3,100.);normstress=1.e6*max(1.,normstress)
 #else
       normstress=max(1.e5,16200.*dh*real(nzt-nfs-j)*sin(dip/180.*pi))
       !normstress=min(18.*dh*real(nzt-nfs-j)*sin(dip/180.*pi)/1.e3,100.);normstress=1.e6*max(1.,normstress)
+#endif
 #endif
       END FUNCTION
       

@@ -45,7 +45,7 @@
 	  use ieee_arithmetic
       IMPLICIT NONE
 
-      real    :: time,friction,tmax,xmax,ymax,numer,denom,veltest,dd
+      real    :: time,friction,tmax,xmax,ymax,numer,denom,veltest,dd,slipmax
       real    :: pdx, pdz,tabs
       real    :: u1out
       real    :: CPUT1,CPUT2
@@ -758,11 +758,11 @@ _ACC_END_PARALLEL
           maxvelX=maxval(sliprateoutX(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
           write(*,*)'Time: ',time,'Slip rate max: ',maxvelX,maxvelZ
 #if defined DIPSLIP
-          if(maxvelZ<1.e-8)exit
+          if(maxvelZ<1.e-7)exit
           if(maxvelZ>maxvelsave)maxvelsave=maxvelZ
           if(maxvelZ<=0.01*maxvelsave)exit
 #else
-          if(maxvelX<1.e-8)exit
+          if(maxvelX<1.e-7)exit
           if(maxvelX>maxvelsave)maxvelsave=maxvelX
           if(maxvelX<=0.01*maxvelsave)exit
 #endif
@@ -1023,6 +1023,15 @@ _ACC_END_PARALLEL
         close(502)
         close(503)
       endif
+      
+#if defined DIPSLIP
+      slipmax=maxval(slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
+      output_param(3)=count(slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>0.05*slipmax)*dh*dh
+#else
+      slipmax=maxval(slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
+      output_param(3)=count(slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>0.05*slipmax)*dh*dh
+#endif
+
 
       deallocate(efrac,erad,slipt)
 
