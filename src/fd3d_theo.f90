@@ -173,7 +173,10 @@
 			real(DCZ(i,k),4),&
 			real(log10(uini(i,k)),4),&
 			real(psiZ(i,k),4),&
-			real(DCX(i,k)*log(v0/uini(i,k)),4)
+			real(f0Z(i,k),4),&
+			real(DCZ(i,k)*log(v0/uini(i,k)),4),&
+			real(DCZ(i,k)*exp((psiZ(i,k)-f0Z(i,k))/(baZ(i,k)+aZ(i,k)))/v0,4),&
+			real(uini(i,k)*exp((psiZ(i,k)-f0Z(i,k))/(baZ(i,k)+aZ(i,k)))/v0,4)
           enddo
         enddo
         close(95)
@@ -820,7 +823,7 @@ _ACC_END_PARALLEL
 	  	do k=1,NSr
         do j = nabc+1,nzt-nfs
           do i = nabc+1,nxt-nabc
-			 if ((slipt(i,j,k) >= 0.9*maxval(slipt(i,j,:))).and.(rise(i,j)==0.)) then
+			 if ((slipt(i,j,k) >= 0.95*maxval(slipt(i,j,:))).and.(rise(i,j)==0.)) then
 				rise(i,j)=timek(k)-ruptime(i,j)
 			 endif
           enddo
@@ -832,7 +835,7 @@ _ACC_END_PARALLEL
 #endif
       SCHANGEZ(:,:)=SCHANGEZ(:,:)-T0Z(:,:)   !stress drop
       SCHANGEX(:,:)=SCHANGEX(:,:)-T0X(:,:)
-    !  schangef=sum(distZ*sqrt((schangeX+T0X)**2+(schangeZ+T0Z)**2))
+     ! schangef=sum(distZ*sqrt((schangeX+T0X)**2+(schangeZ+T0Z)**2))
 
       deallocate(u1,v1,w1)
       deallocate(xx,yy,zz,xy,yz,xz)
@@ -1023,7 +1026,7 @@ _ACC_END_PARALLEL
         close(502)
         close(503)
       endif
-      
+
 #if defined DIPSLIP
       slipmax=maxval(slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
       output_param(3)=count(slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>0.05*slipmax)*dh*dh
@@ -1031,7 +1034,6 @@ _ACC_END_PARALLEL
       slipmax=maxval(slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
       output_param(3)=count(slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>0.05*slipmax)*dh*dh
 #endif
-
 
       deallocate(efrac,erad,slipt)
 

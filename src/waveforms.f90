@@ -510,9 +510,9 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     pgatau=0.
 
     !do not calculate and discard model if:
-!    if (Mw<5.) return !if moment too small - seismograms are zero
-!    if (abs(output_param(3)-(nxt-2*nabc)*(nzt-nabc-nfs)*dh*dh)<0.5*dh*dh) return !if whole fault ruptured -->  discard model : rupture may have continued on larger fault
-!    if (MomentRate(nSr)>0.) return ! if momentrate function not finished --> discard model, as the rupture may have continued
+    if (Mw<5.) return !if moment too small - seismograms are zero
+    if (abs(output_param(3)-(nxt-2*nabc)*(nzt-nabc-nfs)*dh*dh)<0.5*dh*dh) return !if whole fault ruptured -->  discard model : rupture may have continued on larger fault
+    if (MomentRate(nSr)>0.) return ! if momentrate function not finished --> discard model, as the rupture may have continued
     allocate(kmask(nrseis))
     kmask=.false.
 

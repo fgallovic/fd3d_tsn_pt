@@ -164,11 +164,13 @@
 		 enddo
         enddo
 	  
+        nucl(1)=nuclA(1,ichain)*exp(gasdev(iseed)*StepSizenucl(1))
+        nucl(2)=nuclA(2,ichain)*exp(gasdev(iseed)*StepSizenucl(2))
         nucl(3)=nuclA(3,ichain)*exp(gasdev(iseed)*StepSizenucl(3))
         nucl(5)=nuclA(5,ichain)*exp(gasdev(iseed)*StepSizenucl(5))	  
 	  
-	    prop12=prop12+log(nuclA(3,ichain))+log(nuclA(5,ichain))
-	    prop21=prop21+log(nucl(3))+log(nucl(5))
+	    prop12=prop12+log(nuclA(1,ichain))+log(nuclA(2,ichain))+log(nuclA(3,ichain))+log(nuclA(5,ichain))
+	    prop21=prop21+log(nucl(1))+log(nucl(2))+log(nucl(3))+log(nucl(5))
 		
       else                  !Normal step	  
         prop12=log(1.)
@@ -194,9 +196,9 @@
           enddo
         enddo
 		
-		!nuclI(1)=nuclA(1,ichain)+gasdev(iseed)*StepSizenucl(1)	
+		nucl(1)=nuclA(1,ichain)+gasdev(iseed)*StepSizenucl(1)	
 		
-		!nuclI(2)=nuclA(1,ichain)+gasdev(iseed)*StepSizenucl(2)	
+		nucl(2)=nuclA(2,ichain)+gasdev(iseed)*StepSizenucl(2)	
 		
 		nucl(3)=nuclA(3,ichain)+gasdev(iseed)*StepSizenucl(3)	
 	
@@ -387,17 +389,17 @@
       enddo
     enddo
 
- !   if(hx0<nuclMin(1).or.hx0>nuclMax(1))then
+    if(hx0<nuclMin(1).or.hx0>nuclMax(1))then
 		
  !      write(*,*)'nucl',i, nucl(i)
- !       return
- !   endif	
+        return
+    endif	
 	
-!	if(hz0<nuclMin(2).or.hz0>nuclMax(2))then
+	if(hz0<nuclMin(2).or.hz0>nuclMax(2))then
 		
 !       write(*,*)'nucl',i, nucl(i)
- !       return
- !   endif	
+        return
+    endif	
 	
 	if(RR2<nuclMin(3).or.RR2>nuclMax(3))then
 		

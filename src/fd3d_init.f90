@@ -151,7 +151,7 @@
       USE traction_com
       USE SlipRates_com
 #if defined FVW
-      USE RATESTATE, only: gkoef, MDIS, NDIS, slipOUT
+      USE RATESTATE,only:gkoef,MDIS,NDIS,slipOUT,f0PS,baPS,fwPS,vwPS,aPS,dcPS,snPS
 #endif
 	  
       IMPLICIT NONE
@@ -217,6 +217,7 @@
 	  MDIS=((nxt-2*nabc-1)/gkoef)+1    
 	  NDIS=((nzt-nfs-nabc-1)/gkoef)+1 
 	  allocate(slipOUT(2,MDIS*NDIS))
+	  allocate(f0PS(MDIS,NDIS),baPS(MDIS,NDIS),fwPS(MDIS,NDIS),vwPS(MDIS,NDIS),aPS(MDIS,NDIS),dcPS(MDIS,NDIS),snPS(MDIS,NDIS))
 #else
 
       allocate(striniZ(nxt,nzt),striniX(nxt,nzt),peak_xz(nxt,nzt),Dc(nxt,nzt),dyn_xz(nxt,nzt))
@@ -617,8 +618,8 @@
     close(244)
     striniZ=0.
     coh=0.
-    do i = 1,nxt
-      do k=1,nzt-2
+    do k=1,nzt-2
+        do i = 1,nxt
         striniX(i,k)=T0
 
           if ((((real(i)-1.)*dh-hx0>= -hdelta/2.0) .and. ((real(i)-1.)*dh-hx0 <= hdelta/2.0)) &
@@ -689,8 +690,8 @@
     coh=1.e6
 
     striniX=0.
-    do i = 1,nxt
-      do k=2,nzt-2
+    do k=2,nzt-2
+      do i = 1,nxt
         sigma_n=sn*dh*(real(nzt-2-k))
         peak_xz(i,k)=sigma_n*muso
         dyn_xz(i,k) = sigma_n*mud
@@ -764,8 +765,8 @@
     coh=1.e6
 
     striniZ=0.
-    do i = 1,nxt
-      do k=2,nzt-2
+    do k=2,nzt-2
+      do i = 1,nxt
         sigma_n=sn*dh*(real(nzt-2-k)+0.5)
         peak_xz(i,k)=sigma_n*muso
         dyn_xz(i,k) = sigma_n*mud

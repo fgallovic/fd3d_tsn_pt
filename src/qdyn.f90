@@ -1,11 +1,12 @@
 #if defined FVW
    MODULE RATESTATE
       INTEGER MDIS,NDIS,MNDIS,MNDIS2,fft(2),MDISFT,NDISFT
-      REAL*8 VPL,DX,DY,VS, G2B
+      REAL*8 DX,DY,VS, G2B,Gtemp
       REAL*8 dtRATE,dtRUPT,dtSLIP
       REAL*8,ALLOCATABLE:: stresstep(:),tangstep(:),rupttime(:),timedcff(:)
       INTEGER,ALLOCATABLE:: ruptloc(:)
-      REAL*8,ALLOCATABLE:: slip(:),ruptsnapshot(:,:),slipOUT(:,:)
+      REAL*8,ALLOCATABLE:: slip(:),ruptsnapshot(:,:),slipOUT(:,:),VPL
+	  REAL*8,ALLOCATABLE:: f0PS(:,:),baPS(:,:),fwPS(:,:),vwPS(:,:),aPS(:,:),dcPS(:,:),snPS(:,:)
       COMPLEX*16,ALLOCATABLE:: Kij(:),varsc(:)
       integer gkoef
       double precision dhh
@@ -27,13 +28,14 @@
     INTEGER kmax,kount
     REAL*8 dxsav,hstar,saveittime
     COMMON /path/ kmax,kount,dxsav
-    real*8 time,time0,time1,time2,dum,LC,Z0,eps,h1,hmin,I1m,I1p,I2m,I2p,I1pI2p,I1mI2m,I1mI2p,I1pI2m,Gtemp,koeftemp
+    real*8 time,time0,time1,time2,dum,LC,Z0,eps,h1,hmin,I1m,I1p,I2m,I2p,I1pI2p,I1mI2m,I1mI2p,I1pI2m,koeftemp
     integer nok,nbad,ruptongoing,scenarios,ifrom,ito,saveit
     real*8,allocatable:: vars(:),rupts(:)
+	real*8,allocatable:: sliptot(:,:)
     integer,allocatable:: locs(:)
     integer :: ierr, rank, sizerank
 	integer :: px, pz
-    integer i,j,k,istatus,nsaves, i2, i3, j2, j3, ni
+    integer i,j,k,istatus,nsaves, i2, i3, j2, j3, ni, i4, j4
 
 	!gkoef je v fd3d_init
 	dhh=dh*gkoef  
@@ -65,9 +67,8 @@
 	slipOUT=0.
     Kij=0.
 	
-	
     fft(1)=NDISFT*4;fft(2)=MDISFT*2
-    VPL=0.
+    VPL=5.e-8
 
     DX=dhh
     DY=dhh
@@ -84,11 +85,15 @@
         k=k+1
 		i3=nabc+1+(i-1)*gkoef
 		j3=nabc+1+(j-1)*gkoef
-		!G(k)=mu1(i3,nyt,j3)
 		slip(k)=slipX(i3,j3)
 		slipOUT(1,k)=slip(k)
-		!koef(k)=2*(lam1(i3,nyt,j3)+mu1(i3,nyt,j3))/(lam1(i3,nyt,j3)+2*mu1(i3,nyt,j3))
-		!write(102,*)G(k),G2B(k),koef(k)
+		f0PS(i,j)=f0Z(i3,j3)
+		baPS(i,j)=baZ(i3,j3)
+		fwPS(i,j)=fwZ(i3,j3)
+		vwPS(i,j)=vwZ(i3,j3)
+		aPS(i,j)=aZ(i3,j3)
+		dcPS(i,j)=DCZ(i3,j3)
+		snPS(i,j)=Sn(i3,j3)
       enddo
     enddo
 	px=nxt/2
@@ -101,6 +106,7 @@
 	
   !close(102)
     hstar=2.d0*Gtemp/pi/SnZ(nxt/2,nzt/2)/maxval(baZ/DcZ(nxt/2,nzt/2))
+	write(*,*)'G=  ',Gtemp
     write(*,*)'h*=  ',hstar
     write(*,*)'h/h*=',max(DX,DY)/hstar
     write(*,*)'hmax=',2.d0*Gtemp/pi/SnZ(nxt/2,nzt/2)/maxval(baZ)*maxval(DcZ)
@@ -156,7 +162,10 @@
     ifrom=1
     ito=1
     if (ioutput.eq.1) then	
+	    open(114,FILE='schangep.txt')
+        open(113,FILE='postmom.txt')
         open(112,FILE='slip.txt')
+        open(111,FILE='state.txt')
         open(110,FILE='varsmax2.txt')
     endif
    ! open(104,FILE='friction.txt')
@@ -223,11 +232,49 @@
 	    slipOUT(2,k)=slip(k)
 	    
 	enddo
+	
+	!interpolating final (total) slip back to the FD grid
+    if (ioutput.eq.1) then
+	
+	allocate(sliptot(nxt,nzt))
+	sliptot=0.!slipX	!slightly dirty, we assign value of slip at the border
+	k=0
+    do j=1,NDIS
+      do i=1,MDIS
+        k=k+1
+		i3=nabc+1+(i-1)*gkoef
+		j3=nabc+1+(j-1)*gkoef
+		!slip(k)=slipX(i3,j3)
+		
+		!if ((j.NE.1) .AND. (j.NE.NDIS) .AND. (i.NE.1) .AND. (i.NE.MDIS)) then
+		
+		    do i4=-int(gkoef/2),int(gkoef/2)
+			    do j4=-int(gkoef/2),int(gkoef/2)
+				
+					sliptot(i3+i4,j3+j4)=slip(k) 
+					
+		        enddo
+		    enddo
+			
+		!endif
+      enddo
+    enddo
+	
+	open(102,FILE='result/totalslip.txt')
+	do k = nabc+1,nzt-nfs
+        do i = nabc+1,nxt-nabc
+            write(102,*) sliptot(i,k)
+        enddo
+    enddo
+	close(102)
+	
 	!open(102,FILE='vars.txt')
     !write(102,'(E18.11)')vars
     ! close(102)	
-    if (ioutput.eq.1) then
+	    close(114)
+        close(113)
         close(112)
+		close(111)
         close(110)
     endif
     deallocate(Kij)
@@ -250,14 +297,14 @@
     REAL*8 t
     INTEGER scennum
     REAL*8 vars(MNDIS2),varsdx(MNDIS2)
-    REAL*8 varsdum,psiss,fss,flv,dsdv,dsds,xx,aII
+    REAL*8 varsdum,psiss,fss,flv,dsdv,dsds,xx
     integer i,j,k,istatus,idum,s,i3,j3
     varsc=0.
 !$OMP parallel do private(i,j,idum,varsdum) DEFAULT(SHARED) SCHEDULE(DYNAMIC,10)
     do i=1,MDIS
       idum=(i+MDISFT/2)*NDISFT*4-NDISFT*2
       do j=1,NDIS
-        varsdum=vars(i+(j-1)*MDIS)
+        varsdum=vars(i+(j-1)*MDIS)-VPL
         varsc(idum-j+1)=varsdum
         varsc(idum+j)=varsdum
       enddo
@@ -275,23 +322,23 @@
 	    k=k+1
 	    !right side - evolution of state variable
 	    i3=nabc+1+(i-1)*gkoef
-            j3=nabc+1+(j-1)*gkoef
-            aII=aZ(i3,j3)		
-	    flv = f0Z(i3,j3) - baZ(i3,j3)*log(abs(vars(k))/v0)
-	    fss=fwZ(i3,j3) + (flv - fwZ(i3,j3))/((1. + (abs(vars(k))/vwZ(i3,j3))**8)**(1./8.))
-            psiss = aII*(log(sinh(fss/aII)) + log(2.*v0/abs(vars(k)))) 		
-            varsdx(k+MNDIS)=-abs(vars(k))/DCZ(i3,j3)*(vars(MNDIS+k)-psiss)   !1.d0-vars(k)*vars(k+MNDIS)/DC(k)-ALPHAl(k)*vars(k+MNDIS)/Bl(k)*SIGD(i,j)/SIG(i,j)
+        j3=nabc+1+(j-1)*gkoef	
+	    flv = f0PS(i,j) - baPS(i,j)*log(abs(vars(k))/v0)
+	    fss=fwPS(i,j) + (flv - fwPS(i,j))/((1. + (abs(vars(k))/vwPS(i,j))**8)**(1./8.))
+        psiss = aPS(i,j)*(log(sinh(fss/aPS(i,j))) + log(2.*v0/abs(vars(k)))) 		
+        varsdx(k+MNDIS)=-abs(vars(k))/dcPS(i,j)*(vars(MNDIS+k)-psiss)   !1.d0-vars(k)*vars(k+MNDIS)/DC(k)-ALPHAl(k)*vars(k+MNDIS)/Bl(k)*SIGD(i,j)/SIG(i,j)
 	    !right side - velocity	
-		
-            xx=abs(vars(k))/(2.*v0)*exp(vars(MNDIS+k)/aII)
-	!	if (vars(k)>0) then
-	    dsdv=aII*1./(abs(vars(k))/(2.*v0)*sqrt(1.+1./(xx*xx)))*(1.+xx/sqrt(xx*xx+1.))*1./(2.*v0)
-	!	else 
-	!	dsdv=-aZ(i3,j3)*1./(xx+sqrt(xx*xx+1))*(1.+xx/sqrt(xx*xx+1.))*1./(2.*v0)*exp(vars(MDIS+k)/aZ(i3,j3))
-	!	endif
-	    dsds=1./(abs(vars(k))/(2.*v0)*sqrt(1.+1./(xx*xx)))*(1.+xx/sqrt(xx*xx+1))*abs(vars(k))/(2.*v0)
-		
-            varsdx(k)=dble(varsc((i+MDISFT/2-1)*NDISFT*4+j+NDISFT*2)-SnZ(i3,j3)*dsds*varsdx(k+MNDIS))/(SnZ(i3,j3)*dsdv+G2B)!G2B(k))
+		!strsum=strsum+SnZ(i3,j3)*aII*asinh(xx)
+		!frsum=frsum+f0Z(i3,j3)*SnZ(i3,j3)
+		xx=abs(vars(k))/(2.*v0)*exp(vars(MNDIS+k)/aPS(i,j))
+		if (vars(k)>0) then
+	    !dsdv=aII*1./(abs(vel)/(2.*v0)*sqrt(1.+1./(xx*xx)))*(1.+xx/sqrt(xx*xx+1.))*1./(2.*v0)
+		   dsdv=aPS(i,j)*1./sqrt(xx*xx+1)*xx/vars(k)
+		else 
+		   dsdv=-aPS(i,j)*1./sqrt(xx*xx+1)*xx/vars(k)
+        endif
+	    dsds=aPS(i,j)*1./sqrt(xx*xx+1)*xx/aPS(i,j)  !1./(abs(vel)/(2.*v0)*sqrt(1.+1./(xx*xx)))*(1.+xx/sqrt(xx*xx+1))*abs(vel)/(2.*v0)
+ 	    varsdx(k)=dble(varsc((i+MDISFT/2-1)*NDISFT*4+j+NDISFT*2)-SnPS(i,j)*dsds*varsdx(k+MNDIS))/(SnPS(i,j)*dsdv+G2B)!G2B(k))
 
       enddo
     enddo
@@ -446,6 +493,7 @@
 	  USE PostSeismic_com
 	  USE SlipRates_com
 	  use source_com, only: ioutput
+	  use friction_com, only: v0
       IMPLICIT NONE
 	  INTEGER nbad,nok,MAXSTP,ruptongoing,scennum
       DOUBLE PRECISION eps,h1,hmin,x1,x2,ystart(MNDIS2),TINY
@@ -453,9 +501,9 @@
       INTEGER kmax,kount,nstp
       DOUBLE PRECISION dxsav,h,hdid,hnext,x,xsav,dydx(MNDIS2)
 	  double precision y(MNDIS2),dtout,yscal(MNDIS2)
-      double precision slip0(MNDIS),sumslip,sumvel,sumacc,maxvel,maxacc, ind
-	  integer i, j, jto, jfrom, ito, ifrom,k1,k2,kk, i2, j2, kout
-	  real tout
+      double precision slip0(MNDIS),strs(MNDIS),sumslip,sumvel,sumacc,maxvel,maxacc, ind, postmom, vini, postmom1, postmom2
+	  integer i, j, jto, jfrom, ito, ifrom,k1,k2,kk, i2, j2, kout,iout, k
+	  real tout,flv,fss,psiss
       COMMON /path/ kmax,kount,dxsav
 
       x=x1
@@ -473,7 +521,9 @@
 	  k1=0
 	  k2=0
 	  kout=0
+	  iout=0
 	  MSX=0.
+	  strs=0.
 	  
 	  !open(111,FILE='mtildeS.txt')
 16    continue
@@ -481,11 +531,30 @@
         call rates(x,y,scennum,dydx)
         yscal=abs(y)+abs(h*dydx)+TINY
 	    slip(1:MNDIS)=slip(1:MNDIS)+y(1:MNDIS)*hdid
+		postmom=sum(slip)*gtemp*dhh*dhh
+		postmom1=0.
+		postmom2=0.
+		k=0
+		 do j=1,NDIS
+            do i=1,MDIS
+		      k=k+1
+		      if (j>27) then
+				postmom1=postmom1+slip(k)
+			  else
+				postmom2=postmom2+slip(k)
+			  endif
+			    
+	        enddo
+	      enddo
+		postmom1=postmom1*gtemp*dhh*dhh
+		postmom2=postmom2*gtemp*dhh*dhh
+		
         maxvel=maxval(y(1:MNDIS))
         maxacc=maxval(dydx(1:MNDIS))
 	    sumvel=sum(y(1:MNDIS))*DX*DY
 	    sumacc=sum(dydx(1:MNDIS))*DX*DY
         sumslip=sumslip+sumvel*hdid
+
 	
 		if (x>tout) then
 		kout=kout+1
@@ -509,15 +578,35 @@
 			  !write(111,*)MSX(k2)
             enddo
           enddo
+		  
+		  k=0
+          do j=1,NDIS
+            do i=1,MDIS
+		      k=k+1
+		      strs(k)=SnPS(i,j)*aPS(i,j)*asinh(y(k)/v0*exp(y(k+MNDIS)/aPS(i,j)))	
+	        enddo
+	      enddo
+	
 		  tout=TS(kout)+dtout
 
 		endif
 	    
      !   write(110,'(10000E13.5)')x,y(1:MNDIS)
       !  write(115)x,hdid,sumacc,sumvel,sumslip,maxvel,maxacc
-	if (ioutput.eq.1) then
+
+        if (ioutput.eq.1) then
+          iout=iout+1
+          !if (iout>50) then
+            !print*,x, maxvel, hnext
+			write(114,'(E18.11,1000000E13.5)') x, strs
+			write(113,'(E18.11,1000000E13.5)') x, postmom, postmom1, postmom2
             write(112,'(E18.11,1000000E13.5)')x,slip(1:MNDIS)!, y(1+MNDIS:2*MNDIS)
+            write(111,'(E18.11,1000000E13.5)')x,y(1+MNDIS:2*MNDIS)
+            iout=0
+		  !endif
+          write(110,'(E18.11,10E13.5)') x,hdid,sumacc,sumvel,sumslip,maxvel,maxacc!,strsum,frsum
         endif
+
 
         if(kmax.gt.0)then
           if(abs(x-xsav).gt.abs(dxsav)) then
@@ -719,7 +808,7 @@
 	do i=1,NGPS	
 	  do j=1,gpsrealTN(i)
 	    do j2=1,NTS
-	
+	    
 		if (gpsrealT(j,i)<=TS(j2)) then
 	
 		  if (NTS.eq.1) then
@@ -774,14 +863,14 @@
 	  close(10)
 	  close(11)
 	  close(12)
-	 call plotgps()
+	 call plotgps_old()
 	endif
 	deallocate(MSXtemp)
 
 
 	END 
 	
-	SUBROUTINE plotgps()
+	SUBROUTINE plotgps_old()
     USE waveforms_com
     USE SlipRates_com
 	USE PostSeismic_com
@@ -819,7 +908,7 @@
     open(205,FILE='gpsplot.real.dat')
     jj=0
     do j=1,NGPS
-      if (gpsrealTN(j)>1) then
+	 if (gpsrealTN(j)>1) then
       starty=((NGPS-j+1)+margin/2.)/dble(NGPS+1)
       startx=((1-1)+margin/2.)/2.
 	  write(205,'(3E13.5)')startx,starty
@@ -840,13 +929,13 @@
       !  write(205,'(3E13.5)')startx+stept*(k),starty+stepa(j)*(gpsrealZ(k,j)-gpsrealZ(1,j))
       !enddo
       !write(205,*)
-      endif
+	 endif
     enddo
 	
     close(205)
     open(205,FILE='gpsplot.synt.dat')
     do j=1,NGPS
-      if (gpsrealTN(j)>1) then
+	 if (gpsrealTN(j)>1) then
       starty=((NGPS-j+1)+margin/2.)/dble(NGPS+1)
       startx=((1-1)+margin/2.)/2.
 	  stept=1./dble(3)*(1.-margin)/(gpsrealT(gpsrealTN(j),j))
@@ -867,7 +956,7 @@
       !  write(205,'(3E13.5)')startx+stept*k,starty+stepa(j)*(gpssyntZ(k,j)-gpssyntZ(1,j))
       !enddo
       !write(205,*)
-      endif
+	 endif
     enddo
     close(205)
 
@@ -889,6 +978,189 @@
     write(201,*)'set label "E-W" at .48,1'
     write(201,*)'set label "Z" at .86,1'
     write(201,*)'plot "gpsplot.real.dat" u 1:2 notitle w l lt -1 lw 1,\'
+    write(201,*)'"gpsplot.synt.dat" u 1:2 notitle w l lt 1 lw 2'
+    close(201)
+    
+    END
+
+	
+	SUBROUTINE plotgps()
+    USE waveforms_com
+    USE SlipRates_com
+	USE PostSeismic_com
+	
+    IMPLICIT NONE
+    REAL, PARAMETER:: margin=0.02
+    CHARACTER*5,ALLOCATABLE,DIMENSION(:):: staname
+    REAL startx,starty,stept
+    REAL,ALLOCATABLE,DIMENSION(:):: stepa,maxampl
+    real dum
+    INTEGER i,j,k,jj, n_align, n_cos
+
+	n_align=4
+	n_cos=48
+	
+    allocate(stepa(NGPS),maxampl(NGPS),staname(NGPS))
+    open(233,FILE='gpsinfo.dat')
+    do k=1,NGPS-n_cos
+      read(233,*)(dum,i=1,7),staname(k)
+    enddo
+    close(233)
+	
+
+
+    !stept=1./dble(3)*(1.-margin)/(NTSrv)
+    jj=0
+    do j=1,NGPS-n_align-n_cos
+      if (gpsrealTN(j)>1) then
+      maxampl(j)=0.
+      maxampl(j)=max(maxampl(j),maxval(abs(gpssyntN(:,j)-gpssyntN(1,j))))
+	  maxampl(j)=max(maxampl(j),maxval(abs(gpsrealN(:,j)-gpsrealN(1,j))))
+      maxampl(j)=max(maxampl(j),maxval(abs(gpssyntE(:,j)-gpssyntE(1,j))))
+	  maxampl(j)=max(maxampl(j),maxval(abs(gpsrealE(:,j)-gpsrealE(1,j))))
+      maxampl(j)=max(maxampl(j),maxval(abs(gpssyntZ(:,j)-gpssyntZ(1,j))))
+	  maxampl(j)=max(maxampl(j),maxval(abs(gpsrealZ(:,j)-gpsrealZ(1,j))))
+	  maxampl(j)=maxampl(j)/2
+      stepa(j)=.5/dble(NGPS-n_cos)*(1.-margin)/maxampl(j)
+      endif
+    enddo
+	
+	do j=NGPS-n_align+1-n_cos,NGPS-n_cos
+      if (gpsrealTN(j)>1) then
+      maxampl(j)=0.
+      maxampl(j)=max(maxampl(j),maxval(abs(sqrt(gpssyntN(:,j)**2+gpssyntE(:,j)**2)-sqrt(gpssyntN(1,j)**2+gpssyntE(1,j)**2))))
+	  maxampl(j)=max(maxampl(j),maxval(abs(sqrt(gpsrealN(:,j)**2+gpsrealE(:,j)**2)-sqrt(gpsrealN(1,j)**2+gpsrealE(1,j)**2))))
+	  maxampl(j)=maxampl(j)/2
+      stepa(j)=.5/dble(NGPS-n_cos)*(1.-margin)/maxampl(j)
+      endif
+    enddo
+
+    open(205,FILE='gpsplot.real.dat')
+    jj=0
+    do j=1,NGPS-n_align-n_cos
+	 if (gpsrealTN(j)>1) then
+      starty=((NGPS-n_cos-j+1)+margin/2.)/dble(NGPS-n_cos+1)
+      startx=((1-1)+margin/2.)/2.
+	  !write(205,'(3E13.5)')startx,starty,0.01*gpssigma(1,j)/maxampl(j)
+	  stept=1./dble(3)*(1.-margin)/(gpsrealT(gpsrealTN(j),j))
+      do k=1,gpsrealTN(j)
+        write(205,'(3E13.5)')startx+stept*gpsrealT(k,j),starty+stepa(j)*(gpsrealN(k,j)-gpsrealN(1,j)),0.01*gpssigma(1,j)/maxampl(j)
+      enddo
+      write(205,*)
+      startx=((2-1)+margin/2.)/2.
+	 ! write(205,'(3E13.5)')startx,starty,0.01*gpssigma(2,j)/maxampl(j)
+      do k=1,gpsrealTN(j)
+        write(205,'(3E13.5)')startx+stept*gpsrealT(k,j),starty+stepa(j)*(gpsrealE(k,j)-gpsrealE(1,j)),0.01*gpssigma(2,j)/maxampl(j)
+      enddo
+      write(205,*)
+      !startx=((3-1)+margin/2.)/3.
+	  !write(205,'(3E13.5)')startx,starty
+      !do k=1,NTSrv
+      !  write(205,'(3E13.5)')startx+stept*(k),starty+stepa(j)*(gpsrealZ(k,j)-gpsrealZ(1,j))
+      !enddo
+      !write(205,*)
+	 endif
+    enddo
+	
+	do j=NGPS-n_align+1-n_cos,NGPS-n_cos
+	 if (gpsrealTN(j)>1) then
+      starty=((NGPS-n_cos-j+1)+margin/2.)/dble(NGPS-n_cos+1)
+      startx=((1.5-1)+margin/2.)/2.
+	  !write(205,'(3E13.5)')startx,starty,0.01*gpssigma(1,j)/maxampl(j)
+	  stept=1./dble(3)*(1.-margin)/(gpsrealT(gpsrealTN(j),j))
+      do k=1,gpsrealTN(j)
+        write(205,'(3E13.5)')startx+stept*gpsrealT(k,j),starty+stepa(j)*(sqrt(gpsrealN(k,j)**2+gpsrealE(k,j)**2)-sqrt(gpsrealN(1,j)**2+gpsrealE(1,j)**2)),0.01*gpssigma(1,j)/maxampl(j)
+      enddo
+      write(205,*)
+    !  startx=((2-1)+margin/2.)/2.
+	 ! write(205,'(3E13.5)')startx,starty,0.01*gpssigma(2,j)/maxampl(j)
+   !   do k=1,gpsrealTN(j)
+   !     write(205,'(3E13.5)')startx+stept*gpsrealT(k,j),starty+stepa(j)*(gpsrealE(k,j)-gpsrealE(1,j)),0.01*gpssigma(2,j)/maxampl(j)
+   !   enddo
+   !   write(205,*)
+      !startx=((3-1)+margin/2.)/3.
+	  !write(205,'(3E13.5)')startx,starty
+      !do k=1,NTSrv
+      !  write(205,'(3E13.5)')startx+stept*(k),starty+stepa(j)*(gpsrealZ(k,j)-gpsrealZ(1,j))
+      !enddo
+      !write(205,*)
+	 endif
+    enddo
+	
+    close(205)
+	
+	
+    open(205,FILE='gpsplot.synt.dat')
+    do j=1,NGPS-n_align-n_cos
+	 if (gpsrealTN(j)>1) then
+      starty=((NGPS-n_cos-j+1)+margin/2.)/dble(NGPS-n_cos+1)
+      startx=((1-1)+margin/2.)/2.
+	  stept=1./dble(3)*(1.-margin)/(gpsrealT(gpsrealTN(j),j))
+	  !write(205,'(3E13.5)')startx,starty
+      do k=1,gpsrealTN(j)
+        write(205,'(3E13.5)')startx+stept*gpsrealT(k,j),starty+stepa(j)*(gpssyntN(k,j)-gpssyntN(1,j))
+      enddo
+      write(205,*)
+      startx=((2-1)+margin/2.)/2.
+	  !write(205,'(3E13.5)')startx,starty
+      do k=1,gpsrealTN(j)
+        write(205,'(3E13.5)')startx+stept*gpsrealT(k,j),starty+stepa(j)*(gpssyntE(k,j)-gpssyntE(1,j))
+      enddo
+      write(205,*)
+      !startx=((3-1)+margin/2.)/3.
+	  !!write(205,'(3E13.5)')startx,starty
+      !do k=1,NTSrv
+      !  write(205,'(3E13.5)')startx+stept*k,starty+stepa(j)*(gpssyntZ(k,j)-gpssyntZ(1,j))
+      !enddo
+      !write(205,*)
+	 endif
+    enddo
+	
+	do j=NGPS-n_align+1-n_cos,NGPS-n_cos
+	 if (gpsrealTN(j)>1) then
+      starty=((NGPS-n_cos-j+1)+margin/2.)/dble(NGPS-n_cos+1)
+      startx=((1.5-1)+margin/2.)/2.
+	  stept=1./dble(3)*(1.-margin)/(gpsrealT(gpsrealTN(j),j))
+	  !write(205,'(3E13.5)')startx,starty
+      do k=1,gpsrealTN(j)
+        write(205,'(3E13.5)')startx+stept*gpsrealT(k,j),starty+stepa(j)*(sqrt(gpssyntN(k,j)**2+gpssyntE(k,j)**2)-sqrt(gpssyntN(1,j)**2+gpssyntE(1,j)**2))
+      enddo
+      write(205,*)
+    !  startx=((2-1)+margin/2.)/2.
+	  !write(205,'(3E13.5)')startx,starty
+     ! do k=1,gpsrealTN(j)
+     !   write(205,'(3E13.5)')startx+stept*gpsrealT(k,j),starty+stepa(j)*(gpssyntE(k,j)-gpssyntE(1,j))
+    !  enddo
+     ! write(205,*)
+      !startx=((3-1)+margin/2.)/3.
+	  !!write(205,'(3E13.5)')startx,starty
+      !do k=1,NTSrv
+      !  write(205,'(3E13.5)')startx+stept*k,starty+stepa(j)*(gpssyntZ(k,j)-gpssyntZ(1,j))
+      !enddo
+      !write(205,*)
+	 endif
+    enddo
+	
+    close(205)
+
+    open(201,FILE='gpsplot.gp')
+    write(201,*)'set term postscript portrait color solid enh'
+    write(201,*)'set output "gpsplot.ps"'
+    write(201,*)'set xrange [0:1]'
+    write(201,*)'set yrange [0:1]'
+    write(201,*)'unset xtics'
+    write(201,*)'unset ytics'
+    write(201,*)'set border 0'
+    do j=1,NGPS-n_cos
+	 if (gpsrealTN(j)>1) then
+      write(201,'(A11,F5.2,A23,G,A6)')'set label "',real(maxampl(j))*100.,'" at graph 1.09, graph ',((NGPS-n_cos-j+1)+margin/2.)/dble(NGPS-n_cos+1),' right'
+      write(201,*)'set label "'//staname(j)//'" at graph -0.01, graph ',((NGPS-n_cos-j+1)+margin/2.)/dble(NGPS-n_cos+1),' right'
+     endif
+	enddo
+    write(201,*)'set label "N-S" at .15,1'
+    write(201,*)'set label "E-W" at .48,1'
+    write(201,*)'set label "Z" at .86,1'
+    write(201,*)'plot "gpsplot.real.dat" notitle with errorbars lt rgb "black",\'
     write(201,*)'"gpsplot.synt.dat" u 1:2 notitle w l lt 1 lw 2'
     close(201)
     
