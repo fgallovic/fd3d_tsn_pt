@@ -19,8 +19,10 @@
       integer:: j
 #if defined DIPSLIP
       normstress=max(1.e5,8520.*dh*real(nzt-j)*sin(dip/180.*pi))
+!      normstress=min(18.*dh*real(nzt-j)*sin(dip/180.*pi)/1.e3,100.);normstress=1.e6*max(1.,normstress)
 #else
-      normstress=max(1.e5,16200.*dh*real(nzt-j)*sin(dip/180.*pi))
+      !normstress=max(1.e5,16200.*dh*real(nzt-j)*sin(dip/180.*pi))
+      normstress=min(18.*dh*real(nzt-j)*sin(dip/180.*pi)/1.e3,100.);normstress=1.e6*max(1.,normstress)
 #endif
       END FUNCTION
     END MODULE
@@ -37,12 +39,13 @@
     USE medium_pb
     IMPLICIT NONE
     INTEGER,PARAMETER:: NMAX=1e6
-    REAL,ALLOCATABLE,DIMENSION(:):: normalstress,VRs,misfits,meansd,meansl,duration,nuclsize,EG,ER,RE,meanoverstress,M0,meanDc,meanStrengthExcess,meanslip,rupturearea,meanruptvel,meanstrength,EGrate
+    REAL,ALLOCATABLE,DIMENSION(:):: normalstress,VRs,misfits,meansd,meansl,duration,nuclsize,EG,ER,RE,meanoverstress,M0,meanDc,meanStrengthExcess,meanslip,rupturearea,meanruptvel,meanstrength,EGrate,VRgps
     REAL,ALLOCATABLE,DIMENSION(:,:,:):: DcA,TsA,T0A,SEA,ruptime1,slip1,rise1,schange1,es1,strengthexcess1,rupvel1
     REAL,ALLOCATABLE,DIMENSION(:,:):: dum11,dum12,dum13,dum21,dum22,dum23,dum24,ms1
     real, allocatable, dimension(:) :: MRate
     real, allocatable, dimension(:,:) :: MomentRate
-    REAL bestmisfit,misfitaccept,dum
+    REAL M0dum,EGdum,ERdum,VRgpsdum
+    REAL bestmisfit,misfitaccept,dum,coh,dyn,dumarr(8)
     REAL vr,mf,x0,z0,x,z,slipmax
     INTEGER NM,NTOT
     INTEGER i,j,k,ml(1),ncent
@@ -88,7 +91,7 @@
     close(10)
 
     dtseis=T/real(np)
-    nSR=int(real(ntfd)/(dtseis/dt))
+    nSR=ceiling(real(ntfd)/(dtseis/dt))
     allocate(MRate(nSR))
 
     allocate(lam1(nxt,nyt,nzt),mu1(nxt,nyt,nzt),d1(nxt,nyt,nzt))
@@ -110,7 +113,8 @@
 !------ Learn about misfits
     k=0
     open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
-10  read(101,END=11,ERR=11)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),MRate(:)
+!10  read(101,END=11,ERR=11)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),MRate(:)
+10  read(101,END=11,ERR=11)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),MRate(:),dumarr(1:5)
     k=k+1
     misfits(k)=mf
     if(k==NMAX)stop 'Increase dimension!'
@@ -122,19 +126,22 @@
     write(*,*)'Best misfit: ',bestmisfit
     
 !    misfitaccept=maxval(misfits(1:ntot))
-    misfitaccept=bestmisfit-log(0.02) !Probability threashold (2% for real data)
+!    misfitaccept=bestmisfit-log(0.02) !Probability threashold (2% for real data)
+    misfitaccept=bestmisfit-log(0.05) !Probability threashold (5% for real data)
+!    misfitaccept=bestmisfit-log(0.01) !Probability threashold (2% for real data)
 !    misfitaccept=bestmisfit-log(0.001) !Probability threashold (1%% for inv1)
-!   misfitaccept=bestmisfit-log(0.0001) !Probability threashold (.1%% for pga)
+!   misfitaccept=bestmisfit-log(0.00001) !Probability threashold (.1%% for pga)
+!   misfitaccept=bestmisfit+20. !Honzuv napad
     
     NM=0
-    do i=1,k
+    do i=1,NTOT
       if(misfits(i)<=misfitaccept)NM=NM+1
     enddo
     write(*,*)'Number of accepted models: ',NM
     DEALLOCATE(misfits,VRs)
 
 !------ Read accepted models
-    ALLOCATE(misfits(NM),VRs(NM),meansd(NM),meansl(NM),duration(NM),nuclsize(NM),EG(NM),ER(NM),RE(NM),meanoverstress(NM),M0(NM),EGrate(NM))
+    ALLOCATE(misfits(NM),VRs(NM),meansd(NM),meansl(NM),duration(NM),nuclsize(NM),EG(NM),ER(NM),RE(NM),meanoverstress(NM),M0(NM),EGrate(NM),VRgps(NM))
     ALLOCATE(meanDc(NM),meanStrengthExcess(NM),meanslip(NM),rupturearea(NM),meanruptvel(NM),meanstrength(NM))
     allocate(DcA(NLI,NWI,NM),TsA(NLI,NWI,NM),T0A(NLI,NWI,NM),SEA(NLI,NWI,NM))
     allocate(ruptime1(nxt,nzt,NM),slip1(nxt,nzt,NM),rise1(nxt,nzt,NM),schange1(nxt,nzt,NM),es1(nxt,nzt,NM),ms1(nxt,nzt),strengthexcess1(nxt,nzt,NM),rupvel1(nxt,nzt,NM))
@@ -142,7 +149,7 @@
     open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
     k=0
     do i=1,NTOT
-      read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),Mrate(:)
+      read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),Mrate(:),M0dum,EGdum,ERdum,dum,VRgpsdum
       if(mf<=misfitaccept)then
         k=k+1
         misfits(k)=mf
@@ -160,6 +167,10 @@
         rise1(:,:,k)=dum23(:,:)
         schange1(:,:,k)=dum24(:,:)
         MomentRate(:,k)=Mrate(:)
+        M0(k)=M0dum
+        Eg(k)=Egdum
+        Er(k)=Erdum
+        VRgps(k)=VRgpsdum
       endif
     enddo
     close(101)
@@ -175,6 +186,10 @@
     close(201)
     
     open(201,FILE='processBayes.dat')
+    open(231,FILE='forwardmodel.lowoverstress.dat')
+
+coh=0.5e6
+
     do k=1,NM
       strinix=0.
       ms1=0.
@@ -183,7 +198,7 @@
       CALL interpolate(TSA(:,:,k),ms1(:,:))
       CALL interpolate(DcA(:,:,k),Dc(:,:))
       do i=1,nzt
-        peak_xz(:,i)=ms1(:,i)*normalstress(i)
+        peak_xz(:,i)=ms1(:,i)*normalstress(i)+coh
       enddo
       es1(:,:,k)=(peak_xz(:,:)-strinix(:,:))/max(1.,strinix(:,:))
       slipmax=maxval(slip1(:,:,k))
@@ -208,9 +223,13 @@
       z0=z0/ncent
 
       strengthexcess1(:,:,k)=strinix(:,:)-peak_xz(:,:)
-      nuclsize(k)=dh*dh*COUNT(strengthexcess1(:,:,k)>=1.e5)/1.e6
-      meanoverstress(k)=sum(strengthexcess1(:,:,k),strengthexcess1(:,:,k)>=1.e5)*dh*dh/1.e6/nuclsize(k)/1.e6
+!      nuclsize(k)=dh*dh*COUNT(strengthexcess1(:,:,k)>=1.e5)/1.e6
+!      meanoverstress(k)=sum(strengthexcess1(:,:,k),strengthexcess1(:,:,k)>=1.e5)*dh*dh/1.e6/nuclsize(k)/1.e6
+      nuclsize(k)=dh*dh*COUNT(strengthexcess1(:,:,k)>=0.)/1.e6
+      meanoverstress(k)=sum(strengthexcess1(:,:,k),strengthexcess1(:,:,k)>=0.)*dh*dh/1.e6/nuclsize(k)/1.e6
       meanstrength(k)=sum(peak_xz(:,:)*slip1(:,:,k))/sum(slip1(:,:,k))
+
+    if(meanoverstress(k)<2.)write(231,'(10000E13.5)')misfits(k),VRs(k),T0A(:,:,k),TsA(:,:,k),DcA(:,:,k)
 
 !dependence of slip on Dc
       if(mod(k,10)==0)then
@@ -225,31 +244,44 @@
 !Rupture velocity
       do j=2,nzt-1
         do i=2,nxt-1
-          dum21(i,j)=sqrt((ruptime1(i+1,j,k)-ruptime1(i-1,j,k))**2+(ruptime1(i,j+1,k)-ruptime1(i,j-1,k))**2)/2./dh  !slowness
-          rupvel1(i,j,k)=1.e-3/dum21(i,j)
+          if ((ruptime1(i,j,k).ne.1.e4).and.(ruptime1(i+1,j,k).ne.1.e4).and.(ruptime1(i,j+1,k).ne.1.e4) &
+          .and.(ruptime1(i-1,j,k).ne.1.e4).and.(ruptime1(i,j-1,k).ne.1.e4)) then
+            dum = (sqrt((ruptime1(i+1,j,k)-ruptime1(i,j,k))**2+(ruptime1(i,j+1,k)-ruptime1(i,j,k))**2) &
+              +sqrt((ruptime1(i,j,k)-ruptime1(i-1,j,k))**2+(ruptime1(i,j,k)-ruptime1(i,j-1,k))**2))
+            if (dum.ne.0.) then
+              rupvel1(i,j,k)=2*dh/dum/1000.
+            else
+              rupvel1(i,j,k) = 0.
+            endif
+          endif
         enddo
       enddo
-      meanruptvel(k)=1./(sum(dum21(2:nxt-1,2:nzt-1)*slip1(2:nxt-1,2:nzt-1,k),ruptime1(2:nxt-1,2:nzt-1,k)>1.)/sum(slip1(2:nxt-1,2:nzt-1,k),ruptime1(2:nxt-1,2:nzt-1,k)>1.))/1.e3
+      !meanruptvel(k)=1./(sum(dum21(2:nxt-1,2:nzt-1)*slip1(2:nxt-1,2:nzt-1,k),ruptime1(2:nxt-1,2:nzt-1,k)>1.)/sum(slip1(2:nxt-1,2:nzt-1,k),ruptime1(2:nxt-1,2:nzt-1,k)>1.))/1.e3
+      meanruptvel(k)=sum(rupvel1(2:nxt-1,2:nzt-1,k)*slip1(2:nxt-1,2:nzt-1,k))/sum(slip1(2:nxt-1,2:nzt-1,k))/1.e3
       
-      EG(k)=sum(peak_xz(:,:)*(Dc(:,:)-(Dc(:,:)-slip1(:,:,k))/Dc(:,:)*max(0.,Dc(:,:)-slip1(:,:,k))))/2.*dh*dh   ! Dissipated breakdown work (protoze je tam ten min)
-      ER(k)=sum((strinix(:,:)+peak_xz(:,:)*max(0.,1.-slip1(:,:,k)/Dc(:,:)))*slip1(:,:,k)-peak_xz(:,:)*(Dc(:,:)-(max(0.,Dc(:,:)-slip1(:,:,k)))**2/Dc(:,:)))/2.*dh*dh
+!      EG(k)=sum(peak_xz(:,:)*(Dc(:,:)-(Dc(:,:)-slip1(:,:,k))/Dc(:,:)*max(0.,Dc(:,:)-slip1(:,:,k))))/2.*dh*dh   ! Dissipated breakdown work (protoze je tam ten min)
+!      ER(k)=sum((strinix(:,:)+peak_xz(:,:)*max(0.,1.-slip1(:,:,k)/Dc(:,:)))*slip1(:,:,k)-peak_xz(:,:)*(Dc(:,:)-(max(0.,Dc(:,:)-slip1(:,:,k)))**2/Dc(:,:)))/2.*dh*dh
       RE(k)=ER(k)/(ER(k)+EG(k)) !Radiation efficiency
-            
+
       meansd(k)=-sum(schange1(:,:,k)*slip1(:,:,k))/sum(slip1(:,:,k))/1.e6
 
-      EGrate(k)=sum((peak_xz(1:nxt,1:nzt-2)*(Dc(1:nxt,1:nzt-2)-(Dc(1:nxt,1:nzt-2)-slip1(1:nxt,1:nzt-2,k))/Dc(1:nxt,1:nzt-2)*max(0.,Dc(1:nxt,1:nzt-2)-slip1(1:nxt,1:nzt-2,k))))*slip1(1:nxt,1:nzt-2,k))/2./sum(slip1(1:nxt,1:nzt-2,k))   ! Dissipated breakdown work rate
-      
+!      EGrate(k)=sum((peak_xz(1:nxt,1:nzt-2)*(Dc(1:nxt,1:nzt-2)-(Dc(1:nxt,1:nzt-2)-slip1(1:nxt,1:nzt-2,k))/Dc(1:nxt,1:nzt-2)*max(0.,Dc(1:nxt,1:nzt-2)-slip1(1:nxt,1:nzt-2,k))))*slip1(1:nxt,1:nzt-2,k))/2./sum(slip1(1:nxt,1:nzt-2,k))   ! Dissipated breakdown work rate
+!      EGrate(k)=EG(k)/sum(slip1(:,:,k))*real(nxt*nzt)
+
       meansl(k)=sum(strinix(:,:)/peak_xz(:,:)*slip1(:,:,k))/sum(slip1(:,:,k)) !Stress level (Eq. 4 in Ripperger et al., 2007)
       
       duration(k)=maxval(ruptime1(:,:,k),slip1(:,:,k)>0.05*slipmax)-minval(ruptime1(:,:,k),slip1(:,:,k)>0.05*slipmax)
       
-      M0(k)=sum(slip1(:,:,k)*mu1(:,nyt,:))*dh*dh
+!      M0(k)=sum(slip1(:,:,k)*mu1(:,nyt,:))*dh*dh
 
       meanDc(k)=sum(Dc(:,:)*slip1(:,:,k))/sum(slip1(:,:,k))
       
-      meanslip(k)=sum(slip1(:,:,k)*slip1(:,:,k))/sum(slip1(:,:,k))
-      
+!      meanslip(k)=sum(slip1(:,:,k)*slip1(:,:,k))/sum(slip1(:,:,k))
+      meanslip(k)=sum(slip1(:,:,k))/count(slip1(:,:,k)>0.001)
+
       rupturearea(k)=count(slip1(:,:,k)>0.05*slipmax)*dh*dh
+      
+      EGrate(k)=EG(k)/rupturearea(k)
       
       meanStrengthExcess(k)=-sum(strengthexcess1(:,:,k)*slip1(:,:,k),strengthexcess1(:,:,k)<1.e5)/sum(slip1(:,:,k),strengthexcess1(:,:,k)<1.e5)/1.e6
 
@@ -260,6 +292,7 @@
 
     write(*,*)'Mean stress drop: ',sum(meansd(:))/NM,'+-',sqrt(sum(meansd(:)**2)/NM-(sum(meansd(:))/NM)**2)
     write(*,*)'Fracture energy: ',sum(EG(:))/NM,'+-',sqrt(sum(EG(:)**2)/NM-(sum(EG(:))/NM)**2)
+    write(*,*)'Fracture energy rate: ',sum(EGrate(:))/NM,'+-',sqrt(sum(EGrate(:)**2)/NM-(sum(EGrate(:))/NM)**2)
     write(*,*)'Radiated energy: ',sum(ER(:))/NM,'+-',sqrt(sum(ER(:)**2)/NM-(sum(ER(:))/NM)**2)
     write(*,*)'Mean Dc: ',sum(meanDc(:))/NM,'+-',sqrt(sum(meanDc(:)**2)/NM-(sum(meanDc(:))/NM)**2)
     write(*,*)'Mean slip: ',sum(meanslip(:))/NM,'+-',sqrt(sum(meanslip(:)**2)/NM-(sum(meanslip(:))/NM)**2)
@@ -377,8 +410,8 @@
     REAL DL,DW,ZS,XS,t,u
     INTEGER i,k,ii,kk
 
-    DL=dh*nxt/real(NLI-1)
-    DW=dh*nzt/real(NWI-1)
+    DL=dh*(nxt-1)/real(NLI-1)
+    DW=dh*(nzt-1)/real(NWI-1)
     do k=1,nzt
       ZS=dh*(k-1)+dh/2.
       kk=int(ZS/DW)+1
