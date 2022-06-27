@@ -1358,18 +1358,18 @@
       nxb=2
       nxe=nabc
       nyb=nabc+1
-      nye=nyt-1
+      nye=nyt!-1
       nzb=nabc+1
       nze=nzt-nfs
-      allocate (omegax1(nxe-nxb+1),omegay1(nye-nyb+1+1),omegaz1(nze-nzb+1))      
+      allocate (omegax1(nxe-nxb+1),omegay1(nye-nyb+1),omegaz1(nze-nzb+1))      
       allocate (omegaxS1(nxe-nxb+1))    
-      allocate (u11(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),u12(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),u13(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (u11(nxe-nxb+1,nye-nyb+1,nze-nzb+1),u12(nxe-nxb+1,nye-nyb+1,nze-nzb+1),u13(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
       allocate (v11(nxe-nxb+1,nye-nyb+1,nze-nzb+1),v12(nxe-nxb+1,nye-nyb+1,nze-nzb+1),v13(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
-      allocate (w11(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),w12(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),w13(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
-      allocate (xx11(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xx12(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xx13(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
-      allocate (yy11(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),yy12(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),yy13(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
-      allocate (zz11(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),zz12(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),zz13(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
-      allocate (xz11(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xz12(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (w11(nxe-nxb+1,nye-nyb+1,nze-nzb+1),w12(nxe-nxb+1,nye-nyb+1,nze-nzb+1),w13(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (xx11(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xx12(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xx13(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (yy11(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yy12(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yy13(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (zz11(nxe-nxb+1,nye-nyb+1,nze-nzb+1),zz12(nxe-nxb+1,nye-nyb+1,nze-nzb+1),zz13(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (xz11(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xz12(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
       allocate (xy11(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xy12(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
       allocate (yz11(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yz12(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
       
@@ -1380,18 +1380,18 @@
       nxb=nxt-nabc+1
       nxe=nxt-1
       nyb=nabc+1
-      nye=nyt-1
+      nye=nyt!-1
       nzb=nabc+1
       nze=nzt-nfs
-      allocate (omegax2(nxe-nxb+1),omegay2(nye-nyb+1+1),omegaz2(nze-nzb+1))  
+      allocate (omegax2(nxe-nxb+1),omegay2(nye-nyb+1),omegaz2(nze-nzb+1))  
       allocate (omegaxS2(nxe-nxb+1))      
-      allocate (u21(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),u22(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),u23(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (u21(nxe-nxb+1,nye-nyb+1,nze-nzb+1),u22(nxe-nxb+1,nye-nyb+1,nze-nzb+1),u23(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
       allocate (v21(nxe-nxb+1,nye-nyb+1,nze-nzb+1),v22(nxe-nxb+1,nye-nyb+1,nze-nzb+1),v23(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
-      allocate (w21(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),w22(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),w23(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
-      allocate (xx21(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xx22(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xx23(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
-      allocate (yy21(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),yy22(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),yy23(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
-      allocate (zz21(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),zz22(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),zz23(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
-      allocate (xz21(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xz22(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (w21(nxe-nxb+1,nye-nyb+1,nze-nzb+1),w22(nxe-nxb+1,nye-nyb+1,nze-nzb+1),w23(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (xx21(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xx22(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xx23(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (yy21(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yy22(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yy23(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (zz21(nxe-nxb+1,nye-nyb+1,nze-nzb+1),zz22(nxe-nxb+1,nye-nyb+1,nze-nzb+1),zz23(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (xz21(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xz22(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
       allocate (xy21(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xy22(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
       allocate (yz21(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yz22(nxe-nxb+1,nye-nyb+1,nze-nzb+1))  
       
@@ -1424,18 +1424,18 @@
       nxb=2
       nxe=nxt-1
       nyb=2
-      nye=nyt-1
+      nye=nyt!-1
       nzb=2
       nze=nabc
-      allocate (omegax4(nxe-nxb+1),omegay4(nye-nyb+1+1),omegaz4(nze-nzb+1))  
-      allocate (omegaxS4(nxe-nxb+1),omegayS4(nye-nyb+1+1),omegazS4(nze-nzb+1))  
-      allocate (u41(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),u42(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),u43(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (omegax4(nxe-nxb+1),omegay4(nye-nyb+1),omegaz4(nze-nzb+1))  
+      allocate (omegaxS4(nxe-nxb+1),omegayS4(nye-nyb+1),omegazS4(nze-nzb+1))  
+      allocate (u41(nxe-nxb+1,nye-nyb+1,nze-nzb+1),u42(nxe-nxb+1,nye-nyb+1,nze-nzb+1),u43(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
       allocate (v41(nxe-nxb+1,nye-nyb+1,nze-nzb+1),v42(nxe-nxb+1,nye-nyb+1,nze-nzb+1),v43(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
-      allocate (w41(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),w42(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),w43(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
-      allocate (xx41(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xx42(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xx43(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
-      allocate (yy41(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),yy42(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),yy43(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
-      allocate (zz41(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),zz42(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),zz43(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
-      allocate (xz41(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xz42(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (w41(nxe-nxb+1,nye-nyb+1,nze-nzb+1),w42(nxe-nxb+1,nye-nyb+1,nze-nzb+1),w43(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (xx41(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xx42(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xx43(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (yy41(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yy42(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yy43(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (zz41(nxe-nxb+1,nye-nyb+1,nze-nzb+1),zz42(nxe-nxb+1,nye-nyb+1,nze-nzb+1),zz43(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (xz41(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xz42(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
       allocate (xy41(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xy42(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
       allocate (yz41(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yz42(nxe-nxb+1,nye-nyb+1,nze-nzb+1))    
 
@@ -1448,19 +1448,19 @@
       nxb=2
       nxe=nxt-1
       nyb=2
-      nye=nyt-1
+      nye=nyt!-1
       nzb=nzt-nabc+1
       nze=nzt-1
 	  
-      allocate (omegax5(nxe-nxb+1),omegay5(nye-nyb+1+1),omegaz5(nze-nzb+1))  
-      allocate (omegaxS5(nxe-nxb+1),omegayS5(nye-nyb+1+1),omegazS5(nze-nzb+1))  
-      allocate (u51(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),u52(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),u53(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (omegax5(nxe-nxb+1),omegay5(nye-nyb+1),omegaz5(nze-nzb+1))  
+      allocate (omegaxS5(nxe-nxb+1),omegayS5(nye-nyb+1),omegazS5(nze-nzb+1))  
+      allocate (u51(nxe-nxb+1,nye-nyb+1,nze-nzb+1),u52(nxe-nxb+1,nye-nyb+1,nze-nzb+1),u53(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
       allocate (v51(nxe-nxb+1,nye-nyb+1,nze-nzb+1),v52(nxe-nxb+1,nye-nyb+1,nze-nzb+1),v53(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
-      allocate (w51(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),w52(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),w53(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
-      allocate (xx51(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xx52(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xx53(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
-      allocate (yy51(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),yy52(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),yy53(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
-      allocate (zz51(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),zz52(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),zz53(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
-      allocate (xz51(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1),xz52(nxe-nxb+1,nye-nyb+1+1,nze-nzb+1))
+      allocate (w51(nxe-nxb+1,nye-nyb+1,nze-nzb+1),w52(nxe-nxb+1,nye-nyb+1,nze-nzb+1),w53(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (xx51(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xx52(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xx53(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (yy51(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yy52(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yy53(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (zz51(nxe-nxb+1,nye-nyb+1,nze-nzb+1),zz52(nxe-nxb+1,nye-nyb+1,nze-nzb+1),zz53(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
+      allocate (xz51(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xz52(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
       allocate (xy51(nxe-nxb+1,nye-nyb+1,nze-nzb+1),xy52(nxe-nxb+1,nye-nyb+1,nze-nzb+1))
       allocate (yz51(nxe-nxb+1,nye-nyb+1,nze-nzb+1),yz52(nxe-nxb+1,nye-nyb+1,nze-nzb+1))    
 
@@ -1496,30 +1496,30 @@
         
         omegay3(i)= omegaR_pml(i)
         omegax3(i)= omegaR_pml(i)
-        omegax3(nxt-i-1)= omega_pmlM(i)   
+        omegax3(nxt-i-1)= omegaR_pmlM(i)   
         omegayS3(i)= omegaR_pmlM(i)
         omegaxS3(i)= omegaR_pmlM(i)
-        omegaxS3(nxt-i-1)= omega_pml(i)  
+        omegaxS3(nxt-i-1)= omegaR_pml(i)  
         
         omegaz4(i)= omegaR_pml(i)
         omegax4(i)= omegaR_pml(i)
-        omegax4(nxt-i-1)= omega_pmlM(i)
+        omegax4(nxt-i-1)= omegaR_pmlM(i)
         omegay4(i)= omegaR_pml(i)
         
         omegazS4(i)= omegaR_pmlM(i)
         omegaxS4(i)= omegaR_pmlM(i)
-        omegaxS4(nxt-i-1)= omega_pml(i)
+        omegaxS4(nxt-i-1)= omegaR_pml(i)
         omegayS4(i)= omegaR_pmlM(i)
 		
 #if defined FSPACE
 		omegaz5(i)= omega_pmlM(i)
         omegax5(i)= omegaR_pml(i)
-        omegax5(nxt-i-1)= omega_pmlM(i)
+        omegax5(nxt-i-1)= omegaR_pmlM(i)
         omegay5(i)= omegaR_pml(i)
         
         omegazS5(i)= omega_pml(i)
         omegaxS5(i)= omegaR_pmlM(i)
-        omegaxS5(nxt-i-1)= omega_pml(i)
+        omegaxS5(nxt-i-1)= omegaR_pml(i)
         omegayS5(i)= omegaR_pmlM(i)
 #endif
       enddo
@@ -1543,14 +1543,14 @@
       nxb=2
       nxe=nabc
       nyb=nabc+1
-      nye=nyt-1
+      nye=nyt!-1
       nzb=nabc+1
       nze=nzt-nfs
 
       _ACC_PARALLEL
       _ACC_LOOP_COLLAPSE_3
       do k = nzb,nze
-        do j = nyb,nye+1
+        do j = nyb,nye!+1
           do i = nxb,nxe
             k2=1-nzb+k
             j2=1-nyb+j
@@ -1578,20 +1578,6 @@
             w13(i2,j2,k2) = pt/(1.+omegaz1(k2))
 
             w1(i,j,k) = w11(i2,j2,k2) + w12(i2,j2,k2) + w13(i2,j2,k2)
-          enddo
-        enddo
-      enddo
-      _ACC_END_PARALLEL
-
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k = nzb,nze
-        do j = nyb,nye
-          do i = nxb,nxe
-            k2=1-nzb+k
-            j2=1-nyb+j
-            d         = d1(i,j,k)
-            i2=1-nxb+i
             
             pt = v11(i2,j2,k2)*(1.-omegaxS1(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh
             v11(i2,j2,k2) = pt/(1.+omegaxS1(i2))
@@ -1617,14 +1603,14 @@
       nxb=nxt-nabc+1
       nxe=nxt-1
       nyb=nabc+1
-      nye=nyt-1
+      nye=nyt!-1
       nzb=nabc+1
       nze=nzt-nfs
 
       _ACC_PARALLEL
       _ACC_LOOP_COLLAPSE_3
       do k = nzb,nze
-        do j = nyb,nye+1
+        do j = nyb,nye!+1
           do i = nxb,nxe
             k2=1-nzb+k
             j2=1-nyb+j
@@ -1654,20 +1640,6 @@
             w23(i2,j2,k2) = pt/(1.+omegaz2(k2))
             
             w1(i,j,k) = w21(i2,j2,k2) + w22(i2,j2,k2) + w23(i2,j2,k2)
-          enddo
-        enddo
-      enddo
-      _ACC_END_PARALLEL
-
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k = nzb,nze
-        do j = nyb,nye
-          do i = nxb,nxe
-            k2=1-nzb+k
-            j2=1-nyb+j
-            d         = d1(i,j,k)
-            i2=1-nxb+i
             
             pt = v21(i2,j2,k2)*(1.-omegaxS2(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh
             v21(i2,j2,k2) = pt/(1.+omegaxS2(i2))
@@ -1711,8 +1683,8 @@
             pt = (u31(i2,j2,k2)*(1.-omegax3(i2))  + (dt/d)*(xx(i,j,k) - xx(i-1,j,k))/dh)
             u31(i2,j2,k2) = pt/(1.+omegax3(i2))
             
-            pt = (u32(i2,j2,k2)*(1.-omegay3(j2))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh)
-            u32(i2,j2,k2) = pt/(1.+omegay3(j2))
+            pt = (u32(i2,j2,k2)*(1.-omegayS3(j2))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh)
+            u32(i2,j2,k2) = pt/(1.+omegayS3(j2))
             
             pt = (u33(i2,j2,k2)*(1.-omegaz3(k2))  + (dt/d)*(xz(i,j,k) - xz(i,j,k-1))/dh)
             u33(i2,j2,k2) = pt/(1.+omegaz3(k2))
@@ -1734,8 +1706,8 @@
             pt = w31(i2,j2,k2)*(1.-omegaxS3(i2))  + (dt/d)*(xz(i+1,j,k) - xz(i,j,k))/dh
             w31(i2,j2,k2) = pt/(1.+omegaxS3(i2))
             
-            pt = w32(i2,j2,k2)*(1.-omegay3(j2))  + (dt/d)*(yz(i,j,k) - yz(i,j-1,k))/dh
-            w32(i2,j2,k2) = pt/(1.+omegay3(j2))
+            pt = w32(i2,j2,k2)*(1.-omegayS3(j2))  + (dt/d)*(yz(i,j,k) - yz(i,j-1,k))/dh
+            w32(i2,j2,k2) = pt/(1.+omegayS3(j2))
             
             pt = w33(i2,j2,k2)*(1.-omegaz3(k2))  + (dt/d)*(zz(i,j,k+1) - zz(i,j,k))/dh
             w33(i2,j2,k2) = pt/(1.+omegaz3(k2))
@@ -1755,14 +1727,14 @@
       nxb=2
       nxe=nxt-1
       nyb=2
-      nye=nyt-1
+      nye=nyt!-1
       nzb=2
       nze=nabc
 
       _ACC_PARALLEL
       _ACC_LOOP_COLLAPSE_3
       do k = nzb,nze
-        do j = nyb,nye+1
+        do j = nyb,nye!+1
           do i = nxb,nxe
             k2=1-nzb+k
             j2=1-nyb+j
@@ -1773,8 +1745,8 @@
             pt = (u41(i2,j2,k2)*(1.-omegax4(i2))  + (dt/d)*(xx(i,j,k) - xx(i-1,j,k))/dh)
             u41(i2,j2,k2) = pt/(1.+omegax4(i2))
             
-            pt = (u42(i2,j2,k2)*(1.-omegay4(j2))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh)
-            u42(i2,j2,k2) = pt/(1.+omegay4(j2))
+            pt = (u42(i2,j2,k2)*(1.-omegayS4(j2))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh)
+            u42(i2,j2,k2) = pt/(1.+omegayS4(j2))
             
             pt = (u43(i2,j2,k2)*(1.-omegaz4(k2))  + (dt/d)*(xz(i,j,k) - xz(i,j,k-1))/dh)
             u43(i2,j2,k2) = pt/(1.+omegaz4(k2))
@@ -1784,28 +1756,14 @@
             pt = w41(i2,j2,k2)*(1.-omegaxS4(i2))  + (dt/d)*(xz(i+1,j,k) - xz(i,j,k))/dh
             w41(i2,j2,k2) = pt/(1.+omegaxS4(i2))
             
-            pt = w42(i2,j2,k2)*(1.-omegay4(j2))  + (dt/d)*(yz(i,j,k) - yz(i,j-1,k))/dh
-            w42(i2,j2,k2) = pt/(1.+omegay4(j2))
+            pt = w42(i2,j2,k2)*(1.-omegayS4(j2))  + (dt/d)*(yz(i,j,k) - yz(i,j-1,k))/dh
+            w42(i2,j2,k2) = pt/(1.+omegayS4(j2))
             
-            pt = w43(i2,j2,k2)*(1.-omegaz4(k2))  + (dt/d)*(zz(i,j,k+1) - zz(i,j,k))/dh
-            w43(i2,j2,k2) = pt/(1.+omegaz4(k2))
+            pt = w43(i2,j2,k2)*(1.-omegazS4(k2))  + (dt/d)*(zz(i,j,k+1) - zz(i,j,k))/dh
+            w43(i2,j2,k2) = pt/(1.+omegazS4(k2))
             
             w1(i,j,k) = w41(i2,j2,k2) + w42(i2,j2,k2) + w43(i2,j2,k2)
-          enddo
-        enddo
-      enddo
-      _ACC_END_PARALLEL
 
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k = nzb,nze
-        do j = nyb,nye
-          do i = nxb,nxe
-            k2=1-nzb+k
-            j2=1-nyb+j
-            d         = d1(i,j,k)
-            i2=1-nxb+i
-            
             pt = v41(i2,j2,k2)*(1.-omegaxS4(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh
             v41(i2,j2,k2) = pt/(1.+omegaxS4(i2))
             
@@ -1828,14 +1786,14 @@
 	  nxb=2
       nxe=nxt-1
       nyb=2
-      nye=nyt-1
+      nye=nyt!-1
       nzb=nzt-nabc+1
       nze=nzt-1
 	  
       _ACC_PARALLEL
       _ACC_LOOP_COLLAPSE_3
       do k = nzb,nze
-        do j = nyb,nye+1
+        do j = nyb,nye!+1
           do i = nxb,nxe
             k2=1-nzb+k
             j2=1-nyb+j
@@ -1846,8 +1804,8 @@
             pt = (u51(i2,j2,k2)*(1.-omegax5(i2))  + (dt/d)*(xx(i,j,k) - xx(i-1,j,k))/dh)
             u51(i2,j2,k2) = pt/(1.+omegax5(i2))
             
-            pt = (u52(i2,j2,k2)*(1.-omegay5(j2))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh)
-            u52(i2,j2,k2) = pt/(1.+omegay5(j2))
+            pt = (u52(i2,j2,k2)*(1.-omegayS5(j2))  + (dt/d)*(xy(i,j,k) - xy(i,j-1,k))/dh)
+            u52(i2,j2,k2) = pt/(1.+omegayS5(j2))
             
             pt = (u53(i2,j2,k2)*(1.-omegaz5(k2))  + (dt/d)*(xz(i,j,k) - xz(i,j,k-1))/dh)
             u53(i2,j2,k2) = pt/(1.+omegaz5(k2))
@@ -1857,28 +1815,14 @@
             pt = w51(i2,j2,k2)*(1.-omegaxS5(i2))  + (dt/d)*(xz(i+1,j,k) - xz(i,j,k))/dh
             w51(i2,j2,k2) = pt/(1.+omegaxS5(i2))
             
-            pt = w52(i2,j2,k2)*(1.-omegay5(j2))  + (dt/d)*(yz(i,j,k) - yz(i,j-1,k))/dh
-            w52(i2,j2,k2) = pt/(1.+omegay5(j2))
+            pt = w52(i2,j2,k2)*(1.-omegayS5(j2))  + (dt/d)*(yz(i,j,k) - yz(i,j-1,k))/dh
+            w52(i2,j2,k2) = pt/(1.+omegayS5(j2))
             
-            pt = w53(i2,j2,k2)*(1.-omegaz5(k2))  + (dt/d)*(zz(i,j,k+1) - zz(i,j,k))/dh
-            w53(i2,j2,k2) = pt/(1.+omegaz5(k2))
+            pt = w53(i2,j2,k2)*(1.-omegazS5(k2))  + (dt/d)*(zz(i,j,k+1) - zz(i,j,k))/dh
+            w53(i2,j2,k2) = pt/(1.+omegazS5(k2))
             
             w1(i,j,k) = w51(i2,j2,k2) + w52(i2,j2,k2) + w53(i2,j2,k2)
-          enddo
-        enddo
-      enddo
-      _ACC_END_PARALLEL
 
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k = nzb,nze
-        do j = nyb,nye
-          do i = nxb,nxe
-            k2=1-nzb+k
-            j2=1-nyb+j
-            d         = d1(i,j,k)
-            i2=1-nxb+i
-            
             pt = v51(i2,j2,k2)*(1.-omegaxS5(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh
             v51(i2,j2,k2) = pt/(1.+omegaxS5(i2))
             
@@ -1920,14 +1864,14 @@
       nxb=2
       nxe=nabc
       nyb=nabc+1
-      nye=nyt-1
+      nye=nyt!-1
       nzb=nabc+1
       nze=nzt-nfs
 
       _ACC_PARALLEL
       _ACC_LOOP_COLLAPSE_3
       do k = nzb,nze
-      do j = nyb,nye+1
+      do j = nyb,nye!+1
       do i = nxb,nxe
         i2=1-nxb+i
         j2=1-nyb+j
@@ -1979,20 +1923,7 @@
         zz13(i2,j2,k2) = pt/(1.+omegaz1(k2))
 
         zz(i,j,k)= zz11(i2,j2,k2) + zz12(i2,j2,k2) + zz13(i2,j2,k2)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
       
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k = nzb,nze
-      do j = nyb,nye
-      do i = nxb,nxe
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
-
 !       Find xy stress
 
         xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
@@ -2004,19 +1935,6 @@
         xy12(i2,j2,k2) = pt/(1.+omegax1(i2))
 
         xy(i,j,k)= xy11(i2,j2,k2) + xy12(i2,j2,k2)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
-      
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k=nzb,nze
-      do j=nyb,nye+1
-      do i=nxb,nxe
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
 
 !       Find xz stress
 
@@ -2029,19 +1947,6 @@
         xz12(i2,j2,k2) = pt/(1.+omegax1(i2))
 
         xz(i,j,k)= xz11(i2,j2,k2) + xz12(i2,j2,k2)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
-      
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k=nzb,nze
-      do j=nyb,nye
-      do i=nxb,nxe
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
 
 !       Find yz stress
 
@@ -2064,12 +1969,13 @@
       ! call sxza(nxb,nxe,nyb,nye+1,nzb,nze,dh,dt,omegax1, omegay1, omegaz1, xz11,xz12)
       ! call syza(nxb,nxe,nyb,nye,nzb,nze,dh,dt,omegaxS1b,omegay1b,omegaz1b, yz11,yz12)
 
+#if !defined FSPACE
 !     xz11(:,:,nze-nzb+1) = 0.
 !     xz12(:,:,nze-nzb+1) = 0.
       _ACC_PARALLEL
       _ACC_LOOP_COLLAPSE_2
       do i=1,nxe-nxb+1
-        do j=1,nye-nyb+1+1
+        do j=1,nye-nyb+1
           xz11(i,j,nze-nzb+1) = 0.
           xz12(i,j,nze-nzb+1) = 0.
         enddo
@@ -2087,20 +1993,21 @@
         enddo
       enddo
       _ACC_END_PARALLEL
-      
+#endif
+
 !     near x=nxt
 
       nxb=nxt-nabc+1
       nxe=nxt-1
       nyb=nabc+1
-      nye=nyt-1
+      nye=nyt!-1
       nzb=nabc+1
       nze=nzt-nfs
       
       _ACC_PARALLEL
       _ACC_LOOP_COLLAPSE_3
       do k = nzb,nze
-      do j = nyb,nye+1
+      do j = nyb,nye!+1
       do i = nxb,nxe
         i2=1-nxb+i
         j2=1-nyb+j
@@ -2150,19 +2057,6 @@
         zz23(i2,j2,k2) = pt/(1.+omegaz2(k2))
 
         zz(i,j,k)= zz21(i2,j2,k2) + zz22(i2,j2,k2) + zz23(i2,j2,k2)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
-      
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k = nzb,nze
-      do j = nyb,nye
-      do i = nxb,nxe
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
 
 !       Find xy stress
 
@@ -2176,20 +2070,6 @@
 
         xy(i,j,k)= xy21(i2,j2,k2) + xy22(i2,j2,k2)
 
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
-      
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k=nzb,nze
-      do j=nyb,nye+1
-      do i=nxb,nxe
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
-
 !       Find xz stress
 
         xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i-1,j,k) +1/mu1(i-1,j,k+1) +1/mu1(i,j,k)))
@@ -2201,19 +2081,6 @@
         xz22(i2,j2,k2) = pt/(1.+omegax2(i2))
 
         xz(i,j,k)= xz21(i2,j2,k2) + xz22(i2,j2,k2)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
-
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k=nzb,nze
-      do j=nyb,nye
-      do i=nxb,nxe
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
 
 !       Find yz stress
 
@@ -2241,7 +2108,7 @@
       _ACC_PARALLEL
       _ACC_LOOP_COLLAPSE_2
       do i=1,nxe-nxb+1
-        do j=1,nye-nyb+1+1
+        do j=1,nye-nyb+1
           xz21(i,j,nze-nzb+1) = 0.
           xz22(i,j,nze-nzb+1) = 0.
         enddo
@@ -2296,8 +2163,8 @@
         pt = xx31(i2,j2,k2)*(1.-omegaxS3(i2)) + dt*a*diff1/dh
         xx31(i2,j2,k2) = pt/(1.+omegaxS3(i2))
 
-        pt = xx32(i2,j2,k2)*(1.-omegay3(j2)) + dt*b*diff2/dh
-        xx32(i2,j2,k2) = pt/(1.+omegay3(j2))
+        pt = xx32(i2,j2,k2)*(1.-omegayS3(j2)) + dt*b*diff2/dh
+        xx32(i2,j2,k2) = pt/(1.+omegayS3(j2))
 
         pt = xx33(i2,j2,k2)*(1.-omegaz3(k2)) + dt*b*diff3/dh
         xx33(i2,j2,k2) = pt/(1.+omegaz3(k2))
@@ -2309,8 +2176,8 @@
         pt = yy31(i2,j2,k2)*(1.-omegaxS3(i2)) + dt*b*diff1/dh
         yy31(i2,j2,k2) = pt/(1.+omegaxS3(i2))
 
-        pt = yy32(i2,j2,k2)*(1.-omegay3(j2)) + dt*a*diff2/dh
-        yy32(i2,j2,k2) = pt/(1.+omegay3(j2))
+        pt = yy32(i2,j2,k2)*(1.-omegayS3(j2)) + dt*a*diff2/dh
+        yy32(i2,j2,k2) = pt/(1.+omegayS3(j2))
 
         pt = yy33(i2,j2,k2)*(1.-omegaz3(k2)) + dt*b*diff3/dh
         yy33(i2,j2,k2) = pt/(1.+omegaz3(k2))
@@ -2320,8 +2187,8 @@
         pt = zz31(i2,j2,k2)*(1.-omegaxS3(i2)) + dt*b*diff1/dh
         zz31(i2,j2,k2) = pt/(1.+omegaxS3(i2))
 
-        pt = zz32(i2,j2,k2)*(1.-omegay3(j2)) + dt*b*diff2/dh
-        zz32(i2,j2,k2) = pt/(1.+omegay3(j2))
+        pt = zz32(i2,j2,k2)*(1.-omegayS3(j2)) + dt*b*diff2/dh
+        zz32(i2,j2,k2) = pt/(1.+omegayS3(j2))
 
         pt = zz33(i2,j2,k2)*(1.-omegaz3(k2)) + dt*a*diff3/dh
         zz33(i2,j2,k2) = pt/(1.+omegaz3(k2))
@@ -2345,8 +2212,8 @@
 
         xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
 
-        pt = xy31(i2,j2,k2)*(1.-omegayS3(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
-        xy31(i2,j2,k2) = pt/(1.+omegayS3(j2))
+        pt = xy31(i2,j2,k2)*(1.-omegay3(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
+        xy31(i2,j2,k2) = pt/(1.+omegay3(j2))
 
         pt = xy32(i2,j2,k2)*(1.-omegax3(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh
         xy32(i2,j2,k2) = pt/(1.+omegax3(i2))
@@ -2398,8 +2265,8 @@
         pt = yz31(i2,j2,k2)*(1.-omegaz3(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
         yz31(i2,j2,k2) = pt/(1.+omegaz3(k2))
 
-        pt = yz32(i2,j2,k2)*(1.-omegayS3(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh
-        yz32(i2,j2,k2) = pt/(1.+omegayS3(j2))
+        pt = yz32(i2,j2,k2)*(1.-omegay3(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh
+        yz32(i2,j2,k2) = pt/(1.+omegay3(j2))
 
         yz(i,j,k)= yz31(i2,j2,k2) + yz32(i2,j2,k2)
       enddo
@@ -2435,13 +2302,13 @@
       nxb=2
       nxe=nxt-1
       nyb=2
-      nye=nyt-1
+      nye=nyt!-1
       nzb=2
       nze=nabc
       _ACC_PARALLEL
       _ACC_LOOP_COLLAPSE_3
       do k = nzb,nze
-      do j = nyb,nye+1
+      do j = nyb,nye!+1
       do i = nxb,nxe
         i2=1-nxb+i
         j2=1-nyb+j
@@ -2460,8 +2327,8 @@
         pt = xx41(i2,j2,k2)*(1.-omegaxS4(i2)) + dt*a*diff1/dh
         xx41(i2,j2,k2) = pt/(1.+omegaxS4(i2))
 
-        pt = xx42(i2,j2,k2)*(1.-omegay4(j2)) + dt*b*diff2/dh
-        xx42(i2,j2,k2) = pt/(1.+omegay4(j2))
+        pt = xx42(i2,j2,k2)*(1.-omegayS4(j2)) + dt*b*diff2/dh
+        xx42(i2,j2,k2) = pt/(1.+omegayS4(j2))
 
         pt = xx43(i2,j2,k2)*(1.-omegaz4(k2)) + dt*b*diff3/dh
         xx43(i2,j2,k2) = pt/(1.+omegaz4(k2))
@@ -2473,8 +2340,8 @@
         pt = yy41(i2,j2,k2)*(1.-omegaxS4(i2)) + dt*b*diff1/dh
         yy41(i2,j2,k2) = pt/(1.+omegaxS4(i2))
 
-        pt = yy42(i2,j2,k2)*(1.-omegay4(j2)) + dt*a*diff2/dh
-        yy42(i2,j2,k2) = pt/(1.+omegay4(j2))
+        pt = yy42(i2,j2,k2)*(1.-omegayS4(j2)) + dt*a*diff2/dh
+        yy42(i2,j2,k2) = pt/(1.+omegayS4(j2))
 
         pt = yy43(i2,j2,k2)*(1.-omegaz4(k2)) + dt*b*diff3/dh
         yy43(i2,j2,k2) = pt/(1.+omegaz4(k2))
@@ -2484,52 +2351,26 @@
         pt = zz41(i2,j2,k2)*(1.-omegaxS4(i2)) + dt*b*diff1/dh
         zz41(i2,j2,k2) = pt/(1.+omegaxS4(i2))
 
-        pt = zz42(i2,j2,k2)*(1.-omegay4(j2)) + dt*b*diff2/dh
-        zz42(i2,j2,k2) = pt/(1.+omegay4(j2))
+        pt = zz42(i2,j2,k2)*(1.-omegayS4(j2)) + dt*b*diff2/dh
+        zz42(i2,j2,k2) = pt/(1.+omegayS4(j2))
 
         pt = zz43(i2,j2,k2)*(1.-omegaz4(k2)) + dt*a*diff3/dh
         zz43(i2,j2,k2) = pt/(1.+omegaz4(k2))
 
         zz(i,j,k)= zz41(i2,j2,k2) + zz42(i2,j2,k2) + zz43(i2,j2,k2)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
       
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k = nzb,nze
-      do j = nyb,nye
-      do i = nxb,nxe
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
-
 !       Find xy stress
 
         xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
 
-        pt = xy41(i2,j2,k2)*(1.-omegayS4(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
-        xy41(i2,j2,k2) = pt/(1.+omegayS4(j2))
+        pt = xy41(i2,j2,k2)*(1.-omegay4(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
+        xy41(i2,j2,k2) = pt/(1.+omegay4(j2))
 
         pt = xy42(i2,j2,k2)*(1.-omegax4(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh
         xy42(i2,j2,k2) = pt/(1.+omegax4(i2))
 
         xy(i,j,k)= xy41(i2,j2,k2) + xy42(i2,j2,k2)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
       
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k=nzb,nze
-      do j=nyb,nye+1
-      do i=nxb,nxe
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
-
 !       Find xz stress
 
         xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i-1,j,k) +1/mu1(i-1,j,k+1) +1/mu1(i,j,k)))
@@ -2541,20 +2382,7 @@
         xz42(i2,j2,k2) = pt/(1.+omegax4(i2))
 
         xz(i,j,k)= xz41(i2,j2,k2) + xz42(i2,j2,k2)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
       
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k=nzb,nze
-      do j=nyb,nye
-      do i=nxb,nxe
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
-
 !       Find yz stress
 
         xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i,j+1,k) +1/mu1(i,j+1,k+1) +1/mu1(i,j,k)))
@@ -2562,8 +2390,8 @@
         pt = yz41(i2,j2,k2)*(1.-omegazS4(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
         yz41(i2,j2,k2) = pt/(1.+omegazS4(k2))
 
-        pt = yz42(i2,j2,k2)*(1.-omegayS4(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh
-        yz42(i2,j2,k2) = pt/(1.+omegayS4(j2))
+        pt = yz42(i2,j2,k2)*(1.-omegay4(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh
+        yz42(i2,j2,k2) = pt/(1.+omegay4(j2))
 
         yz(i,j,k)= yz41(i2,j2,k2) + yz42(i2,j2,k2)
       enddo
@@ -2578,13 +2406,13 @@
 	  nxb=2
       nxe=nxt-1
       nyb=2
-      nye=nyt-1
+      nye=nyt!-1
       nzb=nzt-nabc+1
       nze=nzt-1
       _ACC_PARALLEL
       _ACC_LOOP_COLLAPSE_3
       do k = nzb,nze
-      do j = nyb,nye+1
+      do j = nyb,nye!+1
       do i = nxb,nxe
         i2=1-nxb+i
         j2=1-nyb+j
@@ -2603,8 +2431,8 @@
         pt = xx51(i2,j2,k2)*(1.-omegaxS5(i2)) + dt*a*diff1/dh
         xx51(i2,j2,k2) = pt/(1.+omegaxS5(i2))
 
-        pt = xx52(i2,j2,k2)*(1.-omegay5(j2)) + dt*b*diff2/dh
-        xx52(i2,j2,k2) = pt/(1.+omegay5(j2))
+        pt = xx52(i2,j2,k2)*(1.-omegayS5(j2)) + dt*b*diff2/dh
+        xx52(i2,j2,k2) = pt/(1.+omegayS5(j2))
 
         pt = xx53(i2,j2,k2)*(1.-omegaz5(k2)) + dt*b*diff3/dh
         xx53(i2,j2,k2) = pt/(1.+omegaz5(k2))
@@ -2616,8 +2444,8 @@
         pt = yy51(i2,j2,k2)*(1.-omegaxS5(i2)) + dt*b*diff1/dh
         yy51(i2,j2,k2) = pt/(1.+omegaxS5(i2))
 
-        pt = yy52(i2,j2,k2)*(1.-omegay5(j2)) + dt*a*diff2/dh
-        yy52(i2,j2,k2) = pt/(1.+omegay5(j2))
+        pt = yy52(i2,j2,k2)*(1.-omegayS5(j2)) + dt*a*diff2/dh
+        yy52(i2,j2,k2) = pt/(1.+omegayS5(j2))
 
         pt = yy53(i2,j2,k2)*(1.-omegaz5(k2)) + dt*b*diff3/dh
         yy53(i2,j2,k2) = pt/(1.+omegaz5(k2))
@@ -2627,51 +2455,25 @@
         pt = zz51(i2,j2,k2)*(1.-omegaxS5(i2)) + dt*b*diff1/dh
         zz51(i2,j2,k2) = pt/(1.+omegaxS5(i2))
 
-        pt = zz52(i2,j2,k2)*(1.-omegay5(j2)) + dt*b*diff2/dh
-        zz52(i2,j2,k2) = pt/(1.+omegay5(j2))
+        pt = zz52(i2,j2,k2)*(1.-omegayS5(j2)) + dt*b*diff2/dh
+        zz52(i2,j2,k2) = pt/(1.+omegayS5(j2))
 
         pt = zz53(i2,j2,k2)*(1.-omegaz5(k2)) + dt*a*diff3/dh
         zz53(i2,j2,k2) = pt/(1.+omegaz5(k2))
 
         zz(i,j,k)= zz51(i2,j2,k2) + zz52(i2,j2,k2) + zz53(i2,j2,k2)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
-      
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k = nzb,nze
-      do j = nyb,nye
-      do i = nxb,nxe
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
 
 !       Find xy stress
 
         xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
 
-        pt = xy51(i2,j2,k2)*(1.-omegayS5(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
-        xy51(i2,j2,k2) = pt/(1.+omegayS5(j2))
+        pt = xy51(i2,j2,k2)*(1.-omegay5(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
+        xy51(i2,j2,k2) = pt/(1.+omegay5(j2))
 
         pt = xy52(i2,j2,k2)*(1.-omegax5(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh
         xy52(i2,j2,k2) = pt/(1.+omegax5(i2))
 
         xy(i,j,k)= xy51(i2,j2,k2) + xy52(i2,j2,k2)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
-      
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k=nzb,nze
-      do j=nyb,nye+1
-      do i=nxb,nxe
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
 
 !       Find xz stress
 
@@ -2684,19 +2486,6 @@
         xz52(i2,j2,k2) = pt/(1.+omegax5(i2))
 
         xz(i,j,k)= xz51(i2,j2,k2) + xz52(i2,j2,k2)
-      enddo
-      enddo
-      enddo
-      _ACC_END_PARALLEL
-      
-      _ACC_PARALLEL
-      _ACC_LOOP_COLLAPSE_3
-      do k=nzb,nze
-      do j=nyb,nye
-      do i=nxb,nxe
-        i2=1-nxb+i
-        j2=1-nyb+j
-        k2=1-nzb+k
 
 !       Find yz stress
 
@@ -2705,8 +2494,8 @@
         pt = yz51(i2,j2,k2)*(1.-omegazS5(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
         yz51(i2,j2,k2) = pt/(1.+omegazS5(k2))
 
-        pt = yz52(i2,j2,k2)*(1.-omegayS5(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh
-        yz52(i2,j2,k2) = pt/(1.+omegayS5(j2))
+        pt = yz52(i2,j2,k2)*(1.-omegay5(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh
+        yz52(i2,j2,k2) = pt/(1.+omegay5(j2))
 
         yz(i,j,k)= yz51(i2,j2,k2) + yz52(i2,j2,k2)
       enddo
