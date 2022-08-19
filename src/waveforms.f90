@@ -587,7 +587,7 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     USE SlipRates_com
     IMPLICIT NONE
     REAL, PARAMETER:: margin=0.05
-    CHARACTER*5,ALLOCATABLE,DIMENSION(:):: staname
+    CHARACTER*6,ALLOCATABLE,DIMENSION(:):: staname
     REAL startx,starty,stept
     REAL,ALLOCATABLE,DIMENSION(:):: stepa,maxampl
     real dum
