@@ -1579,6 +1579,31 @@
 
             w1(i,j,k) = w11(i2,j2,k2) + w12(i2,j2,k2) + w13(i2,j2,k2)
             
+ !           pt = v11(i2,j2,k2)*(1.-omegaxS1(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh
+ !           v11(i2,j2,k2) = pt/(1.+omegaxS1(i2))
+            
+ !           pt = v12(i2,j2,k2)*(1.-omegay1(j2))  + (dt/d)*(yy(i,j+1,k) - yy(i,j,k))/dh
+ !           v12(i2,j2,k2) = pt/(1.+omegay1(j2))
+            
+ !           pt = v13(i2,j2,k2)*(1.-omegaz1(k2))  + (dt/d)*(yz(i,j,k) - yz(i,j,k-1))/dh
+ !           v13(i2,j2,k2) = pt/(1.+omegaz1(k2))
+            
+ !           v1(i,j,k) = v11(i2,j2,k2) + v12(i2,j2,k2) + v13(i2,j2,k2)
+          enddo
+        enddo
+      enddo
+      _ACC_END_PARALLEL
+	  
+	  _ACC_PARALLEL
+      _ACC_LOOP_COLLAPSE_3
+      do k = nzb,nze
+        do j = nyb,nye-1!+1
+          do i = nxb,nxe
+            k2=1-nzb+k
+            j2=1-nyb+j
+            i2=1-nxb+i
+            d = d1(i,j,k)
+            
             pt = v11(i2,j2,k2)*(1.-omegaxS1(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh
             v11(i2,j2,k2) = pt/(1.+omegaxS1(i2))
             
@@ -1640,6 +1665,33 @@
             w23(i2,j2,k2) = pt/(1.+omegaz2(k2))
             
             w1(i,j,k) = w21(i2,j2,k2) + w22(i2,j2,k2) + w23(i2,j2,k2)
+            
+ !           pt = v21(i2,j2,k2)*(1.-omegaxS2(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh
+ !           v21(i2,j2,k2) = pt/(1.+omegaxS2(i2))
+            
+ !           pt = v22(i2,j2,k2)*(1.-omegay2(j2))  + (dt/d)*(yy(i,j+1,k) - yy(i,j,k))/dh
+ !           v22(i2,j2,k2) = pt/(1.+omegay2(j2))
+            
+ !           pt = v23(i2,j2,k2)*(1.-omegaz2(k2))  + (dt/d)*(yz(i,j,k) - yz(i,j,k-1))/dh
+ !           v23(i2,j2,k2) = pt/(1.+omegaz2(k2))
+            
+ !           v1(i,j,k) = v21(i2,j2,k2) + v22(i2,j2,k2) + v23(i2,j2,k2)
+          enddo
+        enddo
+      enddo
+      _ACC_END_PARALLEL
+	  
+	  
+      _ACC_PARALLEL
+      _ACC_LOOP_COLLAPSE_3
+      do k = nzb,nze
+        do j = nyb,nye-1!+1
+          do i = nxb,nxe
+            k2=1-nzb+k
+            j2=1-nyb+j
+            
+            d = d1(i,j,k)
+            i2=1-nxb+i
             
             pt = v21(i2,j2,k2)*(1.-omegaxS2(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh
             v21(i2,j2,k2) = pt/(1.+omegaxS2(i2))
@@ -1764,6 +1816,32 @@
             
             w1(i,j,k) = w41(i2,j2,k2) + w42(i2,j2,k2) + w43(i2,j2,k2)
 
+!            pt = v41(i2,j2,k2)*(1.-omegaxS4(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh
+!            v41(i2,j2,k2) = pt/(1.+omegaxS4(i2))
+!            
+!            pt = v42(i2,j2,k2)*(1.-omegay4(j2))  + (dt/d)*(yy(i,j+1,k) - yy(i,j,k))/dh
+!            v42(i2,j2,k2) = pt/(1.+omegay4(j2))
+!            
+!            pt = v43(i2,j2,k2)*(1.-omegaz4(k2))  + (dt/d)*(yz(i,j,k) - yz(i,j,k-1))/dh
+!            v43(i2,j2,k2) = pt/(1.+omegaz4(k2))
+            
+!            v1(i,j,k) = v41(i2,j2,k2) + v42(i2,j2,k2) + v43(i2,j2,k2)
+          enddo
+        enddo
+      enddo
+      _ACC_END_PARALLEL
+
+      _ACC_PARALLEL
+      _ACC_LOOP_COLLAPSE_3
+      do k = nzb,nze
+        do j = nyb,nye-1!+1
+          do i = nxb,nxe
+            k2=1-nzb+k
+            j2=1-nyb+j
+
+            d = d1(i,j,k)
+            i2=1-nxb+i
+
             pt = v41(i2,j2,k2)*(1.-omegaxS4(i2))  + (dt/d)*(xy(i+1,j,k) - xy(i,j,k))/dh
             v41(i2,j2,k2) = pt/(1.+omegaxS4(i2))
             
@@ -1777,8 +1855,7 @@
           enddo
         enddo
       enddo
-      _ACC_END_PARALLEL
-	  
+      _ACC_END_PARALLEL	  
 	  
 	  !z near nzt
 
@@ -1926,15 +2003,16 @@
       
 !       Find xy stress
 
-        xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
+ !       xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
 
-        pt = xy11(i2,j2,k2)*(1.-omegay1(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
-        xy11(i2,j2,k2) = pt/(1.+omegay1(j2))
 
-        pt = xy12(i2,j2,k2)*(1.-omegax1(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh
-        xy12(i2,j2,k2) = pt/(1.+omegax1(i2))
-
-        xy(i,j,k)= xy11(i2,j2,k2) + xy12(i2,j2,k2)
+  !      pt = xy11(i2,j2,k2)*(1.-omegay1(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
+   !     xy11(i2,j2,k2) = pt/(1.+omegay1(j2))
+!
+ !       pt = xy12(i2,j2,k2)*(1.-omegax1(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh
+  !      xy12(i2,j2,k2) = pt/(1.+omegax1(i2))
+!
+ !       xy(i,j,k)= xy11(i2,j2,k2) + xy12(i2,j2,k2)
 
 !       Find xz stress
 
@@ -1949,6 +2027,46 @@
         xz(i,j,k)= xz11(i2,j2,k2) + xz12(i2,j2,k2)
 
 !       Find yz stress
+
+ !       xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i,j+1,k) +1/mu1(i,j+1,k+1) +1/mu1(i,j,k)))
+
+  !      pt = yz11(i2,j2,k2)*(1.-omegaz1(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
+   !     yz11(i2,j2,k2) = pt/(1.+omegaz1(k2))
+
+    !    pt = yz12(i2,j2,k2)*(1.-omegay1(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh
+     !   yz12(i2,j2,k2) = pt/(1.+omegay1(j2))
+
+      !  yz(i,j,k)= yz11(i2,j2,k2) + yz12(i2,j2,k2)
+      enddo
+      enddo
+      enddo
+      _ACC_END_PARALLEL
+	  
+	  _ACC_PARALLEL
+      _ACC_LOOP_COLLAPSE_3
+      do k = nzb,nze
+      do j = nyb,nye-1!+1
+      do i = nxb,nxe
+        i2=1-nxb+i
+        j2=1-nyb+j
+        k2=1-nzb+k
+        xl = lam1(i,j,k)
+        xm = mu1(i,j,k)
+        a  = xl + 2.*xm
+        b  = xl
+
+!       Find xy stress
+
+        xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
+
+
+        pt = xy11(i2,j2,k2)*(1.-omegay1(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
+        xy11(i2,j2,k2) = pt/(1.+omegay1(j2))
+
+        pt = xy12(i2,j2,k2)*(1.-omegax1(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh
+        xy12(i2,j2,k2) = pt/(1.+omegax1(i2))
+
+        xy(i,j,k)= xy11(i2,j2,k2) + xy12(i2,j2,k2)
 
         xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i,j+1,k) +1/mu1(i,j+1,k+1) +1/mu1(i,j,k)))
 
@@ -2060,15 +2178,15 @@
 
 !       Find xy stress
 
-        xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
+!        xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
 
-        pt = xy21(i2,j2,k2)*(1.-omegay2(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
-        xy21(i2,j2,k2) = pt/(1.+omegay2(j2))
+!        pt = xy21(i2,j2,k2)*(1.-omegay2(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
+ !       xy21(i2,j2,k2) = pt/(1.+omegay2(j2))
 
-        pt = xy22(i2,j2,k2)*(1.-omegax2(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh
-        xy22(i2,j2,k2) = pt/(1.+omegax2(i2))
+  !      pt = xy22(i2,j2,k2)*(1.-omegax2(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh
+ !       xy22(i2,j2,k2) = pt/(1.+omegax2(i2))
 
-        xy(i,j,k)= xy21(i2,j2,k2) + xy22(i2,j2,k2)
+!        xy(i,j,k)= xy21(i2,j2,k2) + xy22(i2,j2,k2)
 
 !       Find xz stress
 
@@ -2081,6 +2199,48 @@
         xz22(i2,j2,k2) = pt/(1.+omegax2(i2))
 
         xz(i,j,k)= xz21(i2,j2,k2) + xz22(i2,j2,k2)
+
+!       Find yz stress
+
+!        xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i,j+1,k) +1/mu1(i,j+1,k+1) +1/mu1(i,j,k)))
+
+!        pt = yz21(i2,j2,k2)*(1.-omegaz2(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
+ !       yz21(i2,j2,k2) = pt/(1.+omegaz2(k2))
+
+  !      pt = yz22(i2,j2,k2)*(1.-omegay2(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh
+   !     yz22(i2,j2,k2) = pt/(1.+omegay2(j2))
+
+    !    yz(i,j,k)= yz21(i2,j2,k2) + yz22(i2,j2,k2)
+      enddo
+      enddo
+      enddo
+      _ACC_END_PARALLEL
+	  
+	  _ACC_PARALLEL
+      _ACC_LOOP_COLLAPSE_3
+      do k = nzb,nze
+      do j = nyb,nye-1!+1
+      do i = nxb,nxe
+        i2=1-nxb+i
+        j2=1-nyb+j
+        k2=1-nzb+k
+        xl = lam1(i,j,k)
+        xm = mu1(i,j,k)
+        a  = xl + 2.*xm
+        b  = xl
+
+
+!       Find xy stress
+
+        xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
+
+        pt = xy21(i2,j2,k2)*(1.-omegay2(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
+        xy21(i2,j2,k2) = pt/(1.+omegay2(j2))
+
+        pt = xy22(i2,j2,k2)*(1.-omegax2(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh
+        xy22(i2,j2,k2) = pt/(1.+omegax2(i2))
+
+        xy(i,j,k)= xy21(i2,j2,k2) + xy22(i2,j2,k2)
 
 !       Find yz stress
 
@@ -2361,15 +2521,15 @@
       
 !       Find xy stress
 
-        xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
+  !      xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
 
-        pt = xy41(i2,j2,k2)*(1.-omegay4(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
-        xy41(i2,j2,k2) = pt/(1.+omegay4(j2))
+ !       pt = xy41(i2,j2,k2)*(1.-omegay4(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
+!        xy41(i2,j2,k2) = pt/(1.+omegay4(j2))
 
-        pt = xy42(i2,j2,k2)*(1.-omegax4(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh
-        xy42(i2,j2,k2) = pt/(1.+omegax4(i2))
+ !       pt = xy42(i2,j2,k2)*(1.-omegax4(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh
+!        xy42(i2,j2,k2) = pt/(1.+omegax4(i2))
 
-        xy(i,j,k)= xy41(i2,j2,k2) + xy42(i2,j2,k2)
+!        xy(i,j,k)= xy41(i2,j2,k2) + xy42(i2,j2,k2)
       
 !       Find xz stress
 
@@ -2385,6 +2545,48 @@
       
 !       Find yz stress
 
+ !       xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i,j+1,k) +1/mu1(i,j+1,k+1) +1/mu1(i,j,k)))
+
+!        pt = yz41(i2,j2,k2)*(1.-omegazS4(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
+!        yz41(i2,j2,k2) = pt/(1.+omegazS4(k2))
+
+ !       pt = yz42(i2,j2,k2)*(1.-omegay4(j2)) + dt*xmu*(w1(i,j+1,k) - w1(i,j,k))/dh
+  !      yz42(i2,j2,k2) = pt/(1.+omegay4(j2))
+
+  !      yz(i,j,k)= yz41(i2,j2,k2) + yz42(i2,j2,k2)
+      enddo
+      enddo
+      enddo
+      _ACC_END_PARALLEL
+
+
+      _ACC_PARALLEL
+      _ACC_LOOP_COLLAPSE_3
+      do k = nzb,nze
+      do j = nyb,nye-1!+1
+      do i = nxb,nxe
+        i2=1-nxb+i
+        j2=1-nyb+j
+        k2=1-nzb+k
+        xl = lam1(i,j,k)
+        xm = mu1(i,j,k)
+        a  = xl + 2.*xm
+        b  = xl
+      
+!       Find xy stress
+
+        xmu = 1/(0.25*(1/mu1(i,j+1,k) +1/mu1(i-1,j,k) +1/mu1(i-1,j+1,k) +1/mu1(i,j,k)))
+
+        pt = xy41(i2,j2,k2)*(1.-omegay4(j2)) + dt*xmu*(u1(i,j+1,k) - u1(i,j,k))/dh
+        xy41(i2,j2,k2) = pt/(1.+omegay4(j2))
+
+        pt = xy42(i2,j2,k2)*(1.-omegax4(i2)) + dt*xmu*(v1(i,j,k) - v1(i-1,j,k))/dh
+        xy42(i2,j2,k2) = pt/(1.+omegax4(i2))
+
+        xy(i,j,k)= xy41(i2,j2,k2) + xy42(i2,j2,k2)
+      
+!       Find yz stress
+
         xmu = 1/(0.25*(1/mu1(i,j,k+1) +1/mu1(i,j+1,k) +1/mu1(i,j+1,k+1) +1/mu1(i,j,k)))
 
         pt = yz41(i2,j2,k2)*(1.-omegazS4(k2)) + dt*xmu*(v1(i,j,k+1) - v1(i,j,k))/dh
@@ -2397,8 +2599,7 @@
       enddo
       enddo
       enddo
-      _ACC_END_PARALLEL
-	  
+      _ACC_END_PARALLEL	  
 	  !z near nzt
 
 #if defined FSPACE
