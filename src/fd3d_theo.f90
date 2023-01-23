@@ -681,6 +681,7 @@
 
 #if defined FVW
 !Smooth nucleation for inversion
+
 		if ((time) <= TT2) then
         
           if ((time) < TT2) then
@@ -700,11 +701,16 @@ _ACC_LOOP_COLLAPSE_2
               else
                 FXZ = 0.
               endif
+#if defined DIPSLIP
+				T0Z(i,k) = T0ZI(i,k)+ SnZ(i,k)*perturb*FXZ*GT 
+#else
                 T0X(i,k) = T0XI(i,k)+ SnX(i,k)*perturb*FXZ*GT  
+#endif
             enddo
           enddo
 _ACC_END_PARALLEL
         endif
+
 #endif
 
         !$ACC END DATA
