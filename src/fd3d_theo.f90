@@ -53,6 +53,7 @@
       real    :: dht, ek, es, ef, c1, c2
       integer :: i,j,it,k, nxe, nxb, nyb, nye, nzb, nze
       integer :: ifrom,ito,jfrom,jto,kk,ii,jj
+      integer :: stopnexttime
       real    :: rup_tresh, rv, cz, efracds, alphakoef, schangef
       real,allocatable,dimension (:,:):: distX,distZ
       real,allocatable,dimension (:):: erad, efrac, timek
@@ -89,6 +90,7 @@
       RFx = 0.; RFz = 0.
       au1=0.; av1=0.; aw1=0 
       MSRX=0.; MSRZ=0.; MomentRate=0.
+      stopnexttime=0
       distX=0.; distZ=0.
       rup_tresh=1e-3 !	Rate treshold for rupture time calculation
       c1  = 9./8. !	4th order central FD formula parameters	
@@ -534,15 +536,15 @@
 #if defined FVW			
             sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I+1,NYSC,K)-2.*U1(I,NYSC,K+1)-2.*U1(I+1,NYSC,K+1))/4.
 	        sliprateoutZ(i,k) = - 2.*W1(I,NYSC,K)
-            slipZ(i,k)=slipZ(i,k)-2.*w1(i,nysc,k)*dt
-            slipX(i,k)=slipX(i,k)-2.*uZ(i,k)*dt 		
+            slipZ(i,k)=slipZ(i,k)+sliprateoutZ(i,k)*dt
+            slipX(i,k)=slipX(i,k)+sliprateoutX(i,k)*dt
 #else
             SCHANGEZ(I,K) = tz(i,k) + T0Z(i,k)
             sliprateoutZ(i,k) = - 2.*W1(I,NYSC,K)
             SCHANGEX(I,K) = (tx(i,k)+T0X(i,k)+tx(i+1,k)+T0X(i+1,k)+tx(i,k+1)+T0X(i,k+1)+tx(i+1,k+1)+T0X(i+1,k+1))/4.
             sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I+1,NYSC,K)-2.*U1(I,NYSC,K+1)-2.*U1(I+1,NYSC,K+1))/4.
-            slipZ(i,k)=slipZ(i,k)-2.*w1(i,nysc,k)*dt
-            slipX(i,k)=slipX(i,k)-2.*uZ(i,k)*dt
+            slipZ(i,k)=slipZ(i,k)+sliprateoutZ(i,k)*dt
+            slipX(i,k)=slipX(i,k)+sliprateoutX(i,k)*dt
 #endif 
             efracds=efracds+schangeX(i,k)*sliprateoutX(i,k)*dt+schangeZ(i,k)*sliprateoutZ(i,k)*dt
             eraddt=eraddt+(schangeX(i,k)-t0X(i,k))*sliprateoutX(i,k)*dt+(schangeZ(i,k)-t0Z(i,k))*sliprateoutZ(i,k)*dt
@@ -557,15 +559,15 @@
 #if defined FVW			
             sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I,NYSC,K+1))/2.
 	        sliprateoutZ(i,k) = - 2.*W1(I,NYSC,K)
-            slipZ(i,k)=slipZ(i,k)-2.*w1(i,nysc,k)*dt
-            slipX(i,k)=slipX(i,k)-2.*uZ(i,k)*dt     		
+            slipZ(i,k)=slipZ(i,k)+sliprateoutZ(i,k)*dt
+            slipX(i,k)=slipX(i,k)+sliprateoutX(i,k)*dt
 #else
             SCHANGEZ(I,K) = tz(i,k) + T0Z(i,k)
             sliprateoutZ(i,k) = - 2.*W1(I,NYSC,K)
             SCHANGEX(I,K) = (tx(i,k)+T0X(i,k)+tx(i,k+1)+T0X(i,k+1))/2.
             sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I,NYSC,K+1))/2.
-            slipZ(i,k)=slipZ(i,k)-2.*w1(i,nysc,k)*dt
-            slipX(i,k)=slipX(i,k)-2.*uZ(i,k)*dt
+            slipZ(i,k)=slipZ(i,k)+sliprateoutZ(i,k)*dt
+            slipX(i,k)=slipX(i,k)+sliprateoutX(i,k)*dt
 #endif 
             efracds=efracds+schangeX(i,k)*sliprateoutX(i,k)*dt+schangeZ(i,k)*sliprateoutZ(i,k)*dt
             eraddt=eraddt+(schangeX(i,k)-t0X(i,k))*sliprateoutX(i,k)*dt+(schangeZ(i,k)-t0Z(i,k))*sliprateoutZ(i,k)*dt
@@ -766,14 +768,15 @@ _ACC_END_PARALLEL
           maxvelZ=maxval(sliprateoutZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
           maxvelX=maxval(sliprateoutX(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
           write(*,*)'Time: ',time,'Slip rate max: ',maxvelX,maxvelZ
+          if(stopnexttime==1)exit
 #if defined DIPSLIP
-          if(maxvelZ<1.e-7)exit
+          if(maxvelZ<1.e-7)stopnexttime=1
           if(maxvelZ>maxvelsave)maxvelsave=maxvelZ
-          if(maxvelZ<=0.01*maxvelsave)exit
+          if(maxvelZ<=0.01*maxvelsave)stopnexttime=1
 #else
-          if(maxvelX<1.e-7)exit
+          if(maxvelX<1.e-7)stopnexttime=1
           if(maxvelX>maxvelsave)maxvelsave=maxvelX
-          if(maxvelX<=0.01*maxvelsave)exit
+          if(maxvelX<=0.01*maxvelsave)stopnexttime=1
 #endif
         endif
 		! output waveforms
@@ -897,6 +900,7 @@ _ACC_END_PARALLEL
       output_param(2) =  0.
       numer           =  0.
       denom           =  0.
+      schangef        =  0.
       do k = nabc+1,nzt-nfs	
         do i = nabc+1,nxt-nabc
           ! --- Seismic moment:
@@ -910,15 +914,16 @@ _ACC_END_PARALLEL
           else
             output_param(4) = 0.0
           endif
+          schangef=schangef+slipX(i,k)*(schangeX(i,k)+T0X(i,k))+slipZ(i,k)*(schangeZ(i,k)+T0Z(i,k))
         enddo
       enddo
     ! output_param(5) = (1./2.)**sum(peak_xz*Dc)/dble((nxt-2*nabc)*(nzt-nfs-nabc))
     ! output_param(6) = (1./2.)*output_param(4)*(output_param(2)/(mu_mean*output_param(3)))
       M0=output_param(2)
       Mw=(log10(M0)-9.1)/1.5
-      schangef=sum(slipX*(schangeX+T0X)+slipZ*(schangeZ+T0Z)) 
 
       do k=1,nSR
+        !write(398,*)dt*(k-1),efrac(k),(efrac(k)-schangef)*dh**2
         if ((efrac(k)-schangef)*dh**2>0.) Eg=(efrac(k)-schangef)*dh**2
         if (erad(k)*dh**2>0.) Er=erad(k)*dh**2		   
       enddo

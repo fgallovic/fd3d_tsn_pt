@@ -845,12 +845,12 @@
 
 #if defined DIPSLIP
 		wini(i,k)   = (1.-t)*(1.-u)*viniI(ii,kk)+t*(1.-u)*viniI(ii+1,kk)+t*u*viniI(ii+1,kk+1)+(1.-t)*u*viniI(ii,kk+1)
-        striniZ(i,k)= (1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)+coh(i,k)
+        striniZ(i,k)= (1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)
         psi(i,k) = a(i,k)*(log((2*v0/(2*wini(i,k)))) + log(sinh(striniZ(i,k)/(a(i,k)*Sn(i,k)))))
         striniX(i,k)= 0.
 #else
 		uini(i,k)   = (1.-t)*(1.-u)*viniI(ii,kk)+t*(1.-u)*viniI(ii+1,kk)+t*u*viniI(ii+1,kk+1)+(1.-t)*u*viniI(ii,kk+1)
-        striniX(i,k)= (1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)+coh(i,k)
+        striniX(i,k)= (1.-t)*(1.-u)*T0I(ii,kk)+t*(1.-u)*T0I(ii+1,kk)+t*u*T0I(ii+1,kk+1)+(1.-t)*u*T0I(ii,kk+1)
 		psi(i,k) = a(i,k)*(log((2*v0/(2*uini(i,k)))) + log(sinh(striniX(i,k)/(a(i,k)*Sn(i,k)))))
         striniZ(i,k)= 0.
 #endif
