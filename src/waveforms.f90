@@ -11,7 +11,6 @@
       real,allocatable :: pgaM(:,:),pgaD(:,:),per(:)
       real, allocatable :: PGAsigma(:,:),PGAtau(:,:) ! now tau and sigma of gmpe are on output..
 
-
 !GFs for synthetic seismograms
       real:: T,T1,T2,artifDT,M0aprior,Mwsigma,leng,widt,elem,df
       real,allocatable,dimension(:,:):: H
@@ -74,7 +73,6 @@
     read(10,*) !vr
     read(10,*)
     read(10,*) nfc   !number of frequency bands
-    
 
     allocate(fc1(nfc),fc2(nfc))
     do i=1,nfc
@@ -91,7 +89,7 @@
     nSR=ceiling(real(ntfd)/(dtseis/dt))
     allocate(MSRX(NL*NW*nSR),MSRZ(NL*NW*nSR),MomentRate(nSR))
 
-    if(iwaveform==0)return
+    if(iwaveform==0 .or. iwaveform==3)return
     
     open(10,file='stainfo.dat',action='read')
     allocate(stainfo(3,NRseis),staweight(3,NRseis),fcsta(NRseis))
@@ -102,109 +100,108 @@
     NSTAcomp=sum(stainfo(:,:))
     allocate(stasigma(NSTAcomp))
     Nseis=nT*NSTAcomp
+    allocate(Dsynt(Nseis))
    
     fileex=.false.
     if (iwaveform==1) allocate(H(Nseis,NL*NW*nSR))
 
     if (iwaveform==2) then   
-       write(GFfile,'(a)') 'GFspectr_st'
-       inquire(file=trim(GFfile),exist=fileex)
-       if (mrank==0) open(222,file=trim(GFfile),form='unformatted')
+      write(GFfile,'(a)') 'GFspectr_st'
+      inquire(file=trim(GFfile),exist=fileex)
+      if (mrank==0) open(222,file=trim(GFfile),form='unformatted')
     endif
  
-   if (.not.fileex) then
-    open(20,form='unformatted',file='NEZsor.dat')  !if problems with NEZsor.dat file appears, check that resort.f90 writes unformatted file (and not binary)!
-    allocate(cirN(min(nfmax,np),NL*NW),cirE(min(nfmax,np),NL*NW),cirZ(min(nfmax,np),NL*NW))
-    j=0
-    do jj=1,NRseis
-      i=0
-      read(20) dumi
-      do jw=1,NW
-        do jl=1,NL
-          i=i+1
-          read(20) dumi
-          do k=1,nfmax
-            read(20) dumarr
-            if(k>np)cycle
+    if (not(fileex).and.(iwaveform==1.or.iwaveform==2)) then
+      open(20,form='unformatted',file='NEZsor.dat')  !if problems with NEZsor.dat file appears, check that resort.f90 writes unformatted file (and not binary)!
+      allocate(cirN(min(nfmax,np),NL*NW),cirE(min(nfmax,np),NL*NW),cirZ(min(nfmax,np),NL*NW))
+      j=0
+      do jj=1,NRseis
+        i=0
+        read(20) dumi
+        do jw=1,NW
+          do jl=1,NL
+            i=i+1
+            read(20) dumi
             dum=sum(muSource(int(dL/dh*(jl-1))+nabc+1:nabc+int(dL/dh*jl),int(dW/dh*(jw-1))+nabc+1:nabc+int(dW/dh*jw)))/(dL/dh*dW/dh)
-            cirN(k,i)=cmplx(dumarr(1),dumarr(4))*dum*elem
-            cirE(k,i)=cmplx(dumarr(2),dumarr(5))*dum*elem
-            cirZ(k,i)=cmplx(dumarr(3),dumarr(6))*dum*elem
+            do k=1,nfmax
+              read(20) dumarr
+              if(k>np)cycle
+              cirN(k,i)=cmplx(dumarr(1),dumarr(4))*dum*elem
+              cirE(k,i)=cmplx(dumarr(2),dumarr(5))*dum*elem
+              cirZ(k,i)=cmplx(dumarr(3),dumarr(6))*dum*elem
+            enddo
           enddo
         enddo
-      enddo
-
-     do k=1,3
-        if(stainfo(k,jj)==0)cycle
-        j=j+1
-        stasigma(j)=staweight(k,jj)
+        do k=1,3
+          if(stainfo(k,jj)==0)cycle
+          j=j+1
+          stasigma(j)=staweight(k,jj)
 !$OMP parallel private(i,mm,cseis,fltr4) DEFAULT(SHARED)
-        allocate(cseis(np),fltr4(np))
+          allocate(cseis(np),fltr4(np))
 !$OMP do SCHEDULE(DYNAMIC,1)
-        do i=1,NL*NW
-          cseis=0.
-          SELECT CASE (k)
-          CASE(1)
-            cseis(1:min(nfmax,np))=cirN(1:min(nfmax,np),i)*df
-          CASE(2)
-            cseis(1:min(nfmax,np))=cirE(1:min(nfmax,np),i)*df
-          CASE(3)
-            cseis(1:min(nfmax,np))=cirZ(1:min(nfmax,np),i)*df
-          END SELECT
-          cseis(np/2+2:np)=conjg(cseis(np/2:2:-1))
-!          cseis(np/2+1)=real(cseis(np/2+1))
-          call four1(cseis,np,1)
-          fltr4=real(cseis)!*dtseis   !dt for time integration moved
-          do mm=1,int(artifDT/dtseis)  ! REMOVING DWN ARTIFACT FROM THE SEISMOGRAM BEGINNING
-            fltr4(mm)=fltr4(mm)*(cos((dtseis*real(mm-1)-artifDT)/artifDT*PI)/2.+.5);
+          do i=1,NL*NW
+            cseis=0.
+            SELECT CASE (k)
+            CASE(1)
+              cseis(1:min(nfmax,np))=cirN(1:min(nfmax,np),i)*df
+            CASE(2)
+              cseis(1:min(nfmax,np))=cirE(1:min(nfmax,np),i)*df
+            CASE(3)
+              cseis(1:min(nfmax,np))=cirZ(1:min(nfmax,np),i)*df
+            END SELECT
+            cseis(np/2+2:np)=conjg(cseis(np/2:2:-1))
+!            cseis(np/2+1)=real(cseis(np/2+1))
+            call four1(cseis,np,1)
+            fltr4=real(cseis)!*dtseis   !dt for time integration moved
+            do mm=1,int(artifDT/dtseis)  ! REMOVING DWN ARTIFACT FROM THE SEISMOGRAM BEGINNING
+              fltr4(mm)=fltr4(mm)*(cos((dtseis*real(mm-1)-artifDT)/artifDT*PI)/2.+.5);
+            enddo
+            if(fc1(fcsta(jj))>0.)then
+              CALL XAPIIR(fltr4, np, 'BU', 0.0, 0.0, 4,'BP', fc1(fcsta(jj)), fc2(fcsta(jj)), dtseis, 1, np)
+            else
+              CALL XAPIIR(fltr4, np, 'BU', 0.0, 0.0, 4,'LP', fc1(fcsta(jj)), fc2(fcsta(jj)), dtseis, 1, np)
+            endif
+            if (iwaveform==1) then
+              do mm=2,np   !time integration
+                fltr4(mm)=fltr4(mm)+fltr4(mm-1)
+              enddo
+              fltr4=fltr4*dtseis
+              do mm=1,nT
+                H((j-1)*nT+mm,(i-1)*nSR+1:i*nSR)=dble(fltr4(iT1-1+mm:iT1+mm-nSR:-1))
+              enddo
+            elseif (iwaveform==2) then
+!             do mm=2,np   !time integration
+!                fltr4(mm)=fltr4(mm)+fltr4(mm-1)
+!              enddo
+!              fltr4=fltr4*dtseis
+              do mm=1,np-1   !time derivative
+                fltr4(mm)=fltr4(mm+1)-fltr4(mm)
+              enddo
+              fltr4=fltr4/dtseis
+              cseis=fltr4*dtseis
+              call four1(cseis,np,-1)
+              if (mrank==0) write(222) cseis(1:np/2+1)
+            endif  
           enddo
-          if(fc1(fcsta(jj))>0.)then
-            CALL XAPIIR(fltr4, np, 'BU', 0.0, 0.0, 4,'BP', fc1(fcsta(jj)), fc2(fcsta(jj)), dtseis, 1, np)
-          else
-            CALL XAPIIR(fltr4, np, 'BU', 0.0, 0.0, 4,'LP', fc1(fcsta(jj)), fc2(fcsta(jj)), dtseis, 1, np)
-          endif
-          if (iwaveform==1) then
-            do mm=2,np   !time integration
-              fltr4(mm)=fltr4(mm)+fltr4(mm-1)
-            enddo
-            fltr4=fltr4*dtseis
-          elseif (iwaveform==2) then
-!            do mm=2,np   !time integration
-!              fltr4(mm)=fltr4(mm)+fltr4(mm-1)
-!            enddo
-!            fltr4=fltr4*dtseis
-            do mm=1,np-1   !time derivative
-              fltr4(mm)=fltr4(mm+1)-fltr4(mm)
-            enddo
-            fltr4=fltr4/dtseis
-          endif
-          
-          if (iwaveform==2) then
-           cseis=fltr4*dtseis
-           call four1(cseis,np,-1)
-           if (mrank==0)   write(222) cseis(1:np/2+1)
-          elseif (iwaveform==1) then 
-           do mm=1,nT
-            H((j-1)*nT+mm,(i-1)*nSR+1:i*nSR)=dble(fltr4(iT1-1+mm:iT1+mm-nSR:-1))
-           enddo
-          endif
-        enddo
 !$omp end do
-        deallocate(cseis,fltr4)
+          deallocate(cseis,fltr4)
 !$omp end parallel
+        enddo
       enddo
-    enddo
-    deallocate(cirN,cirE,cirZ,staweight)
-    close(20)    
-   endif
-   if (iwaveform==2 .and. mrank==0) then
-     close(222)
-     print *,'file with GFspectr saved' 
-   endif
+      deallocate(cirN,cirE,cirZ,staweight)
+      close(20)
+      if (iwaveform==2 .and. mrank==0) then
+        close(222)
+        print *,'file with GFspectr saved' 
+      endif      
+    
+    elseif (iwaveform==4) then  
+      write(*,*)'  (Computing ASTF, skipping GFs)'
+    endif
+
 #if defined MPI
-call MPI_Barrier(MPI_COMM_WORLD,ierr)
+    call MPI_Barrier(MPI_COMM_WORLD,ierr)
 #endif    
-    allocate(Dsynt(Nseis))
    
     if (iwaveform==2) then
      allocate(stadist(nl*nw,nrseis),ruptdist(nrseis))
@@ -215,7 +212,11 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
        read(225,*) xst,yst,zst
        do i=1,nl*nw
         read(224,*) dum,xgf,ygf,zgf
-        stadist(i,j)=sqrt((xst-xgf)**2+(yst-ygf)**2+(zst-zgf)**2)
+        if (GMPE_id==1 .or. GMPE_id==5) then
+          stadist(i,j)=sqrt((xst-xgf)**2+(yst-ygf)**2+(zst-zgf)**2) !distance to rupture
+        elseif(GMPE_id==2 .or. GMPE_id==3 .or. GMPE_id==4) then
+          stadist(i,j)=sqrt((xst-xgf)**2+(yst-ygf)**2) !JB distance
+        endif
        enddo
        rewind(224)
       enddo
@@ -244,10 +245,9 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     COMPLEX,DIMENSION(:),ALLOCATABLE:: seis1
     logical, allocatable :: slipmask(:,:)
 
-    allocate(slipGF(nl*nw),sr(np,nl*nw))
-    slipGF=0.;sr=0.
-
     if (iwaveform==2) then
+      allocate(slipGF(nl*nw),sr(np,nl*nw))
+      slipGF=0.;sr=0.
       m=0
       do j=1,NW
         do i=1,NL
@@ -301,23 +301,7 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
         open(243,file=trim(GFfile),form='unformatted',status='old',iostat=ierr)
         if (ierr/=0) print *,'error while openening file:',trim(GFfile),ierr
         do jj=1,NRseis
-         select case (GMPE_id)
-         case(1)
           ruptdist(jj)=minval(stadist(:,jj),mask=(slipGF>0.1*maxslip))
-         case(2)
-            allocate(slipmask(nl,nw),srfmask(nl*nw))
-            srfmask=.false.
-            slipmask=.false.
-            do i=1,NL
-             do j=1,NW
-              ii=(j-1)*NL+i
-              if (slipGF(ii)>0.1*maxslip) slipmask(i,j)=.true.
-             enddo
-              if (any(slipmask(i,:))) srfmask((nw-1)*nl+i)=.true.
-             enddo
-            ruptdist(jj)=minval(stadist(:,jj),mask=(srfmask))
-            deallocate(slipmask,srfmask)
-          end select
           do k=1,3
             if(stainfo(k,jj)==0)cycle
             do i=1,NL*NW
@@ -336,6 +320,7 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
           enddo
         enddo
         close(243)
+        deallocate(slipGF,sr)
         deallocate(seis1,cseis)
       endif
     endif
@@ -347,8 +332,6 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
       enddo
       close(297)
     endif
-   
-    deallocate(slipGF,sr)
 
     END    
     
@@ -484,7 +467,37 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
     
     END
 
-    subroutine evalmisfit2() !old type of misfit calculation
+
+    subroutine evalmisfitM()
+    use waveforms_com
+    use SlipRates_com
+    use source_com, only : output_param
+    use fd3dparam_com
+    use pml_com, only: nabc,nfs 
+    implicit none
+    real :: misf1
+
+    misf1=1.e30
+    mw=(log10(m0)-9.1)/1.5
+    if (abs(output_param(3)-(nxt-2*nabc)*(nzt-nabc-nfs)*dh*dh)<0.5*dh*dh) misfit=misf1 !if whole fault ruptured -->  discard model : rupture may have continued on larger fault
+    if (MomentRate(nSr)>1.e-4) misfit=misf1 ! if momentrate function not finished --> discard model, as the rupture may have continued
+    if (misfit>.9e30) return
+    if (Mw>=5.5) then
+!     if(M0sigma>0.) then
+!       misfit=0.5*(M0/M0sigma-M0aprior/M0sigma)**2
+     if(Mwsigma>0.) then
+        misf1=0.5*(2./3.*log10(M0/M0aprior)/Mwsigma)**2
+     else
+        misf1=0.
+     endif
+    endif
+
+    misfit=misfit+misf1 
+    print *,',Misfit:',misfit
+    end subroutine
+
+
+    subroutine evalmisfit2()
     use mod_pgamisf
     use waveforms_com
     use SlipRates_com
@@ -535,13 +548,13 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
         endif
         if (k1*k2 .and. k<3) then
           select case (GMPE_id)
-          case(1) !ZHAO
+          case(1,3) !ZHAO and ITA
            call  pcn05(nT,nT,nper,nper,dtseis,damp,per(:),hor1,sd,sv,sa1,psv,psa)
            call  pcn05(nT,nT,nper,nper,dtseis,damp,per(:),hor2,sd,sv,sa2,psv,psa)
            do i=1,nper
               pgaD(jj,i)=sqrt(sa1(i)*sa2(i))
            enddo
-          case(2) !BOORE
+          case(2,4,5) !BOORE
             call get_rotd50(hor1,hor2,nT,nT,dtseis,per,nper,damp,rtd50)
             pgaD(jj,:)=rtd50(:)
           end select
@@ -555,9 +568,9 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
      do i=1,nper
       do jj=1,nrseis
        if (kmask(jj)) then
-          call pga_theor(ruptdist(jj),Mw,per(i),pgaM(jj,i),PGAsigma(jj,i),PGAtau(jj,i))
+          call pga_theor(ruptdist(jj),mw,per(i),pgaM(jj,i),PGAsigma(jj,i),PGAtau(jj,i))
           misf=misf+(log(pgaD(jj,i))-pgam(jj,i))**2/(PGAsigma(jj,i)**2) !first part difference from the mean value for each station for particular event
-          if (ioutput==1) write(2223,'(7E13.5)') Mw,ruptdist(jj),per(i),exp(pgaM(jj,i))/100.,pgaD(jj,i)/100.,PGAsigma(jj,i),PGAtau(jj,i)
+          if (ioutput==1) write(2223,'(10000E18.8)') mw,ruptdist(jj),per(i),exp(pgaM(jj,i))/100.,pgaD(jj,i)/100.,PGAsigma(jj,i),PGAtau(jj,i)
        endif
       enddo
       if (ioutput==1) write(2223,*)
@@ -575,13 +588,13 @@ call MPI_Barrier(MPI_COMM_WORLD,ierr)
      enddo
     misf=misf/2./nper
     if (ioutput==1) close(2223)
-!    deallocate(pgaD,pgaM,kmask)
-    print *,'misfit:',misf
-    misfit=misf 
+    print *,'GMPE misfit:',misf!,misf1
+    misfit=misf!+misf1 
+    if(Mwsigma>0.)misfit=misfit+0.5*(2./3.*log10(M0/M0aprior)/Mwsigma)**2
+    print *,'Total misfit:',misfit
     end subroutine 
 
 
-    
     SUBROUTINE plotseis()
     USE waveforms_com
     USE SlipRates_com

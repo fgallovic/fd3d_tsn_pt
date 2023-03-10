@@ -8,6 +8,9 @@ real, allocatable :: aZhao(:),bZhao(:),cZhao(:),dZhao(:),c0Zhao(:),stZhao(:),Zha
  real,allocatable :: e_gmpe(:,:), amh_gmpe(:), c_gmpe(:,:), amref_gmpe(:), rref_gmpe(:), h_gmpe(:)     
  real, allocatable ::  delta_c3(:,:), clin(:), vclin(:), vref(:), f1(:), f3(:), f4(:), f5(:), f6(:), f7(:) 
  real,allocatable ::  r1(:), r2(:), delta_phiR(:), delta_phiV(:), v1(:), v2(:), phi1(:), phi2(:), tau1(:), tau2(:)
+ real, allocatable :: im_per(:),a_cita(:),b1_cita(:),b2_cita(:),c1_cita(:),c2_cita(:),c3_cita(:),Mref_cita(:),h_cita(:),sigma_cita(:),tau_cita(:),phi_s2s_cita(:),tau_l2l_cita(:),phi_p2p_cita(:),phi0_cita(:)
+ real, allocatable :: a_ita18(:),b1_ita18(:),b2_ita18(:),c1_ita18(:),c2_ita18(:),c3_ita18(:),Mref_ita18(:),h_ita18(:),k_ita18(:),tau_ita18(:),phi_s2s_ita18(:),phi0_ita18(:),mh_ita18(:)
+ real :: rref, mh,v0a
  integer :: indx_pga,indx_permax,indx_pgv
  real :: v30
 !!!
@@ -91,6 +94,8 @@ integer :: iregion=0,irelation=1,mech=1
 real :: r_pga4nl,per1,per2,r_t1,r_t2,slope_logy,slope_phi,slope_tau,slope_sigma,pga4nl,fe_pga4nl,fpb_pga4nl,fp_pga4nl,gspread_pga4nl
 real :: y_t1,fe_t1,fpb_t1,fsb_t1,fs_t1,phi_t1,tau_t1,sigma_t1,gspread_t1,amp_lin_t1,amp_nl_t1,amp_total_t1,fp_t1
 real :: y_t2,fe_t2,fpb_t2,fsb_t2,fs_t2,phi_t2,tau_t2,sigma_t2,gspread_t2,amp_lin_t2,amp_nl_t2,amp_total_t2,fp_t2
+real :: y1,y2,p1,p2,t1,t2,s1,s2,pp,ll,l1,l2,peso1,peso2,tt,ss,ypred
+integer :: ind1, ind2,iper,clust_id,indx
 real :: yg,ycgs,phi
 integer :: indx1,indx2,iflag_per
 
@@ -211,6 +216,172 @@ per_desired=perT; rjb=x; mech=1 !others taken from defs
         end if
         sigma=phi
         y=log(ycgs) !so that definition same with zhao: y in cm/s-2 and natural logarithm..
+
+case(3) !ITALIAN GMPE
+      !find if perT directly in table:
+      if (perT>im_per(nper_gmpe)) then
+          print *,'error! period ',perT, 'outside range. Max period:', im_per(nper_gmpe)
+          stop
+      endif
+      indx=0
+      do i=1,nper_gmpe
+        if (abs(perT-im_per(i))<1.e-8) then
+           indx=i
+        endif
+      enddo
+      if (indx>0) then
+       ypred=a_cita(indx)
+       if (mw<=mh) then
+           ypred=ypred+b1_cita(indx)*(mw-mh)
+       else
+           ypred=ypred+b2_cita(indx)*(mw-mh)
+       endif
+       ypred=ypred+(c1_cita(indx)*(mw-mref_cita(indx))+c2_cita(indx))*log10(sqrt(x**2+(h_cita(indx))**2)/Rref)+c3_cita(indx)*(sqrt(x**2+(h_cita(indx))**2)-Rref)
+       sigma=phi0_cita(indx)**2!sigma_cita(indx)**2
+       tau=tau_cita(indx)**2
+       !phi_s2s not accounted
+       !phi_p2p accounted - contains hanging wall and footwall dependency
+       sigma=sigma+phi_p2p_cita(indx)**2
+       !tau_l2l add to tau if not corrected for clusters:
+       if (clust_id>0) then
+          !!!CLUSTER CORRECTION ADD HERE
+       else
+         tau=tau+tau_l2l_cita(indx)**2
+       endif
+       !sqrt of sigmas and taus
+       sigma=sqrt(sigma)
+       tau=sqrt(tau)
+ 
+      else
+       do iper=1,nper_gmpe-1
+        if (perT>im_per(iper) .and. perT<im_per(iper+1)) then
+           ind1=iper
+           ind2=iper+1
+        endif
+       enddo
+       y1=a_cita(ind1)
+       if (mw<=mh) then
+           y1=y1+b1_cita(ind1)*(mw-mh)
+       else
+           y1=y1+b2_cita(ind1)*(mw-mh)
+       endif
+       y1=y1+(c1_cita(ind1)*(mw-mref_cita(ind1))+c2_cita(ind1))*log10(sqrt(x**2+(h_cita(ind1))**2)/Rref)+c3_cita(ind1)*(sqrt(x**2+(h_cita(ind1))**2)-Rref)
+       s1=phi0_cita(ind1)!sigma_cita(ind1)
+       t1=tau_cita(ind1)
+       p1=phi_p2p_cita(ind1)
+       l1=tau_l2l_cita(ind1)
+       peso1=abs(im_per(ind1)-perT)
+       
+       y2=a_cita(ind2)
+       if (mw<=mh) then
+           y2=y2+b1_cita(ind2)*(mw-mh)
+       else
+           y2=y2+b2_cita(ind2)*(mw-mh)
+       endif
+       y2=y2+(c1_cita(ind2)*(mw-mref_cita(ind2))+c2_cita(ind2))*log10(sqrt(x**2+(h_cita(ind2))**2)/Rref)+c3_cita(ind2)*(sqrt(x**2+(h_cita(ind2))**2)-Rref)
+       s2=phi0_cita(ind2)!sigma_cita(ind2)
+       t2=tau_cita(ind2)
+       p2=phi_p2p_cita(ind2)
+       l2=tau_l2l_cita(ind2)
+       peso2=abs(im_per(ind2)-perT)
+
+       ypred=(y1*peso2+y2*peso1)/(peso1+peso2)
+       ss=(s1*peso2+s2*peso1)/(peso1+peso2)
+       tt=(t1*peso2+t2*peso1)/(peso1+peso2)
+       pp=(p1*peso2+p2*peso1)/(peso1+peso2)
+       ll=(l1*peso2+l2*peso1)/(peso1+peso2)
+       sigma=sqrt(ss**2+pp**2)
+       !
+       if (clust_id>0) then
+          !!!CLUSTER CORRECTION ADD HERE
+       else !increase variance
+         tau=sqrt(tt**2+ll**2)
+       endif
+      endif
+      !CHECK JEDNOTKY, tu: ypred aj sigma je v log10, cm/s^2
+      y=ypred*log(10.)
+      tau=tau*log(10.)
+      sigma=sigma*log(10.)
+
+
+case(4,5) !ITALIAN ITA18 GMPE by Lanzano et al.
+      !find if perT directly in table:
+      if (perT>im_per(nper_gmpe)) then
+          print *,'error! period ',perT, 'outside range. Max period:', im_per(nper_gmpe)
+          stop
+      endif
+      indx=0
+      do i=1,nper_gmpe
+        if (abs(perT-im_per(i))<1.e-8) then
+           indx=i
+        endif
+      enddo
+      if (indx>0) then
+       ypred=a_ita18(indx)
+       if (mw<=mh_ita18(indx)) then
+           ypred=ypred+b1_ita18(indx)*(mw-mh_ita18(indx))
+       else
+           ypred=ypred+b2_ita18(indx)*(mw-mh_ita18(indx))
+       endif
+       ypred=ypred+(c1_ita18(indx)*(mw-mref_ita18(indx))+c2_ita18(indx))*log10(sqrt(x**2+(h_ita18(indx))**2))+c3_ita18(indx)*(sqrt(x**2+(h_ita18(indx))**2))
+       v0a=min(v30,1500.)
+       ypred=ypred+k_ita18(indx)*log10(v0a/800.)
+       sigma=phi0_ita18(indx)**2!sigma_cita(indx)**2
+       tau=tau_ita18(indx)**2
+       !phi_s2s not accounted
+       !phi_p2p accounted - contains hanging wall and footwall dependency
+       !sigma=sigma+phi_p2p_ita18(indx)**2
+       !tau_l2l add to tau if not corrected for clusters:
+       !sqrt of sigmas and taus
+       sigma=sqrt(sigma)
+       tau=sqrt(tau)
+ 
+      else
+       do iper=1,nper_gmpe-1
+        if (perT>im_per(iper) .and. perT<im_per(iper+1)) then
+           ind1=iper
+           ind2=iper+1
+        endif
+       enddo
+       y1=a_ita18(ind1)
+       if (mw<=mh_ita18(ind1)) then
+           y1=y1+b1_ita18(ind1)*(mw-mh_ita18(ind1))
+       else
+           y1=y1+b2_ita18(ind1)*(mw-mh_ita18(ind1))
+       endif
+       y1=y1+(c1_ita18(ind1)*(mw-mref_ita18(ind1))+c2_ita18(ind1))*log10(sqrt(x**2+(h_ita18(ind1))**2))+c3_ita18(ind1)*(sqrt(x**2+(h_ita18(ind1))**2))
+       v0a=min(v30,1500.)
+       y1=y1+k_ita18(indx)*log10(v0a/800.)
+       s1=phi0_ita18(ind1)!sigma_cita(ind1)
+       t1=tau_ita18(ind1)
+       !p1=phi_p2p_ita18(ind1)
+       peso1=abs(im_per(ind1)-perT)
+       
+       y2=a_ita18(ind2)
+       if (mw<=mh_ita18(ind2)) then
+           y2=y2+b1_ita18(ind2)*(mw-mh_ita18(ind2))
+       else
+           y2=y2+b2_ita18(ind2)*(mw-mh_ita18(ind2))
+       endif
+       y2=y2+(c1_ita18(ind2)*(mw-mref_ita18(ind2))+c2_ita18(ind2))*log10(sqrt(x**2+(h_ita18(ind2))**2))+c3_ita18(ind2)*(sqrt(x**2+(h_ita18(ind2))**2))
+       y2=y2+k_ita18(ind2)*log10(v0a/800.)
+       s2=phi0_ita18(ind2)!sigma_cita(ind2)
+       t2=tau_ita18(ind2)
+       !p2=phi_p2p_ita18(ind2)
+       peso2=abs(im_per(ind2)-perT)
+
+       ypred=(y1*peso2+y2*peso1)/(peso1+peso2)
+       ss=(s1*peso2+s2*peso1)/(peso1+peso2)
+       tt=(t1*peso2+t2*peso1)/(peso1+peso2)
+       pp=0.!(p1*peso2+p2*peso1)/(peso1+peso2)
+       sigma=sqrt(ss**2+pp**2)
+       !
+      endif
+     !CHECK JEDNOTKY, tu: ypred aj sigma je v log10, cm/s^2
+      y=ypred*log(10.)
+      tau=tau*log(10.)
+      sigma=sigma*log(10.)
+
 end select 
 
 end subroutine
@@ -223,6 +394,7 @@ integer :: i,j,ierr
 real :: dum,dum1,per_max
 integer :: i_read_status
 character(300) :: f_coeff
+real, allocatable :: coeff(:,:)
 integer :: nu_coeff
 
 !read coefficients
@@ -330,6 +502,100 @@ f_coeff='BSSA14_Coefficients_071314_Revisedf4_071514.csv'
           indx_permax = i
         END IF
       END DO
+case(3) !ITALIAN GMPE
+     Rref=1
+     Mh=5
+
+     ierr=0
+     nper_gmpe=0
+     open(1111,file='neclust_coeff.dat',status='old')
+     do while (ierr==0)
+        read(1111,*,iostat=ierr) dum
+        if (ierr==0) nper_gmpe=nper_gmpe+1
+     enddo
+     allocate(coeff(nper_gmpe,16))
+     rewind(1111)
+      do i=1,nper_gmpe
+        read(1111,*) coeff(i,:)
+      enddo
+     close(1111)
+     allocate(im_per(nper_gmpe),a_cita(nper_gmpe),b1_cita(nper_gmpe),b2_cita(nper_gmpe),c1_cita(nper_gmpe),c2_cita(nper_gmpe),c3_cita(nper_gmpe),Mref_cita(nper_gmpe),h_cita(nper_gmpe),sigma_cita(nper_gmpe),tau_cita(nper_gmpe),phi_s2s_cita(nper_gmpe),tau_l2l_cita(nper_gmpe),phi_p2p_cita(nper_gmpe),phi0_cita(nper_gmpe))
+      im_per=coeff(:,1)
+      a_cita=coeff(:,2)
+      b1_cita=coeff(:,3)
+      b2_cita=coeff(:,4)
+      c1_cita=coeff(:,5)
+      c2_cita=coeff(:,6)
+      c3_cita=coeff(:,7)
+      Mref_cita=coeff(:,9)
+      h_cita=coeff(:,10)
+      sigma_cita=coeff(:,16)
+      tau_cita=coeff(:,11)
+      phi_s2s_cita=coeff(:,12)
+      tau_l2l_cita=coeff(:,13)
+      phi_p2p_cita=coeff(:,14)
+      phi0_cita=coeff(:,15)
+      !GEOMEtriCAL MEAN oF HROIZONTAL COMP
+      allocate(sd(nper),sv(nper),sa1(nper),sa2(nper),psv(nper),psa(nper))
+
+case(4) !Italian GMPE ITA18 Lanzano 2019
+     open(1111,file='coeff_ita18_JB.dat',status='old')
+     do while (ierr==0)
+        read(1111,*,iostat=ierr) dum
+        if (ierr==0) nper_gmpe=nper_gmpe+1
+     enddo
+     allocate(coeff(nper_gmpe,16))
+     rewind(1111)
+      do i=1,nper_gmpe
+        read(1111,*) coeff(i,:)
+      enddo
+     close(1111)
+     allocate(im_per(nper_gmpe),a_ita18(nper_gmpe),b1_ita18(nper_gmpe),b2_ita18(nper_gmpe),c1_ita18(nper_gmpe),c2_ita18(nper_gmpe),c3_ita18(nper_gmpe),k_ita18(nper_gmpe),Mref_ita18(nper_gmpe),h_ita18(nper_gmpe),tau_ita18(nper_gmpe),phi_s2s_ita18(nper_gmpe),phi0_ita18(nper_gmpe),mh_ita18(nper_gmpe))
+      im_per=coeff(:,1)
+      a_ita18=coeff(:,2)
+      b1_ita18=coeff(:,3)
+      b2_ita18=coeff(:,4)
+      c1_ita18=coeff(:,5)
+      c2_ita18=coeff(:,6)
+      c3_ita18=coeff(:,7)
+      k_ita18=coeff(:,8)
+      Mref_ita18=coeff(:,15)
+      h_ita18=coeff(:,16)
+      tau_ita18=coeff(:,11)
+      phi_s2s_ita18=coeff(:,12)
+      phi0_ita18=coeff(:,13)
+       mh_ita18=coeff(:,14)
+      
+      !allocate(sd(nper),sv(nper),sa1(nper),sa2(nper),psv(nper),psa(nper))
+
+case(5) !Italian GMPE ITA18 Lanzano 2019, rupture distance
+     open(1111,file='coeff_ita18_rupt.dat',status='old')
+     do while (ierr==0)
+        read(1111,*,iostat=ierr) dum
+        if (ierr==0) nper_gmpe=nper_gmpe+1
+     enddo
+     allocate(coeff(nper_gmpe,16))
+     rewind(1111)
+      do i=1,nper_gmpe
+        read(1111,*) coeff(i,:)
+      enddo
+     close(1111)
+     allocate(im_per(nper_gmpe),a_ita18(nper_gmpe),b1_ita18(nper_gmpe),b2_ita18(nper_gmpe),c1_ita18(nper_gmpe),c2_ita18(nper_gmpe),c3_ita18(nper_gmpe),k_ita18(nper_gmpe),Mref_ita18(nper_gmpe),h_ita18(nper_gmpe),tau_ita18(nper_gmpe),phi_s2s_ita18(nper_gmpe),phi0_ita18(nper_gmpe),mh_ita18(nper_gmpe))
+      im_per=coeff(:,1)
+      a_ita18=coeff(:,2)
+      b1_ita18=coeff(:,3)
+      b2_ita18=coeff(:,4)
+      c1_ita18=coeff(:,5)
+      c2_ita18=coeff(:,6)
+      c3_ita18=coeff(:,7)
+      k_ita18=coeff(:,8)
+      Mref_ita18=coeff(:,15)
+      h_ita18=coeff(:,16)
+      tau_ita18=coeff(:,11)
+      phi_s2s_ita18=coeff(:,12)
+      phi0_ita18=coeff(:,13)
+       mh_ita18=coeff(:,14)
+
 end select
 
 END SUBROUTINE

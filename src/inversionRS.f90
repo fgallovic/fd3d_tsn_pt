@@ -1,6 +1,6 @@
 ! Parallel tempering inversion subroutines for a model with rate-and-state friction
 !-------------------------------------------------------
-! Authors: Frantisek Gallovic, Lubica Valentova (2019)
+! Authors: Frantisek Gallovic, Jan Premus (2020)
 ! Charles University in Prague, Faculty of Mathematics and Physics
 
 ! This code is published under the GNU General Public License. To any

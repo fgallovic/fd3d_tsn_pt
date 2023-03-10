@@ -139,9 +139,6 @@
 	  
 	END MODULE
 
-    ! MODULE inversion_com
-   ! INCLUDE 'inversion_com.f90'
-
     SUBROUTINE fd3d_init()
       USE medium_com
       USE fd3dparam_com
@@ -153,9 +150,7 @@
 #if defined FVW
       USE RATESTATE,only:gkoef,MDIS,NDIS,slipOUT,f0PS,baPS,fwPS,vwPS,aPS,dcPS,snPS
 #endif
-	  
       IMPLICIT NONE
-      
       integer nxtT, nytT, nztT
       integer i
       real pml_vp,pml_fact  
@@ -561,36 +556,6 @@
     END SUBROUTINE
 
 #else
-    SUBROUTINE forwardspecial1()
-    USE friction_com
-    USE fd3dparam_com
-    USE pml_com
-    IMPLICIT NONE
-    REAL,PARAMETER:: x0=14.e3,z0=6.e3,a=10.e3,b=3.e3,phi=0.
-    REAL,PARAMETER:: xn=17.e3,zn=6.e3,rn=1.e3
-    real x,z,rr
-    integer i,j
-    
-    do j = nabc+1,nzt-nfs
-      z=dh*(real(j-nabc)-0.5)
-      do i = nabc+1,nxt-nabc
-        x=dh*(real(i-nabc)-0.5)
-        strinix(i,j) = 0.e6  !prestress
-        peak_xz(i,j) = 20.e6  !strength
-        Dc(i,j)=0.2  !Dc
-        rr=sqrt((x-x0)**2/a**2+(z-z0)**2/b**2)
-        if(rr<1.)then
-          peak_xz(i,j) = 8.e6
-          strinix(i,j)=peak_xz(i,j)*0.9
-        endif
-        rr=sqrt((x-xn)**2+(z-zn)**2)
-        if(rr<rn)strinix(i,j)=peak_xz(i,j)*1.1
-      enddo
-    enddo
-    dyn_xz=0.
-    coh=0.
-
-    END SUBROUTINE
 
     SUBROUTINE forwardspecialTPV5()
 !   Setup of dynamic parameters for TPV5 benchmark
@@ -841,7 +806,6 @@
         f0(i,k)     = (1.-t)*(1.-u)*f0I(ii,kk)+t*(1.-u)*f0I(ii+1,kk)+t*u*f0I(ii+1,kk+1)+(1.-t)*u*f0I(ii,kk+1)
         fw(i,k)     = (1.-t)*(1.-u)*fwI(ii,kk)+t*(1.-u)*fwI(ii+1,kk)+t*u*fwI(ii+1,kk+1)+(1.-t)*u*fwI(ii,kk+1)
         vw(i,k)     = (1.-t)*(1.-u)*vwI(ii,kk)+t*(1.-u)*vwI(ii+1,kk)+t*u*vwI(ii+1,kk+1)+(1.-t)*u*vwI(ii,kk+1)
-   
 
 #if defined DIPSLIP
 		wini(i,k)   = (1.-t)*(1.-u)*viniI(ii,kk)+t*(1.-u)*viniI(ii+1,kk)+t*u*viniI(ii+1,kk+1)+(1.-t)*u*viniI(ii,kk+1)
@@ -877,15 +841,12 @@
 #else
         striniX(i,k)= striniX(i,k+1)
         !psi(i,k) = a(i,k)*(log((2*v0/(2*uini(i,k)))) + log(sinh(striniX(i,k)/(a(i,k)*Sn(i,k)))))
-
         striniZ(i,k)= 0.
 #endif
       enddo
 	
 	do k=nabc,nzt-nfs
-
           i=nabc
-	  
           Dc(i,k)     = Dc(i+1,k)
           Sn(i,k)     = Sn(i+1,k)
           a(i,k)      = a(i+1,k)
@@ -903,10 +864,8 @@
 #else
           striniX(i,k)= striniX(i+1,k)
           !psi(i,k) = a(i,k)*(log((2*v0/(2*uini(i,k)))) + log(sinh(striniX(i,k)/(a(i,k)*Sn(i,k)))))
-
           striniZ(i,k)= 0.
 #endif
-
     enddo	
     	
 	hx0=hx0+real(nabc)*dh
@@ -930,7 +889,9 @@
     CALL inversion_modeltofd3d()
     
     END SUBROUTINE
+
 #else
+
     SUBROUTINE readinversionresult()
     USE inversion_com
     USE fd3dparam_com

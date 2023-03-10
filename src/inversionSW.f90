@@ -19,15 +19,12 @@
     real,allocatable,dimension(:,:):: DcI,T0I,TsI     !Test variables (for which misfit is calculated)
     real,allocatable,dimension(:,:,:):: DcA,T0A,TsA   !Array of variables in MC chains:
     real:: StepSizeT0,StepSizeTs,StepSizeD    
-	integer:: RUNI,NLI,NWI  
-!    real,allocatable,dimension(:,:):: TsI   !Test variables (for which misfit is calculated)
-!    real,allocatable,dimension(:,:,:):: TsA  !Array of variables in MC chains:
+    integer:: RUNI,NLI,NWI  
     real,allocatable,dimension(:):: VRA, EgA, ErA, MisfitA,TshiftA, VRgpsA
-	real,allocatable,dimension(:,:,:):: ruptimeA,riseA,slipA,schangeA
-	real,allocatable :: pgaA(:,:,:),MwA(:),M0A(:),ruptdistA(:,:),MomentRateA(:,:)
+    real,allocatable,dimension(:,:,:):: ruptimeA,riseA,slipA,schangeA
+    real,allocatable :: pgaA(:,:,:),MwA(:),M0A(:),ruptdistA(:,:),MomentRateA(:,:)
     integer randseed,StepType
-
-	  
+    
     end module
 
 
@@ -65,8 +62,6 @@
     read(10,*)DcMin,DcMax
     read(10,*)ConstraintNucl,NuclConstraintL,NuclConstraintW,NuclConstraintR,OverstressConstraint	
     read(10,*)StepType,StepSizeT0,StepSizeTs,StepSizeD
-
-	
 	read(10,*)SigmaData,Mwsigma    !Mw constraint applies only when Mwsigma>0 (see evalmisfit())
     if (iwaveform==2) then !for gmpes read additional parameters:
        read(10,*) GMPE_id ! 1 for Zhao, 2 for Boore
@@ -94,7 +89,7 @@
     end
 
 
-	subroutine AdvanceChain(ichain,T,E,record_mcmc_now,iseed)   ! V E je stary misfit, nahradi se pripadne novym, pokud dojde k prijeti kroku
+    subroutine AdvanceChain(ichain,T,E,record_mcmc_now,iseed)   ! Old misfit is in E, it is updated if the proposed model is accepted
     use mod_ctrl, only : ifile
     use inversion_com
     use waveforms_com, only : misfit,VR,iwaveform,NRseis,ruptdist,pgaD,Tshift
@@ -200,12 +195,15 @@ jj=jj+1
      call evalmisfit() 
     elseif (iwaveform==2) then
      call evalmisfit2()
+    elseif (iwaveform==3) then
+     call evalmisfitM()
     endif
     newmisfit=misfit
 
     call PT_McMC_accept(T,E,prop21,newmisfit,prop12,yn,iseed)
     if (yn) then  !step accepted
       E=newmisfit
+      MisfitA(ichain)=E
       T0A(:,:,ichain)=T0I(:,:)
       TsA(:,:,ichain)=TsI(:,:)
       DcA(:,:,ichain)=DcI(:,:)
@@ -283,6 +281,7 @@ jj=jj+1
         endif
         if((peak_xz(i,j)-dyn_xz(i,j))/normstress(j)<peak_xzMin.or.(peak_xz(i,j)-dyn_xz(i,j))/normstress(j)>peak_xzMax)then
 !          write(*,*)'Peak_xz',i,j,peak_xz(i,j)
+!          write(*,*)'Peak_xz',i,j,(peak_xz(i,j)-dyn_xz(i,j))/normstress(j)
           return
         endif
       enddo
@@ -316,9 +315,9 @@ jj=jj+1
       if(overstressconstraint>0.)then
         allocate(strengthexcess1(nxt,nzt))
 #if defined DIPSLIP
-        strengthexcess1(:,:)=striniZ(:,:)-(peak_xz(:,:)+coh(i,j))
+        strengthexcess1(:,:)=striniZ(:,:)-(peak_xz(:,:)+coh(:,:))
 #else
-        strengthexcess1(:,:)=striniX(:,:)-(peak_xz(:,:)+coh(i,j))
+        strengthexcess1(:,:)=striniX(:,:)-(peak_xz(:,:)+coh(:,:))
 #endif
         nuclsize=dh*dh*COUNT(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)
         meanoverstress=sum(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs),strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)*dh*dh/nuclsize
@@ -333,9 +332,9 @@ jj=jj+1
 !Constraint on Mean Overstress:   
       allocate(strengthexcess1(nxt,nzt))
 #if defined DIPSLIP
-      strengthexcess1(:,:)=striniZ(:,:)-(peak_xz(:,:)+coh(i,j))
+      strengthexcess1(:,:)=striniZ(:,:)-(peak_xz(:,:)+coh(:,:))
 #else
-      strengthexcess1(:,:)=striniX(:,:)-(peak_xz(:,:)+coh(i,j))
+      strengthexcess1(:,:)=striniX(:,:)-(peak_xz(:,:)+coh(:,:))
 #endif
       nuclsize=dh*dh*COUNT(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)
       meanoverstress=sum(strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs),strengthexcess1(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>=0.)*dh*dh/nuclsize
@@ -397,8 +396,10 @@ jj=jj+1
 !          write(1122,*) x0,z0,meanoverstress
 !        close(1122)
       endif
-      if (nuclOK==0) return
-!      print *,'no nucleation'
+      if (nuclOK==0) then 
+!       write(*,*) 'no nucleation',nuclsize
+       return
+      endif
     endif
 !    print *,'nucleation ok'
 
@@ -412,6 +413,7 @@ jj=jj+1
     
     modelinvalid=.false.   !All passed
     end
+
 
     subroutine InitiateChain(ichain,E,iseed) !Set all initial models
     use mod_ctrl, only: nchains,rname,ierr,ifile
@@ -450,6 +452,8 @@ jj=jj+1
       write(*,*)'Initial model VR: ',VR,' for shift',Tshift,'s'
     elseif (iwaveform==2) then
       call evalmisfit2()
+    elseif (iwaveform==3) then
+      call evalmisfitM()
     endif
 
     E=misfit

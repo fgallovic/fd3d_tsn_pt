@@ -106,9 +106,7 @@
 #if defined TPV104
 		CALL forwardspecialTPV104()
 #endif
-#if defined circle
-        CALL forwardspecial1()
-#endif
+
       CALL readinversionresult()
       ioutput=1
       if(iwaveform==0)write(*,*)'Note: No seismogram calculation.'
@@ -163,7 +161,8 @@
 #else
         write(594)misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),viniI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
           & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),slipOUT(1,:),slipOUT(2,:),M0,Eg,Er,Tshift,VRgps
-#endif       close(594)
+#endif
+        close(594)
       elseif (iwaveform==2) then
         call evalmisfit2()
         open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
@@ -190,7 +189,6 @@
         write(594,'(10000000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),M0,Eg,Er,Tshift,output_param(1),output_param(4),VRgps,output_param(3)
         close(594)
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
-
 #if defined DIPSLIP
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
           & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,Tshift,VRgps
@@ -212,6 +210,17 @@
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
           & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,Tshift,output_param(1),output_param(4),VRgps
 #endif
+      elseif (iwaveform==3) then
+        call evalmisfitM()
+        open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
+#ifdef DIPSLIP
+        write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er
+#else
+        write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er
+#endif
+        close(594)
       else
         open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
         write(594,'(10000000E13.5)')-1.,-1.,T0I(:,:),TsI(:,:),DcI(:,:),M0,Eg,Er,-1.,output_param(1),output_param(4),-1.,output_param(3)
