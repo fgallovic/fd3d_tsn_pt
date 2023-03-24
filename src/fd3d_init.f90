@@ -226,7 +226,6 @@
 
       striniX=0.; striniZ=0.; peak_xz=0.; Dc=0.
 
-
 !------------------------------------------------------------
 ! Read the velocity model
 ! Be careful: the velocity model for the FD is upside down
@@ -269,7 +268,7 @@
     depth=depth*1.e3;vp=vp*1.e3;vs=vs*1.e3;rho=rho*1.e3
     close(10)
     do k=nzt,1,-1
-      dum=(dh*real(nzt-nfs-k)+dh/2.)*sin(dip/180.d0*PI)    ! TADY SE TO MUSI OPRAVIT!
+      dum=(dh*real(nzt-nfs-k)+dh/2.)*sin(dip/180.d0*PI)
       if(dum>depth(ndepth))then
         vpp=vp(ndepth)
         vss=vs(ndepth)

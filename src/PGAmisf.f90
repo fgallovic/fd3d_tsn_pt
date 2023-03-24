@@ -818,7 +818,7 @@ END SUBROUTINE
 
       
       real,intent(in) ::   per, m, rjb, r, v30, z1,  c(1:3), amref, rref, delta_c3(0:3), e(0:6), amh
-      real, intent(out) :: pga4nl
+      real  pga4nl
       real  clin, vclin, vref, f1, f2, f3, f4, f5, f6, f7, r1, r2, delta_phiR, delta_phiV, v1, v2
       real  phi1, phi2, tau1, tau2,  fe, fpb, fp, fsb, fs, phiM, phiMR
       real,intent(out) ::  phi, tau, sigma, gspread,y

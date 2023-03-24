@@ -69,6 +69,10 @@
        allocate(per(nper))
        read(10,*) per(:) !periods stored here
     endif
+    if (iwaveform==4.or.iwaveform==5) then !for ASTFs read additional parameters:
+      read(10,*)nper,VSt  !periods for smoothed spectra,S-wave velocity
+      allocate(per(nper))
+    endif
     close(10)
 
     allocate(DcI(NLI,NWI),T0I(NLI,NWI),TsI(NLI,NWI))
@@ -79,10 +83,11 @@
     !Read GFs and seismograms
     call readGFs()
     if(iwaveform==1)call readwaveforms()
-	
-	!Read postseismic GFs and deformation 
-	if (igps==1) call readSGFs()	
-	
+    if(iwaveform==4.or.iwaveform==5)call readastfs()
+
+    !Read postseismic GFs and deformation 
+    if (igps==1) call readSGFs()	
+
     allocate(MomentRateA(nSr,nchains))
     if (iwaveform==2) allocate(ruptdistA(NRseis,nchains),pgaA(NRseis,nper,nchains))
 

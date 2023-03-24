@@ -178,6 +178,7 @@
 #endif
         close(594)
       endif
+
 #else
 
       if(iwaveform==1)then
@@ -191,10 +192,10 @@
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
 #if defined DIPSLIP
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
-          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,Tshift,VRgps
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,Tshift,VRgps,output_param(3)
 #else
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
-          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,Tshift,VRgps
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,Tshift,VRgps,output_param(3)
 #endif
         close(594)
       elseif (iwaveform==2) then
@@ -205,20 +206,40 @@
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
 #if defined DIPSLIP
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
-          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,Tshift,output_param(1),output_param(4),VRgps
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,Tshift,output_param(1),output_param(4),VRgps,output_param(3)
 #else
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
-          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,Tshift,output_param(1),output_param(4),VRgps
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,Tshift,output_param(1),output_param(4),VRgps,output_param(3)
 #endif
       elseif (iwaveform==3) then
         call evalmisfitM()
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
 #ifdef DIPSLIP
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
-          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,-1000.,output_param(1),output_param(4),-1.,output_param(3)
 #else
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
-          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,-1000.,output_param(1),output_param(4),-1.,output_param(3)
+#endif
+        close(594)
+      elseif(iwaveform==4.or.iwaveform==5)then
+        if(iwaveform==4)then
+          call evalmisfitSspec()
+          write(*,*)'Variance reduction: ',VR
+        else  !iwaveform==5
+          call evalmisfitStime()
+          write(*,*)'Variance reduction: ',VR,' for shift',Tshift,'s'
+        endif
+        open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
+        write(594,'(10000000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),M0,Eg,Er,Tshift,output_param(1),output_param(4),-1.,output_param(3)
+        close(594)
+        open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
+#if defined DIPSLIP
+        write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,Tshift,output_param(1),output_param(4),-1.,output_param(3)
+#else
+        write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,Tshift,output_param(1),output_param(4),-1.,output_param(3)
 #endif
         close(594)
       else
@@ -228,10 +249,10 @@
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
 #if defined DIPSLIP
         write(594)-1.,-1.,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
-          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,-1.,output_param(1),output_param(4),-1.
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,-1000.,output_param(1),output_param(4),-1.
 #else
         write(594)-1.,-1.,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
-          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,-1.,output_param(1),output_param(4),-1.
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,-1000.,output_param(1),output_param(4),-1.
 #endif
         close(594)
       endif

@@ -1940,7 +1940,7 @@
 	  nxb=2
       nxe=nxt-1
       nyb=2
-      nye=nyt!-1
+      nye=nyt-1
       nzb=nzt-nabc+1
       nze=nzt-1
 	  
@@ -2807,7 +2807,7 @@
 	  nxb=2
       nxe=nxt-1
       nyb=2
-      nye=nyt!-1
+      nye=nyt-1
       nzb=nzt-nabc+1
       nze=nzt-1
       _ACC_PARALLEL
