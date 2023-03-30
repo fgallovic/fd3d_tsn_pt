@@ -72,7 +72,7 @@
       allocate(u1(nxt,nyt,nzt))
       allocate(w1(nxt,nyt,nzt))
       allocate(xx(nxt,nyt,nzt),yy(nxt,nyt,nzt),zz(nxt,nyt,nzt),xy(nxt,nyt,nzt),yz(nxt,nyt,nzt),xz(nxt,nyt,nzt))
-      allocate(tx(nxt,nzt),tz(nxt,nzt),v1t(nxt,nzt),avdx(nxt,nzt),avdz(nxt,nzt), RFx(nxt,nzt),RFz(nxt,nzt))
+      allocate(tx(nxt,nzt),tz(nxt,nzt),v1t(nxt,nzt),avdx(nxt,nzt),avdz(nxt,nzt),RFx(nxt,nzt),RFz(nxt,nzt))
       allocate(sliprateoutX(nxt,nzt),sliprateoutZ(nxt,nzt),distX(nxt,nzt),distZ(nxt,nzt))
       allocate(omega_pml(nabc-1), omegaR_pml(nabc-1),omega_pmlM(nabc-1), omegaR_pmlM(nabc-1))
       allocate(au1(nxt,nzt),av1(nxt,nzt),aw1(nxt,nzt))
@@ -851,21 +851,27 @@ _ACC_END_PARALLEL
       deallocate(tx,tz,v1t,avdx,avdz, RFx,RFz)
       deallocate(sliprateoutX,sliprateoutZ,distX,distZ)
       deallocate(omega_pml,omegaR_pml,omega_pmlM,omegaR_pmlM,au1,av1,aw1)
-      deallocate (omegax1,omegay1,omegaz1,omegaxS1)    
-      deallocate (u11,u12,u13,v11,v12,v13,w11,w12,w13)
-      deallocate (xx11,xx12,xx13,yy11,yy12,yy13,zz11,zz12,zz13,xz11,xz12,xy11,xy12,yz11,yz12)
-      deallocate (omegax2,omegay2,omegaz2,omegaxS2)      
-      deallocate (u21,u22,u23,v21,v22,v23,w21,w22,w23)
-      deallocate (xx21,xx22,xx23,yy21,yy22,yy23,zz21,zz22,zz23,xz21,xz22,xy21,xy22,yz21,yz22)  
-      deallocate (omegax3,omegay3,omegaz3,omegaxS3,omegayS3) 
-      deallocate (u31,u32,u33,v31,v32,v33,w31,w32,w33)
-      deallocate (xx31,xx32,xx33,yy31,yy32,yy33,zz31,zz32,zz33,xz31,xz32,xy31,xy32,yz31,yz32)  
-      deallocate (omegax4,omegay4,omegaz4,omegaxS4,omegayS4,omegazS4)
-      deallocate (u41,u42,u43,v41,v42,v43,w41,w42,w43)
-      deallocate (xx41,xx42,xx43,yy41,yy42,yy43,zz41,zz42,zz43,xz41,xz42,xy41,xy42,yz41,yz42)    
+      deallocate(omegax1,omegay1,omegaz1,omegaxS1)    
+      deallocate(u11,u12,u13,v11,v12,v13,w11,w12,w13)
+      deallocate(xx11,xx12,xx13,yy11,yy12,yy13,zz11,zz12,zz13,xz11,xz12,xy11,xy12,yz11,yz12)
+      deallocate(omegax2,omegay2,omegaz2,omegaxS2)      
+      deallocate(u21,u22,u23,v21,v22,v23,w21,w22,w23)
+      deallocate(xx21,xx22,xx23,yy21,yy22,yy23,zz21,zz22,zz23,xz21,xz22,xy21,xy22,yz21,yz22)  
+      deallocate(omegax3,omegay3,omegaz3,omegaxS3,omegayS3) 
+      deallocate(u31,u32,u33,v31,v32,v33,w31,w32,w33)
+      deallocate(xx31,xx32,xx33,yy31,yy32,yy33,zz31,zz32,zz33,xz31,xz32,xy31,xy32,yz31,yz32)  
+      deallocate(omegax4,omegay4,omegaz4,omegaxS4,omegayS4,omegazS4)
+      deallocate(u41,u42,u43,v41,v42,v43,w41,w42,w43)
+      deallocate(xx41,xx42,xx43,yy41,yy42,yy43,zz41,zz42,zz43,xz41,xz42,xy41,xy42,yz41,yz42)    
+#if defined FSPACE	  
+      deallocate(omegax5,omegay5,omegaz5,omegaxS5,omegayS5,omegazS5)  
+      deallocate(u51,u52,u53,v51,v52,v53,w51,w52,w53)
+      deallocate(xx51,xx52,xx53,yy51,yy52,yy53,zz51,zz52,zz53,xz51,xz52,xy51,xy52,yz51,yz52)    
+#endif	  
 #if defined FVW
       deallocate (psiout,t0xi,t0zi)
 #endif
+
       CALL CPU_TIME(CPUT2)
       PRINT *,'CPU TIME OF TIME LOOP: ',CPUT2-CPUT1
 
@@ -1046,6 +1052,6 @@ _ACC_END_PARALLEL
       output_param(3)=count(slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>0.05*slipmax)*dh*dh
 #endif
 
-      deallocate(efrac,erad,slipt)
+      deallocate(efrac,erad,slipt,timek)
 
       END SUBROUTINE

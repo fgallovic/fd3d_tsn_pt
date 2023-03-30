@@ -11,9 +11,6 @@
 ! that it will be useful, but WITHOUT ANY WARRANTY.
 ! ------------------------------------------------------
 
-
-
-
     module inversion_com
 
     real,allocatable,dimension(:,:):: DcI,T0I,TsI     !Test variables (for which misfit is calculated)
@@ -202,6 +199,10 @@ jj=jj+1
      call evalmisfit2()
     elseif (iwaveform==3) then
      call evalmisfitM()
+    elseif (iwaveform==4) then
+     call evalmisfitSspec()
+    elseif (iwaveform==5) then
+     call evalmisfitStime()
     endif
     newmisfit=misfit
 
@@ -451,7 +452,7 @@ jj=jj+1
 
     call fd3d()
     call syntseis()
-	if (igps==1) call CalcSyntGPS
+	if (igps==1) call CalcSyntGPS()
     if (iwaveform==1) then
       call evalmisfit()
       write(*,*)'Initial model VR: ',VR,' for shift',Tshift,'s'
@@ -459,6 +460,11 @@ jj=jj+1
       call evalmisfit2()
     elseif (iwaveform==3) then
       call evalmisfitM()
+    elseif (iwaveform==4) then
+      call evalmisfitSspec()
+    elseif (iwaveform==5) then
+      call evalmisfitStime()
+      write(*,*)'Initial model VR: ',VR,' for shift',Tshift,'s'
     endif
 
     E=misfit

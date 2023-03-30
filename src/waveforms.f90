@@ -279,6 +279,7 @@
             k=k+1
             dummu=sum(muSource(int(dL/dh*(jl-1))+nabc+1:nabc+int(dL/dh*jl),int(dW/dh*(jw-1))+nabc+1:nabc+int(dW/dh*jw)))/(dL/dh*dW/dh)
             dumts=int(sqrt((SRn(k)-STAn(j))**2+(SRe(k)-STAe(j))**2+(SRu(k)-STAu(j))**2)/VSt/dtseis)
+            if(dumts+nSR>np) stop 'Increase ASTF duration!'
 #if defined DIPSLIP 
             astf(dumts+1:dumts+nSR,j)=astf(dumts+1:dumts+nSR,j)+MSRZ((k-1)*nSR+1:(k-1)*nSR+nSR)*dummu*elem
 #else
