@@ -264,7 +264,7 @@
     complex, allocatable, dimension(:,:) :: sr,cseis
     integer i,j,k,m,jl,jw,jj,ii,ierr,kk
     integer ifrom,ito,jfrom,jto,kfrom,kto,dumts
-    real maxslip,dummu
+    real maxslip,dummu,dum
     COMPLEX,ALLOCATABLE,DIMENSION(:):: seis1,cseis1
     logical, allocatable :: slipmask(:,:)
 
@@ -288,8 +288,9 @@
           enddo
         enddo
         dumts=1
+        dum=maxval(astf(:,j))
         do i=1,np
-          if(abs(astf(i,j))>0.)then
+          if(abs(astf(i,j))>0.01*dum)then
             dumts=i
             exit
           endif
