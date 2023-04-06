@@ -138,9 +138,9 @@
       print *,'Average speed:       ',output_param(1)
       print *,'Seismic moment:      ',output_param(2)
       print *,'Average stress drop: ',output_param(4)
-      print *,'Fracture energy: ',output_param(5)
-      print *,'Radiated energy:    ',output_param(6)
-      print *,'Energy efficiency:               ',output_param(6)/(output_param(5)+output_param(6))
+      print *,'Fracture energy:     ',output_param(5)
+      print *,'Radiated energy:     ',output_param(6)
+      print *,'Energy efficiency:   ',output_param(6)/(output_param(5)+output_param(6))
       print *,'-----------------------------------------------------'
       call syntseis()
       if (igps.eq.1) call CalcSyntGPS()
@@ -152,7 +152,7 @@
         if(igps==1)write(*,*)'GPS Variance reduction: ',VRgps
         call plotseis()
         open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
-        write(594,'(100000E13.5)')misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),M0,Eg,Er,Tshift,VRgps
+        write(594,'(10000000E13.5)')misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),M0,Eg,Er,Tshift,VRgps
         close(594)
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
 #if defined DIPSLIP
@@ -166,7 +166,7 @@
       elseif (iwaveform==2) then
         call evalmisfit2()
         open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
-        write(594,'(100000E13.5)')misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),viniI(:,:),M0,Eg,Er,Tshift
+        write(594,'(10000000E13.5)')misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),viniI(:,:),M0,Eg,Er,Tshift
         close(594)
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
 #if defined DIPSLIP
@@ -177,8 +177,55 @@
           & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),slipOUT(1,:),slipOUT(2,:),M0,Eg,Er,Tshift,VRgps
 #endif
         close(594)
+      elseif (iwaveform==3) then
+        call evalmisfitM()
+        open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
+        write(594,'(10000000E13.5)')misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),viniI(:,:),M0,Eg,Er,-1000.,output_param(1),output_param(4),-1.,output_param(3)
+        close(594)
+        open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
+#ifdef DIPSLIP
+        write(594)misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),viniI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),slipOUT(1,:),slipOUT(2,:),M0,Eg,Er,-1000.,output_param(1),output_param(4),-1.,output_param(3)
+#else
+        write(594)misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),viniI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),slipOUT(1,:),slipOUT(2,:),M0,Eg,Er,-1000.,output_param(1),output_param(4),-1.,output_param(3)
+#endif
+        close(594)
+      elseif(iwaveform==4.or.iwaveform==5)then
+        if(iwaveform==4)then
+          call evalmisfitSspec()
+          write(*,*)'Variance reduction: ',VR
+        else  !iwaveform==5
+          call evalmisfitStime()
+          write(*,*)'Variance reduction: ',VR,' for shift',Tshift,'s'
+        endif
+        open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
+        write(594,'(10000000E13.5)')misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),viniI(:,:),M0,Eg,Er,Tshift,output_param(1),output_param(4),-1.,output_param(3)
+        close(594)
+        open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
+#if defined DIPSLIP
+        write(594)misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),viniI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),slipOUT(1,:),slipOUT(2,:),M0,Eg,Er,Tshift,output_param(1),output_param(4),-1.,output_param(3)
+#else
+        write(594)misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),viniI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),slipOUT(1,:),slipOUT(2,:),M0,Eg,Er,Tshift,output_param(1),output_param(4),-1.,output_param(3)
+#endif
+        close(594)
+      else
+        open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
+        write(594,'(10000000E13.5)')misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),viniI(:,:),M0,Eg,Er,-1.,output_param(1),output_param(4),-1.,output_param(3)
+        close(594)
+        open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
+#if defined DIPSLIP
+        write(594)misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),viniI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),slipOUT(1,:),slipOUT(2,:),M0,Eg,Er,-1000.,output_param(1),output_param(4),-1.
+#else
+        write(594)misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),viniI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
+          & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),slipOUT(1,:),slipOUT(2,:),M0,Eg,Er,-1000.,output_param(1),output_param(4),-1.
+#endif
+        close(594)
       endif
-
+      
 #else
 
       if(iwaveform==1)then
@@ -211,8 +258,12 @@
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &
           & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,Tshift,output_param(1),output_param(4),VRgps,output_param(3)
 #endif
+        close(594)
       elseif (iwaveform==3) then
         call evalmisfitM()
+        open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
+        write(594,'(10000000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),M0,Eg,Er,-1000.,output_param(1),output_param(4),-1.,output_param(3)
+        close(594)
         open(594,FILE='forwardmodelsampls.dat',iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM')
 #ifdef DIPSLIP
         write(594)misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),ruptime(nabc+1:nxt-nabc,nabc+1:nzt-nfs),slipZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs), &

@@ -79,6 +79,7 @@
       integer:: j
 #if defined FSPACE
       normstress=100.e6
+!      normstress=21.e9
 #else
 #if defined DIPSLIP
       normstress=max(1.e5,8520.*dh*real(nzt-nfs-j)*sin(dip/180.*pi))

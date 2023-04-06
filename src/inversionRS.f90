@@ -81,6 +81,10 @@
        allocate(per(nper))
        read(10,*) per(:) !periods stored here
     endif
+    if (iwaveform==4.or.iwaveform==5) then !for ASTFs read additional parameters:
+      read(10,*)nper,VSt  !periods for smoothed spectra,S-wave velocity
+      allocate(per(nper))
+    endif
     close(10)
 
     allocate(T0I(NLI,NWI), aI(NLI,NWI), baI(NLI,NWI), psiI(NLI,NWI), f0I(NLI,NWI), fwI(NLI,NWI), DcI(NLI,NWI), vwI(NLI, NWI), viniI(NLI, NWI))
@@ -97,6 +101,7 @@
 	
 	!Read postseismic GFs and deformation 
 	if (igps==1) call readSGFs()
+    if(iwaveform==4.or.iwaveform==5)call readastfs()
 	
     allocate(MomentRateA(nSr,nchains))
     if (iwaveform==2) allocate(ruptdistA(NRseis,nchains),pgaA(NRseis,nper,nchains))
@@ -224,26 +229,32 @@
      call evalmisfit() 
     elseif (iwaveform==2) then
      call evalmisfit2()
+    elseif (iwaveform==3) then
+     call evalmisfitM()
+    elseif (iwaveform==4) then
+     call evalmisfitSspec()
+    elseif (iwaveform==5) then
+     call evalmisfitStime()
     endif
     newmisfit=misfit
 
-    call PT_McMC_accept(T,E,prop21,newmisfit,prop12,yn,iseed) !TBD!
+    call PT_McMC_accept(T,E,prop21,newmisfit,prop12,yn,iseed)
+    
     if (yn) then  !step accepted
-	
       E=newmisfit
-	  T0A(:,:,ichain)=T0I(:,:)
-	  aA(:,:,ichain)=aI(:,:)
-	  baA(:,:,ichain)=baI(:,:)
-	  !psiA(:,:,ichain)=psiI(:,:)
-	  f0A(:,:,ichain)=f0I(:,:)
-	 ! fwA(:,:,ichain)=fwI(:,:)
-	  DcA(:,:,ichain)=DcI(:,:)
-	  vwA(:,:,ichain)=vwI(:,:)
-	  viniA(:,:,ichain)=viniI(:,:)
-	  nuclA(:,ichain)=nucl(:)
+      MisfitA(ichain)=E
+	    T0A(:,:,ichain)=T0I(:,:)
+	    aA(:,:,ichain)=aI(:,:)
+	    baA(:,:,ichain)=baI(:,:)
+	   !psiA(:,:,ichain)=psiI(:,:)
+	    f0A(:,:,ichain)=f0I(:,:)
+	   !fwA(:,:,ichain)=fwI(:,:)
+	    DcA(:,:,ichain)=DcI(:,:)
+	    vwA(:,:,ichain)=vwI(:,:)
+	    viniA(:,:,ichain)=viniI(:,:)
+	    nuclA(:,ichain)=nucl(:)
       ruptimeA(:,:,ichain)=ruptime(:,:)
       riseA(:,:,ichain)=rise(:,:)
-  
 #if defined DIPSLIP
       slipA(:,:,ichain)=slipZ(:,:)
       schangeA(:,:,ichain)=schangeZ(:,:)
@@ -252,27 +263,25 @@
       schangeA(:,:,ichain)=schangeX(:,:)
 #endif
       MomentRateA(:,ichain)=MomentRate(:)
-	  EgA(ichain)=Eg
-	  ErA(ichain)=Er
+	    EgA(ichain)=Eg
+	    ErA(ichain)=Er
       M0A(ichain)=M0
       MwA(ichain)=Mw
-	  TshiftA(ichain)=Tshift
-	  slipOUTA(:,:,ichain)=slipOUT(:,:)
-	  
-	  
+	    TshiftA(ichain)=Tshift
+	    slipOUTA(:,:,ichain)=slipOUT(:,:)
+
       if (iwaveform==2) then
         ruptdistA(:,ichain)=ruptdist(:)
         pgaA(:,:,ichain)=pgaD(:,:)
       endif
       VRA(ichain)=VR
-	  VRgpsA(ichain)=VRGPS
+      VRgpsA(ichain)=VRGPS
     endif
 
     !if (yn.and.(abs(T-1.0)<eps).and.record_mcmc_now) then  !write the accepted step
     if ((abs(T-1.0)<eps).and.record_mcmc_now) then  !write the present step whether accepted or not
       misfit=E
       write(ifile,'(1000000E13.5)')misfit,VRA(ichain),nuclA(1:5, ichain),T0A(:,:,ichain),aA(:,:,ichain),baA(:,:,ichain),psiA(:,:,ichain),f0A(:,:,ichain),fwA(:,:,ichain),DcA(:,:,ichain),vwA(:,:,ichain),viniA(:,:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
- !     write(ifile,'(1000000E13.5)')misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),Eg,Er
       flush(ifile)
       write(ifile+2)misfit,VRA(ichain),nuclA(1:5,ichain),T0A(:,:,ichain),aA(:,:,ichain),baA(:,:,ichain),psiA(:,:,ichain),f0A(:,:,ichain),fwA(:,:,ichain),DcA(:,:,ichain),vwA(:,:,ichain),viniA(:,:,ichain),ruptimeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),slipA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain), &
           & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRateA(:,ichain),slipOUTA(1,:,ichain),slipOUTA(2,:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
@@ -308,77 +317,62 @@
       do i=nabc+1,nxt-nabc
 
 #if defined DIPSLIP
-
         if(striniZ(i,j)<T0Min.or.striniZ(i,j)>T0Max)then
         ! write(*,*)'Striniz',i,j,striniZ(i,j),T0Min,T0Max
 #else
-
         if(striniX(i,j)<T0Min.or.striniX(i,j)>T0Max)then
-   !      write(*,*)'Strinix',i,j,striniX(i,j),T0Min,T0Max
-
+        ! write(*,*)'Strinix',i,j,striniX(i,j),T0Min,T0Max
 #endif
           return
         endif
 		
         if(a(i,j)<aMin.or.a(i,j)>aMax)then
-		
         ! write(*,*)'a',i,j,a(i,j)
           return
         endif
 		
 		if(ba(i,j)+a(i,j)<baMin.or.ba(i,j)+a(i,j)>baMax)then
-		
           write(*,*)'ba',i,j,ba(i,j)
           return
         endif
 		
 	!	if(ba(i,j)+a(i,j)<0.)then
-	!	
      !     write(*,*)'b<0.',i,j,ba(i,j)
       !    return
       !  endif
 		
-		
-		
-!		if(psi(i,j)<psiMin.or.psi(i,j)>psiMax)then
-		
+!		if(psi(i,j)<psiMin.or.psi(i,j)>psiMax)then	
 !          write(*,*)'psi',i,j,psi(i,j)
  !         return
  !       endif
 		
 		if(f0(i,j)<f0Min.or.f0(i,j)>f0Max)then
-		
     !      write(*,*)'f0',i,j,f0(i,j)
           return
         endif
 		
  !       if(fw(i,j)<fwMin.or.fw(i,j)>fwMax)then
-		
  !         write(*,*)'fw',i,j,fw(i,j)
  !         return
  !       endif
 		
 		if(Dc(i,j)<DcMin.or.Dc(i,j)>DcMax)then
-		
      !     write(*,*)'Dc',i,j,Dc(i,j),Dcmin,DcMax
           return
         endif
         
 		if (ba(i,j)<0.) then
 		  if(vw(i,j)<vwMin.or.vw(i,j)>vwMax)then
-		
       !      write(*,*)'vw',i,j,vw(i,j),vwmin,vwMax
             return
           endif
 #if defined DIPSLIP
  		  if(wini(i,j)<viniMin.or.wini(i,j)>viniMax)then
-		
        !     write(*,*)'vini',i,j,wini(i,j),vinimin,viniMax
             return
           endif
 #else
  		  if(uini(i,j)<viniMin.or.uini(i,j)>viniMax)then
-		
         !    write(*,*)'vini',i,j,uini(i,j),vinimin,viniMax
             return
           endif
@@ -389,32 +383,27 @@
       enddo
     enddo
 
-    if(hx0<nuclMin(1).or.hx0>nuclMax(1))then
-		
+    if(hx0-real(nabc)*dh<nuclMin(1).or.hx0-real(nabc)*dh>nuclMax(1))then	
  !      write(*,*)'nucl',i, nucl(i)
         return
     endif	
 	
-	if(hz0<nuclMin(2).or.hz0>nuclMax(2))then
-		
+	if(hz0-real(nabc)*dh<nuclMin(2).or.hz0-real(nabc)*dh>nuclMax(2))then
 !       write(*,*)'nucl',i, nucl(i)
         return
     endif	
 	
-	if(RR2<nuclMin(3).or.RR2>nuclMax(3))then
-		
+	if(RR2<nuclMin(3).or.RR2>nuclMax(3))then	
     !   write(*,*)'nucl3', RR2, nuclMin(3), nuclMax(3)
        return
     endif	
 	
 !	if(TT2<nuclMin(4).or.TT2>nuclMax(4))then
-		
 !       write(*,*)'nucl',i, nucl(i)
 !        return
 !    endif		
 	
 	if(perturb<nuclMin(5).or.perturb>nuclMax(5))then
-		
      !  write(*,*)'nucl5',i, perturb
        return
     endif	
@@ -422,8 +411,8 @@
     modelinvalid=.false.   !All passed
     end
 
+    
     subroutine InitiateChain(ichain,E,iseed) !Set all initial models
-	
     use mod_ctrl, only: nchains,rname,ierr,ifile
     use inversion_com
     use waveforms_com, only : misfit,VR,Tshift,iwaveform,ruptdist,pgaD,Tshift
@@ -462,6 +451,13 @@
       write(*,*)'Initial model VR: ',VR,' for shift',Tshift,'s', ', GPS VR: ', VRGPS
     elseif (iwaveform==2) then
       call evalmisfit2()
+    elseif (iwaveform==3) then
+      call evalmisfitM()
+    elseif (iwaveform==4) then
+      call evalmisfitSspec()
+    elseif (iwaveform==5) then
+      call evalmisfitStime()
+      write(*,*)'Initial model VR: ',VR,' for shift',Tshift,'s'
     endif
 
     E=misfit
