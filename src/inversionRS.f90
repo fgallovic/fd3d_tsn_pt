@@ -433,7 +433,7 @@
       close(244)
     elseif (RUNI==2) then
       if(ichain==1)open(unit=ifile+1,file=trim(rname),status='old',iostat=ierr)
-      read(244,*)dum,dum,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),viniI(:,:)
+      read(ifile+1,*)dum,dum,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),viniI(:,:)
       if(ichain==nchains)close(ifile+1)
     endif
     
