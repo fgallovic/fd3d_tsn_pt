@@ -654,21 +654,16 @@ subroutine evalmisfitStime()
     use pml_com, only: nabc,nfs 
     implicit none
     real :: misf1
-
     misf1=1.e30
     mw=(log10(m0)-9.1)/1.5
     if (abs(output_param(3)-(nxt-2*nabc)*(nzt-nabc-nfs)*dh*dh)<0.5*dh*dh) misfit=misf1 !if whole fault ruptured -->  discard model : rupture may have continued on larger fault
     if (MomentRate(nSr)>1.e-4) misfit=misf1 ! if momentrate function not finished --> discard model, as the rupture may have continued
     if (misfit>.9e30) return
-    if (Mw>=5.5) then
-     if(Mwsigma>0.) then
-        misf1=0.5*(2./3.*log10(M0/M0aprior)/Mwsigma)**2
-     else
-        misf1=0.
-     endif
+    if(Mwsigma>0.) then
+      misfit=0.5*(2./3.*log10(M0/M0aprior)/Mwsigma)**2
+    else
+      stop 'Mwsigma must be larger than 0 for misfit evaluation!'
     endif
-
-    misfit=misfit+misf1 
     print *,',Misfit:',misfit
     end subroutine
 
