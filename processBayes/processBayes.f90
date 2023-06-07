@@ -187,6 +187,7 @@
     
     open(201,FILE='processBayes.dat')
     open(231,FILE='forwardmodel.lowoverstress.dat')
+    open(232,FILE='forwardmodel.smallestnucl.dat')
 
 coh=0.5e6
 
@@ -230,6 +231,7 @@ coh=0.5e6
       meanstrength(k)=sum(peak_xz(:,:)*slip1(:,:,k))/sum(slip1(:,:,k))
 
     if(meanoverstress(k)<2.)write(231,'(10000E13.5)')misfits(k),VRs(k),T0A(:,:,k),TsA(:,:,k),DcA(:,:,k)
+    if(nuclsize(k)<2.)write(232,'(10000E13.5)')misfits(k),VRs(k),T0A(:,:,k),TsA(:,:,k),DcA(:,:,k)
 
 !dependence of slip on Dc
       if(mod(k,10)==0)then
@@ -290,13 +292,15 @@ coh=0.5e6
     enddo
     close(201)
 
+    write(*,*)'Scalar moment (x 1e17): ',sum(M0(:)/1.e17)/NM,'+-',sqrt(sum((M0(:)/1.e17)**2)/NM-(sum(M0(:)/1.e17)/NM)**2)
     write(*,*)'Mean stress drop: ',sum(meansd(:))/NM,'+-',sqrt(sum(meansd(:)**2)/NM-(sum(meansd(:))/NM)**2)
     write(*,*)'Fracture energy: ',sum(EG(:))/NM,'+-',sqrt(sum(EG(:)**2)/NM-(sum(EG(:))/NM)**2)
     write(*,*)'Fracture energy rate: ',sum(EGrate(:))/NM,'+-',sqrt(sum(EGrate(:)**2)/NM-(sum(EGrate(:))/NM)**2)
     write(*,*)'Radiated energy: ',sum(ER(:))/NM,'+-',sqrt(sum(ER(:)**2)/NM-(sum(ER(:))/NM)**2)
     write(*,*)'Mean Dc: ',sum(meanDc(:))/NM,'+-',sqrt(sum(meanDc(:)**2)/NM-(sum(meanDc(:))/NM)**2)
+    write(*,*)'Radiation efficiency: ',sum(ER(:)/(ER(:)+EG(:)))/NM,'+-',sqrt(sum((ER(:)/(ER(:)+EG(:)))**2)/NM-(sum(ER(:)/(ER(:)+EG(:)))/NM)**2)
+    write(*,*)'Scaled energy: ',sum(ER(:)/M0(:))/NM,'+-',sqrt(sum((ER(:)/M0(:))**2)/NM-(sum(ER(:)/M0(:))/NM)**2)
     write(*,*)'Mean slip: ',sum(meanslip(:))/NM,'+-',sqrt(sum(meanslip(:)**2)/NM-(sum(meanslip(:))/NM)**2)
-    
     
     open(201,FILE='processBayes.slipmodels.dat')
     open(202,FILE='processBayes.strengthexcess.dat')
@@ -413,11 +417,11 @@ coh=0.5e6
     DL=dh*(nxt-1)/real(NLI-1)
     DW=dh*(nzt-1)/real(NWI-1)
     do k=1,nzt
-      ZS=dh*(k-1)+dh/2.
+      ZS=dh*(k-1)
       kk=int(ZS/DW)+1
       u=(ZS-DW*(kk-1))/DW
       do i=1,nxt
-        XS=dh*(i-1)+dh/2.
+        XS=dh*(i-1)
         ii=int(XS/DL)+1
         t=(XS-DL*(ii-1))/DL
         arrout(i,k)=(1.-t)*(1.-u)*arrin(ii,kk)+t*(1.-u)*arrin(ii+1,kk)+t*u*arrin(ii+1,kk+1)+(1.-t)*u*arrin(ii,kk+1)
