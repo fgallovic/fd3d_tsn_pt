@@ -12,12 +12,12 @@
       integer iwaveform,nper
       real,allocatable:: pgaM(:,:),pgaD(:,:),per(:)
       real,allocatable:: PGAsigma(:,:),PGAtau(:,:) ! now tau and sigma of gmpe are on output..
-      real,allocatable,dimension(:):: SRn,SRe,SRu,STAn,STAe,STAu
+      real,allocatable,dimension(:):: SRn,SRe,SRu,STAn,STAe,STAu,STAazimuth,STAtakeoff
       real,allocatable,dimension(:,:):: astf,astfspec,astfspecs,rastfs
       real,allocatable,dimension(:,:):: Dastfspecs
 
 !GFs for synthetic seismograms
-      real:: T,T1,T2,artifDT,M0aprior,Mwsigma,leng,widt,elem,df
+      real:: T,T1,T2,artifDT,M0aprior,Mwsigma,leng,widt,hypodepth,elem,df
       real,allocatable,dimension(:,:):: H
       real,allocatable,dimension(:):: fc1,fc2
       integer,allocatable,dimension(:):: fcsta
@@ -46,6 +46,7 @@
     integer i,j,k,jw,jl,jj,mm,dumi,ierr
     real dum,xgf,ygf,zgf,xst,yst,zst
     real*4 dumarr(6)
+    character*7 dumname
     logical fileex
 
     write(*,*)'Reading GFs...'
@@ -66,7 +67,7 @@
     read(10,*)
     read(10,*) !strike,dip
     read(10,*)
-    read(10,*) !hypodepth
+    read(10,*) hypodepth
     read(10,*)
     read(10,*) leng,widt
     read(10,*)
@@ -105,12 +106,20 @@
     if(iwaveform==4.or.iwaveform==5)then
       write(*,*)'  (Computing ASTF, skipping GFs)'
       NSTAcomp=sum(stainfo(1,:))  !Only the first column defines whether the component is considered in the misfit
-      allocate(SRn(NL*NW),SRe(NL*NW),SRu(NL*NW),STAn(NRseis),STAe(NRseis),STAu(NRseis))
+      allocate(SRn(NL*NW),SRe(NL*NW),SRu(NL*NW),STAn(NRseis),STAe(NRseis),STAu(NRseis),STAazimuth(NRseis),STAtakeoff(NRseis))
       allocate(stasigma(NRseis))
       stasigma(:)=staweight(1,:)  !Only the first weigth column defines the weigth in the misfit
       open(225,file='stations.dat',status='old')
       do i=1,NRseis
-        read(225,*) STAn(i),STAe(i),STAu(i)
+!        read(225,*) STAn(i),STAe(i),STAu(i)
+!if azimuth and take-off angles are provided, otherwise comment all lines below
+        read(225,*) STAn(i),STAe(i),STAu(i),dumname,STAazimuth(i),STAtakeoff(i)
+        dum=sqrt(STAn(i)**2+STAe(i)**2+(hypodepth/1.e3-STAu(i))**2)
+        write(*,*)STAn(i),STAe(i),STAu(i)
+        STAn(i)=dum*sin(STAtakeoff(i)/180.*pi)*cos(STAazimuth(i)/180.*pi)
+        STAe(i)=dum*sin(STAtakeoff(i)/180.*pi)*sin(STAazimuth(i)/180.*pi)
+        STAu(i)=hypodepth/1.e3+dum*cos(STAtakeoff(i)/180.*pi)
+        write(*,*)STAn(i),STAe(i),STAu(i)
       enddo
       close(225)
       open(224,file='sources.dat',status='old')
@@ -609,7 +618,7 @@ subroutine evalmisfitStime()
     use SlipRates_com
 	use source_com, only: ioutput
 	implicit none
-    real,parameter:: maxTshift=2.
+    real,parameter:: maxTshift=.5
     real dumn,dump,normdatn,normdatp
     integer i,k,ims
     
