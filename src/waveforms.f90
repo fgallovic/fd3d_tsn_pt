@@ -599,9 +599,9 @@
     do k=1,NRseis
       if(stainfo(1,k)==0)cycle
 !      dum=dum+.5*sum((rastfspecs(:,k)/SigmaData-astfspecs(:,k)/SigmaData)**2)*stasigma(k)**2
-      dum=dum+.5*sum(log(rastfs(:,k)/astfspecs(:,k))**2)*stasigma(k)**2/SigmaData
+      dum=dum+.5*sum(log(rastfs(:,k)/astfspecs(:,k))**2)*stasigma(k)**2/SigmaData**2
 !      normdat=normdat+.5*sum((rastfspecs(:,k)/SigmaData)**2)*stasigma(k)**2
-      normdat=normdat+.5*sum(log(rastfs(:,k))**2)*stasigma(k)**2/SigmaData
+      normdat=normdat+.5*sum(log(rastfs(:,k))**2)*stasigma(k)**2/SigmaData**2
     enddo
     misfit=dum
     VR=1.-dum/normdat
