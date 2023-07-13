@@ -246,13 +246,12 @@
       !$ACC      COPYIN (omegaz1,omegaz2,omegaz3,omegaz4) &
       !$ACC      COPYIN (omegaxS1,omegaxS2,omegaxS3,omegaxS4) &
       !$ACC      COPYIN (omegayS3,omegayS4,omegazS4) &
-      !$ACC      COPYIN (dyn_xz,striniZ,striniX,peak_xz,Dc,coh,tabsX,tabsZ, T0X, T0Z) &
+      !$ACC      COPYIN (dyn_xz,striniZ,striniX,peak_xz,Dc,coh,tabsX,tabsZ) &
       !$ACC      COPYIN (peakX, dynX, DcX, peakZ, dynZ, DcZ,staX,staY,staZ, distX, distZ) &
 #if defined FVW
       !$ACC      COPYIN (aX,baX,psiX,vwX,SnX,f0X,fwX)&
       !$ACC      COPYIN (aZ,baZ,psiZ,vwZ,SnZ,f0Z,fwZ)&
       !$ACC      COPYIN (uini,wini,t0xi,t0zi)&
-      !$ACC      COPYIN (T0XI)&
 #endif
 #if defined FSPACE
       !$ACC      COPYIN (u51,u52,u53,v51,v52,v53,w51,w52,w53)&
@@ -280,9 +279,9 @@
         endif
 #if defined FVW
         psiout(1:nxt,1:nzt) = 0.
-        !$ACC DATA COPY (sliprateoutX,sliprateoutZ,schangeZ,schangeX,seisU,seisV,seisW,psiout,slipX,slipZ)
+        !$ACC DATA COPY (T0X,T0Z,sliprateoutX,sliprateoutZ,schangeZ,schangeX,seisU,seisV,seisW,psiout,slipX,slipZ)
 #else
-        !$ACC DATA COPY (sliprateoutX,sliprateoutZ,schangeZ,schangeX,seisU,seisV,seisW,slipX,slipZ)
+        !$ACC DATA COPY (T0X,T0Z,sliprateoutX,sliprateoutZ,schangeZ,schangeX,seisU,seisV,seisW,slipX,slipZ)
 #endif
 !-------------------------------------------------------------
 !   Velocity tick
@@ -496,7 +495,7 @@
         _ACC_END_PARALLEL
         
         _ACC_PARALLEL
-        _ACC_LOOP
+        _ACC_LOOP_COLLAPSE_2
         do k = nabc+1,nzt-nfs
           do i = nabc+1,nxt-nabc
             tabs=tabsX(i,k)
@@ -530,7 +529,7 @@
         _ACC_END_PARALLEL
 
         _ACC_PARALLEL
-        _ACC_LOOP
+        _ACC_LOOP_COLLAPSE_2
         do k = nabc+1,nzt-nfs-1!+1
           do i = nabc+1,nxt-nabc-1!+1
 #if defined FVW			
@@ -790,6 +789,8 @@ _ACC_END_PARALLEL
 
       enddo ! --- End of the time loop
 	  
+      !$ACC END DATA
+
 !===============================================================================================================================================
 !Postprocessing
 !===============================================================================================================================================
@@ -826,7 +827,6 @@ _ACC_END_PARALLEL
 #endif	 
       endif	 
 	  
-      !$ACC END DATA
 #if defined FVW	  
       if(ioutput.eq.1) then
 	  	do k=1,NSr

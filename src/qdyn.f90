@@ -316,10 +316,9 @@
   !  write(114,*) varsc(1:8*MNDIS)
 	!write(114,*) ' '
 !$OMP parallel do private(i,j,k,i3,j3,flv,fss,psiss,xx,dsdv,dsds) DEFAULT(SHARED) SCHEDULE(DYNAMIC,10)
-    k=0
     do j=1,NDIS
       do i=1,MDIS
-	    k=k+1
+            k=(j-1)*MDIS+i
 	    !right side - evolution of state variable
 	    i3=nabc+1+(i-1)*gkoef
         j3=nabc+1+(j-1)*gkoef	
@@ -339,10 +338,8 @@
         endif
 	    dsds=aPS(i,j)*1./sqrt(xx*xx+1)*xx/aPS(i,j)  !1./(abs(vel)/(2.*v0)*sqrt(1.+1./(xx*xx)))*(1.+xx/sqrt(xx*xx+1))*abs(vel)/(2.*v0)
  	    varsdx(k)=dble(varsc((i+MDISFT/2-1)*NDISFT*4+j+NDISFT*2)-SnPS(i,j)*dsds*varsdx(k+MNDIS))/(SnPS(i,j)*dsdv+G2B)!G2B(k))
-
       enddo
     enddo
-    !write(114,*)  ' '
 !$OMP end parallel do
     
     END
