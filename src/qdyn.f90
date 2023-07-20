@@ -15,14 +15,17 @@
     Subroutine QDYN3D
     
     use RATESTATE
-	use fd3dparam_com
-	use medium_com
-	use friction_com
-	use source_com
-	use outputs_com
-	use PostSeismic_com
-	
-	
+    use fd3dparam_com
+    use medium_com
+    use friction_com
+    use source_com
+    use outputs_com
+    use PostSeismic_com
+
+    ! FFTW add-on
+    !use mFFT_NR
+    use mFFT_FFTW
+
     implicit none
     INTEGER,PARAMETER:: KMAXX=20000
     INTEGER kmax,kount
@@ -36,6 +39,12 @@
     integer :: ierr, rank, sizerank
 	integer :: px, pz
     integer i,j,k,istatus,nsaves, i2, i3, j2, j3, ni, i4, j4
+
+    ! FFTW add-on
+    real cpu_time1,cpu_time2
+    call cpu_time(cpu_time1)
+    print *,'init_FFTW in QDYN3D'
+    call init_FFTW
 
 	!gkoef je v fd3d_init
 	dhh=dh*gkoef  
@@ -154,11 +163,11 @@
       enddo
     enddo
 	
-    !open(102,FILE='kij.txt')
-    !write(102,'(E18.11)')real(Kij)
-    !close(102)
-    call fourn(Kij,fft,2,1)		
-    write(*,*)'Serial version.'
+    ! FFTW add-on
+    call init_fourn(Kij,fft,2)
+    call fourn(Kij,fft,2,-1)
+    call destroy_fourn
+
     ifrom=1
     ito=1
     if (ioutput.eq.1) then	
@@ -226,11 +235,14 @@
         write(102,'(E18.11)')vars
         close(102)	
     endif
+    
+    ! FFTW add-on
+    call init_fourn(varsc,fft,2)
     CALL odeint(vars,time0,time2,time,eps,h1,hmin,nok,nbad,ruptongoing,1,1)
-	do k=1,MNDIS
-	
+    call destroy_fourn
+
+    do k=1,MNDIS
 	    slipOUT(2,k)=slip(k)
-	    
 	enddo
 	
 	!interpolating final (total) slip back to the FD grid
@@ -267,7 +279,13 @@
         enddo
     enddo
 	close(102)
-	
+
+    ! FFTW add-on
+    print *,'cleanup_FFTW in QDYN3D'
+    call cleanup_FFTW
+    call cpu_time(cpu_time2)
+    print *,'CPU time of qdyn: ',cpu_time2-cpu_time1
+    
 	!open(102,FILE='vars.txt')
     !write(102,'(E18.11)')vars
     ! close(102)	
@@ -283,8 +301,7 @@
     deallocate(stresstep,tangstep,timedcff)
     deallocate(ruptsnapshot)
 
-    END
-
+    END SUBROUTINE qdyn3d
 
 
     SUBROUTINE rates(t,vars,s,varsdx)
@@ -292,6 +309,10 @@
 	use fd3dparam_com
 	use medium_com
 	use friction_com
+
+    ! FFTW add-on
+    !use mFFT_NR
+    use mFFT_FFTW
 	
     IMPLICIT NONE
     REAL*8 t
@@ -310,9 +331,9 @@
       enddo
     enddo
 !$OMP end parallel do
-    call fourn(varsc,fft,2,1)
-    varsc=varsc*Kij
     call fourn(varsc,fft,2,-1)
+    varsc=varsc*Kij
+    call fourn(varsc,fft,2,1)
   !  write(114,*) varsc(1:8*MNDIS)
 	!write(114,*) ' '
 !$OMP parallel do private(i,j,k,i3,j3,flv,fss,psiss,xx,dsdv,dsds) DEFAULT(SHARED) SCHEDULE(DYNAMIC,10)
@@ -341,7 +362,6 @@
       enddo
     enddo
 !$OMP end parallel do
-    
     END
 	
 	SUBROUTINE rkck(y,dydx,n,x,h,yout,yerr,scennum)
@@ -411,80 +431,8 @@
         return
       endif
     END
-	
-	SUBROUTINE fourn(data,nn,ndim,isign)
-      INTEGER isign,ndim,nn(ndim)
-      DOUBLE PRECISION data(*)
-      INTEGER i1,i2,i2rev,i3,i3rev,ibit,idim,ifp1,ifp2,ip1,ip2,ip3,k1,k2,n,nprev,nrem,ntot
-      DOUBLE PRECISION tempi,tempr
-      DOUBLE PRECISION theta,wi,wpi,wpr,wr,wtemp
-      ntot=1
-      do 11 idim=1,ndim
-        ntot=ntot*nn(idim)
-11    continue
-      nprev=1
-      do 18 idim=1,ndim
-        n=nn(idim)
-        nrem=ntot/(n*nprev)
-        ip1=2*nprev
-        ip2=ip1*n
-        ip3=ip2*nrem
-        i2rev=1
-        do 14 i2=1,ip2,ip1
-          if(i2.lt.i2rev)then
-            do 13 i1=i2,i2+ip1-2,2
-              do 12 i3=i1,ip3,ip2
-                i3rev=i2rev+i3-i2
-                tempr=data(i3)
-                tempi=data(i3+1)
-                data(i3)=data(i3rev)
-                data(i3+1)=data(i3rev+1)
-                data(i3rev)=tempr
-                data(i3rev+1)=tempi
-12            continue
-13          continue
-          endif
-          ibit=ip2/2
-1         if ((ibit.ge.ip1).and.(i2rev.gt.ibit)) then
-            i2rev=i2rev-ibit
-            ibit=ibit/2
-          goto 1
-          endif
-          i2rev=i2rev+ibit
-14      continue
-        ifp1=ip1
-2       if(ifp1.lt.ip2)then
-          ifp2=2*ifp1
-          theta=isign*6.28318530717959d0/(ifp2/ip1)
-          wpr=-2.d0*sin(0.5d0*theta)**2
-          wpi=sin(theta)
-          wr=1.d0
-          wi=0.d0
-          do 17 i3=1,ifp1,ip1
-            do 16 i1=i3,i3+ip1-2,2
-              do 15 i2=i1,ip3,ifp2
-                k1=i2
-                k2=k1+ifp1
-                tempr=dble(wr)*data(k2)-dble(wi)*data(k2+1)
-                tempi=dble(wr)*data(k2+1)+dble(wi)*data(k2)
-                data(k2)=data(k1)-tempr
-                data(k2+1)=data(k1+1)-tempi
-                data(k1)=data(k1)+tempr
-                data(k1+1)=data(k1+1)+tempi
-15            continue
-16          continue
-            wtemp=wr
-            wr=wr*wpr-wi*wpi+wr
-            wi=wi*wpr+wtemp*wpi+wi
-17        continue
-          ifp1=ifp2
-        goto 2
-        endif
-        nprev=n*nprev
-18    continue
-      return
-      END
 
+    
     SUBROUTINE odeint(ystart,x1,x2,x,eps,h1,hmin,nok,nbad,ruptongoing,scennum)
       USE RATESTATE
 	  USE PostSeismic_com
