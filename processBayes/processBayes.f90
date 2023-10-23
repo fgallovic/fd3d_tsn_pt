@@ -1,3 +1,17 @@
+!-------------------------------------------------------
+! Processing of Bayesian posterior samples from for fd3d_tsn_pt
+!-------------------------------------------------------
+! Authors: Frantisek Gallovic and Jan Premus (10/2023)
+! Charles University in Prague, Faculty of Mathematics and Physics
+
+! This code is published under the GNU General Public License. To any
+! licensee is given permission to modify the work, as well as to copy
+! and redistribute the work or any derivative version. Still we would
+! like to kindly ask you to acknowledge the authors and don't remove
+! their names from the code. This code is distributed in the hope
+! that it will be useful, but WITHOUT ANY WARRANTY.
+! ------------------------------------------------------
+
     MODULE interp_pb
       INTEGER NLI,NWI
     END MODULE
