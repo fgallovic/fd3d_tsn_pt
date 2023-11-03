@@ -126,8 +126,8 @@ jj=jj+1
             T0I(i,j)=T0A(i,j,ichain)*exp(gasdev(iseed)*StepSizeT0)
             TsI(i,j)=TsA(i,j,ichain)*exp(gasdev(iseed)*StepSizeTs)
             DcI(i,j)=DcA(i,j,ichain)*exp(gasdev(iseed)*StepSizeD)
-            prop12=prop12+log(T0A(i,j,ichain))+log(TsA(i,j,ichain))+log(DcA(i,j,ichain))
-            prop21=prop21+log(T0I(i,j))+log(TsI(i,j))+log(DcI(i,j))
+            prop12=prop12+log(abs(T0A(i,j,ichain)))+log(abs(TsA(i,j,ichain)))+log(DcA(i,j,ichain))
+            prop21=prop21+log(abs(T0I(i,j)))+log(abs(TsI(i,j)))+log(DcI(i,j))
           enddo
         enddo
       elseif(StepType==2)then                 !Normal step
@@ -141,7 +141,6 @@ jj=jj+1
           enddo
         enddo
       else                                    !Testing new steps (log-normal + even periodic extension)
-
         prop12=0.
         prop21=0.
         do j=1,NWI
