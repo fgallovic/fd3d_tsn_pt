@@ -41,7 +41,7 @@
       USE pml_com
 	  USE outputs_com
       USE SlipRates_com
-	  use PostSeismic_com
+      use PostSeismic_com
 	  use ieee_arithmetic
       IMPLICIT NONE
 
@@ -266,7 +266,7 @@
       
       do it = 1,ntfd
 	  
-        time = it*dt
+        time = dt*it
         sliprateoutX(1:nxt,1:nzt)=0.
         sliprateoutZ(1:nxt,1:nzt)=0.
         schangeZ(1:nxt,1:nzt)=0.
@@ -478,7 +478,7 @@
               friction = dynZ(i,k) + coh(i,k)
             endif
             
-            if (tabs .ge. friction) then
+            if (tabs>=friction.and.time<=SRdur) then
               distZ(i,k) = distZ(i,k)  - 2*u1out*dt
               tz(i,k) =  (tz(i,k) + T0Z(i,k))*friction/tabs - T0Z(i,k)
 
@@ -518,7 +518,7 @@
               friction = dynX(i,k) + coh(i,k)
             endif
             
-            if (tabs .ge. friction) then
+            if (tabs>=friction.and.time<=SRdur) then
               distX(i,k) = distX(i,k)  - 2*u1out*dt
               tx(i,k) = (tx(i,k) + T0X(i,k))*friction/tabs - T0X(i,k)
             endif
@@ -714,7 +714,16 @@ _ACC_END_PARALLEL
 
 #endif
 
-        !$ACC END DATA
+!$ACC END DATA
+        if(mod(it,ceiling(1./dt))==0)then
+          maxvelZ=maxval(sliprateoutZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
+          maxvelX=maxval(sliprateoutX(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
+          write(*,*)'Time: ',time,'Slip rate max: ',maxvelX,maxvelZ
+        endif
+        k=int(real(it-1)*dt/dtseis)+1
+        if(k<=nSR)then
+		timek(k)=time
+
         if(ioutput.eq.1) then
 #if defined FVW
           WRITE(24) psiout(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
@@ -731,9 +740,6 @@ _ACC_END_PARALLEL
           enddo
         endif
  
-        k=int(real(it-1)*dt/dtseis)+1
-		timek(k)=time
-        if(k<1.or.k>nSR)write(*,*)'CHYBA!',k,nSR
         do j=1,NW
           jto=max(1,int(dW/dh*j))+1+nabc
           jfrom=min(jto,int(dW/dh*(j-1))+1)+1+nabc
@@ -763,23 +769,23 @@ _ACC_END_PARALLEL
         efrac(k)=efracds
         erad(k)=tint2-eraddt
 		
-        if(mod(it,int(1./dt))==0)then
-          maxvelZ=maxval(sliprateoutZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
-          maxvelX=maxval(sliprateoutX(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
-          write(*,*)'Time: ',time,'Slip rate max: ',maxvelX,maxvelZ
+        if(mod(it,ceiling(1./dt))==0)then
           if(stopnexttime==1)exit
 #if defined DIPSLIP
           if(maxvelZ<1.e-7)stopnexttime=1
           if(maxvelZ>maxvelsave)maxvelsave=maxvelZ
           if(maxvelZ<=0.01*maxvelsave)stopnexttime=1
+!          stopnexttime=0  !Don't stop
 #else
           if(maxvelX<1.e-7)stopnexttime=1
           if(maxvelX>maxvelsave)maxvelsave=maxvelX
           if(maxvelX<=0.01*maxvelsave)stopnexttime=1
+!          stopnexttime=0  !Don't stop
 #endif
         endif
-		! output waveforms
-		
+        
+        endif
+! output waveforms
 !		if ((time .GE. waveT) .AND. (waveT .NE. 0.)) then
 !			waveT=0.;
 !			WRITE(41) waveU(1:nxt,1:nyt,1:nzt)

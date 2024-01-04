@@ -87,6 +87,7 @@
 #else
       normstress=max(1.e5,16200.*dh*real(nzt-nfs-j)*sin(dip/180.*pi))
       !normstress=min(18.*dh*real(nzt-nfs-j)*sin(dip/180.*pi)/1.e3,100.);normstress=1.e6*max(1.,normstress)
+       !normstress=min(18.*dh*real(nzt-nfs-j)*sin(dip/180.*pi)/1.e3,60.);normstress=1.e6*max(1.,normstress)
 #endif
 #endif
       END FUNCTION
@@ -122,7 +123,7 @@
 
     MODULE SlipRates_com
       INTEGER nSR,NL,NW
-      REAL dL,dW,dtseis
+      REAL dL,dW,dtseis,SRdur
       REAL M0,Mw
       REAL,allocatable,dimension(:):: MSRX,MSRZ,MomentRate
       REAL,allocatable,dimension(:,:):: muSource
@@ -188,7 +189,6 @@
       nzt=nztT+nabc+nfs
       nysc=nyt
       omegaM_pml=pml_fact*pml_vp/(2.*dh*(nabc-1))
-      nSR=ntfd
       close(11)
 
 !----------------------------

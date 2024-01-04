@@ -810,7 +810,7 @@
 	  close(12)
 	 call plotgps_old()
 	endif
-	deallocate(MSXtemp)
+	deallocate(MSXtemp,MSZtemp)
 
 
 	END 

@@ -49,13 +49,11 @@
     character*7 dumname
     logical fileex
 
-    write(*,*)'Reading GFs...'
-
     open(10,file='input.dat',action='read')
     read(10,*)
     read(10,*) nfmax
     read(10,*)
-    read(10,*) T,dum,T1,T2
+    read(10,*) T,SRdur,T1,T2
     read(10,*)
     read(10,*) artifDT
     read(10,*)
@@ -91,11 +89,14 @@
     iT1=T1/dtseis+1
     iT2=T2/dtseis+1
     nT=iT2-iT1+1
-    nSR=ceiling(real(ntfd)/(dtseis/dt))
+    !nSR=ceiling(real(ntfd)/(dtseis/dt))
+    nSR=ceiling(SRdur/dtseis)
     allocate(MSRX(NL*NW*nSR),MSRZ(NL*NW*nSR),MomentRate(nSR))
 
     if(iwaveform==0.or.iwaveform==3)return
-    
+
+    write(*,*)'Reading GFs...'
+
     open(10,file='stainfo.dat',action='read')
     allocate(stainfo(3,NRseis),staweight(3,NRseis),fcsta(NRseis))
     do i=1,NRseis
