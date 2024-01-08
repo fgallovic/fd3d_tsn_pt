@@ -175,6 +175,9 @@
       allocate(staX(Nstations),staY(Nstations),staZ(Nstations),seisU(Nstations), seisV(Nstations), seisW(Nstations))
         do i=1,Nstations
           read(11,*) staX(i),staY(i),staZ(i)
+          staX(i)=nabc+staX(i)
+          staY(i)=nabc+staY(i)
+          staZ(i)=nabc+staZ(i)
         enddo
       endif 
 !	  read(11,*) waveT

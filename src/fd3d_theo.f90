@@ -196,16 +196,7 @@
         close(96)
 #endif
         if (nstations>0) then
-          open(31,file='result/stan0.txt')
-          open(32,file='result/stan1.txt')
-          open(33,file='result/stan2.txt')
-          open(34,file='result/stan3.txt')
-          open(35,file='result/stan4.txt')
-          open(36,file='result/stan5.txt')
-          open(37,file='result/stan6.txt')
-          open(38,file='result/stan7.txt')
-          open(39,file='result/stan8.txt')
-          open(40,file='result/stan9.txt')
+          open(31,file='result/seisout.dat')
         endif 
       endif
 !-------------------------------------------------------
@@ -721,9 +712,12 @@ _ACC_END_PARALLEL
           write(*,*)'Time: ',time,'Slip rate max: ',maxvelX,maxvelZ
         endif
         k=int(real(it-1)*dt/dtseis)+1
+        if(ioutput.eq.1) then
+          write (31,'(1000000E13.5)')time,(seisU(i),seisV(i),seisW(i),i=1,Nstations)
+        endif
+
         if(k<=nSR)then
 		timek(k)=time
-
         if(ioutput.eq.1) then
 #if defined FVW
           WRITE(24) psiout(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
@@ -735,9 +729,6 @@ _ACC_END_PARALLEL
           WRITE(27) sliprateoutX(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
           WRITE(28) SCHANGEX(nabc+1:nxt-nabc,nabc+1:nzt-nfs)
 #endif
-          do i=1,Nstations
-            write (30+i,*)seisU(i),seisV(i),seisW(i)
-          enddo
         endif
  
         do j=1,NW
@@ -893,18 +884,6 @@ _ACC_END_PARALLEL
         close(27)
         close(28)
         close(31)
-        close(32)
-        close(33)
-        close(34)
-        close(35)
-        close(36)
-        close(37)
-        close(38)
-        close(39)
-        close(40)
-		close(41)
-		close(42)
-		close(43)
       endif
       
       tmax            = -1.
