@@ -100,7 +100,8 @@
       integer :: ioutput
       integer:: Nstations
       integer,allocatable:: staX(:), staY(:), staZ(:)
-      REAL,allocatable :: seisU(:), seisV(:), seisW(:)
+      real,allocatable :: seisU(:), seisV(:), seisW(:)
+      real,allocatable :: seissurfU(:,:), seissurfV(:,:), seissurfW(:,:)
 	  real :: waveT
 	  real :: Eg, Er
 	 ! REAL,allocatable :: waveU(:,:,:),waveV(:,:,:), waveW(:,:,:)
@@ -170,9 +171,21 @@
       read(11,*) dip
       read(11,*) nabc, pml_vp,pml_fact   !(pml_fact=-(N+1)*log(0.001), see Komatitsch and Martin, 2007, Geophysics 72)
       read(11,*) damp_s
+
+#if defined FSPACE
+	  nfs=nabc
+#else
+      nfs=2 ! Number of layers above free surface 
+#endif	
+      nxt=nxtT+2*nabc
+      nyt=nytT+nabc
+      nzt=nztT+nabc+nfs
+      nysc=nyt
+      omegaM_pml=pml_fact*pml_vp/(2.*dh*(nabc-1))
+
       read(11,*) Nstations
       if(Nstations>0) then
-      allocate(staX(Nstations),staY(Nstations),staZ(Nstations),seisU(Nstations), seisV(Nstations), seisW(Nstations))
+        allocate(staX(Nstations),staY(Nstations),staZ(Nstations),seisU(Nstations),seisV(Nstations),seisW(Nstations),seissurfU(nxt,nyt),seissurfV(nxt,nyt),seissurfW(nxt,nyt))
         do i=1,Nstations
           read(11,*) staX(i),staY(i),staZ(i)
           staX(i)=nabc+staX(i)
@@ -181,17 +194,6 @@
         enddo
       endif 
 !	  read(11,*) waveT
-#if defined FSPACE
-	  nfs=nabc
-#else
-      nfs=2 ! Number of layers above free surface 
-#endif	
-	  
-      nxt=nxtT+2*nabc
-      nyt=nytT+nabc
-      nzt=nztT+nabc+nfs
-      nysc=nyt
-      omegaM_pml=pml_fact*pml_vp/(2.*dh*(nabc-1))
       close(11)
 
 !----------------------------

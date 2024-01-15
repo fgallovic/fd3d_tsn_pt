@@ -105,7 +105,8 @@
 !     waveU=0.; waveV=0.; waveW=0.
       dht = dh/dt
       if(Nstations>0) then
-        seisU=0; seisV=0; seisW=0
+        seisU=0.;seisV=0.;seisW=0.
+        seissurfU=0.;seissurfV=0.;seissurfW=0.
       endif
       call init_pml()
       call interp_fric()
@@ -197,6 +198,9 @@
 #endif
         if (nstations>0) then
           open(31,file='result/seisout.dat')
+          open(32,file='result/seisoutU.surface.gnuplot.dat')
+          open(33,file='result/seisoutV.surface.gnuplot.dat')
+          open(34,file='result/seisoutW.surface.gnuplot.dat')
         endif 
       endif
 !-------------------------------------------------------
@@ -253,8 +257,6 @@
 #endif
       !$ACC      COPY (ruptime,sliptime,rise)
 	  
-      !seisU,seisV,seisW  
-      
       do it = 1,ntfd
 	  
         time = dt*it
@@ -263,16 +265,11 @@
         schangeZ(1:nxt,1:nzt)=0.
         schangeX(1:nxt,1:nzt)=0.
 
-        if(Nstations>0) then
-          seisU = 0.
-          seisV = 0.
-          seisW = 0.
-        endif
 #if defined FVW
         psiout(1:nxt,1:nzt) = 0.
-        !$ACC DATA COPY (T0X,T0Z,sliprateoutX,sliprateoutZ,schangeZ,schangeX,seisU,seisV,seisW,psiout,slipX,slipZ)
+        !$ACC DATA COPY (T0X,T0Z,sliprateoutX,sliprateoutZ,schangeZ,schangeX,seisU,seisV,seisW,seissurfU,seissurfV,seissurfW,psiout,slipX,slipZ)
 #else
-        !$ACC DATA COPY (T0X,T0Z,sliprateoutX,sliprateoutZ,schangeZ,schangeX,seisU,seisV,seisW,slipX,slipZ)
+        !$ACC DATA COPY (T0X,T0Z,sliprateoutX,sliprateoutZ,schangeZ,schangeX,seisU,seisV,seisW,seissurfU,seissurfV,seissurfW,slipX,slipZ)
 #endif
 !-------------------------------------------------------------
 !   Velocity tick
@@ -585,14 +582,24 @@
 		
         if(ioutput.eq.1) then
         if (Nstations>0) then
-        _ACC_PARALLEL
-        _ACC_LOOP
+          _ACC_PARALLEL
+          _ACC_LOOP
           do i=1,Nstations
-            seisU(i)=u1(staX(i),staY(i),staZ(i))
-            seisV(i)=v1(staX(i),staY(i),staZ(i))
-            seisW(i)=w1(staX(i),staY(i),staZ(i))
+            seisU(i)=seisU(i)+u1(staX(i),staY(i),staZ(i))
+            seisV(i)=seisV(i)+v1(staX(i),staY(i),staZ(i))
+            seisW(i)=seisW(i)+w1(staX(i),staY(i),staZ(i))
           enddo
-        _ACC_END_PARALLEL
+          _ACC_END_PARALLEL
+          _ACC_PARALLEL
+          _ACC_LOOP_COLLAPSE_2
+		  do j=1,nyt
+            do i=1,nxt
+              seissurfU(i,j)=seissurfU(i,j)+u1(i,j,nzt-nfs)
+              seissurfV(i,j)=seissurfV(i,j)+v1(i,j,nzt-nfs)
+              seissurfW(i,j)=seissurfW(i,j)+w1(i,j,nzt-nfs)
+            enddo
+          enddo
+          _ACC_END_PARALLEL
         endif
         endif
 		
@@ -711,11 +718,23 @@ _ACC_END_PARALLEL
           maxvelX=maxval(sliprateoutX(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
           write(*,*)'Time: ',time,'Slip rate max: ',maxvelX,maxvelZ
         endif
-        k=int(real(it-1)*dt/dtseis)+1
-        if(ioutput.eq.1) then
-          write (31,'(1000000E13.5)')time,(seisU(i),seisV(i),seisW(i),i=1,Nstations)
+        if(ioutput.eq.1.and.Nstations>0)then
+          if(mod(it,ceiling(dtseis/dt))==0)then
+            write (31,'(1000000E13.5)')time,(seisU(i)/float(ceiling(dtseis/dt)),seisV(i)/float(ceiling(dtseis/dt)),seisW(i)/float(ceiling(dtseis/dt)),i=1,Nstations)
+            seisU=0.;seisV=0.;seisW=0.
+            do i=nabc+1,nxt-nabc,2
+              write(32,'(1000000E13.5)')(seissurfU(i,j)/float(ceiling(dtseis/dt)),j=nabc+1,nyt,2)
+              write(33,'(1000000E13.5)')(seissurfV(i,j)/float(ceiling(dtseis/dt)),j=nabc+1,nyt,2)
+              write(34,'(1000000E13.5)')(seissurfW(i,j)/float(ceiling(dtseis/dt)),j=nabc+1,nyt,2)
+            enddo
+            write(32,*);write(32,*)
+            write(33,*);write(33,*)
+            write(34,*);write(34,*)
+            seissurfU=0.;seissurfV=0.;seissurfW=0.;
+          endif
         endif
 
+        k=int(real(it-1)*dt/dtseis)+1
         if(k<=nSR)then
 		timek(k)=time
         if(ioutput.eq.1) then
@@ -884,6 +903,7 @@ _ACC_END_PARALLEL
         close(27)
         close(28)
         close(31)
+        close(32);close(33);close(34)
       endif
       
       tmax            = -1.
