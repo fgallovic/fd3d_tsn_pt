@@ -1,5 +1,5 @@
 #!/bin/bash
-FRAMES=560
+FRAMES=640
 REAL=1
 mkdir tmp
 rm -f tmp/*
