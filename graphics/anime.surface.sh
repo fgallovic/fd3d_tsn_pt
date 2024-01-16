@@ -11,7 +11,7 @@ mkdir tmp
 rm -f tmp/*
 python >temp.out << END
 import numpy as np
-S=np.loadtxt('result/seisoutV.surface.gnuplot.dat')
+S=np.loadtxt('result/seisoutV.surface.gnuplot.dat',max_rows=$NT*$NW)
 for k in range($NT):
   np.savetxt('tmp/'+str(1000+k+1)+'.dat',S[k*$NW:(k+1)*$NW])
 print(abs(S).max()*0.8)
