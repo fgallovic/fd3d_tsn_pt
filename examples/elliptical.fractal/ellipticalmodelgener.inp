@@ -3,3 +3,4 @@
 0.1            ! Initial stress (fraction of the normal stress)
 0.05            ! Friction drop - Initial stress = strength excess/normal stress
 0.1 0.06         ! Minimum Dc and its increase rate (m,m/km)
+-1000
