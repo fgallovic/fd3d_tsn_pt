@@ -1,0 +1,24 @@
+400 200 200       \* Number of grid points in x,y,z direction (FD) + 2 for free surface
+100.0             \* Grid size in meters (FD)
+10000             \* Number of time step (FD)
+0.002             \* Time step in seconds (FD)
+90.               \* Dip
+10 6000. 20.      \* nabc, vp, pml_fact
+0.3               \* damp_s
+0                 \* Nstations
+
+
+800 400 400       \* Number of grid points in x,y,z direction (FD) + 2 for free surface
+50.0              \* Grid size in meters (FD)
+20000              \* Number of time step (FD)
+0.001             \* Time step in seconds (FD)
+90.               \* Dip
+10 6000. 20.      \* nabc, vp, pml_fact
+0.3               \* damp_s
+5                 \* Nstations
+200 300  400
+400 300  400
+600 300  400
+  1   1  400
+800   1  400
+

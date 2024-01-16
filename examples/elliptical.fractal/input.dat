@@ -1,0 +1,27 @@
+No. of computed frequencies
+1030
+Length of seismograms (in sec)
+102.4 14.  20. 100.
+Artificial time shift
+20.   1    0.
+No. of receivers
+0  0
+No. of Greens computed along strike (dip), discretization along strike (dip)
+200 100
+Moment of mainshock
+4.e19
+Strike  Dip   Rake
+0.  90.  0.
+Depth of reference fault point
+10000.
+Length and width of the fault
+40000.   20000.
+Position of Hypo on the fault
+20000.   10000.
+No. time points
+4096
+Vr
+3000
+fc1     fc2
+1
+0.     8.
