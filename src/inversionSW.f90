@@ -109,9 +109,9 @@
     real*8 T,E,prop12,prop21
     logical record_mcmc_now
     real*8 newmisfit
-    real gasdev,gasdev1,SEold,SEnew
+    real gasdev,gasdev1,SEold,SEnew,Sparnew,Sparold
     logical  yn,modelinvalid
-    integer i,j,jj,kk
+    integer i,j,jj,kk,ii
 
     modelinvalid=.true.
     print *,'searching for model'
@@ -140,7 +140,24 @@ jj=jj+1
             DcI(i,j)=DcA(i,j,ichain)+gasdev(iseed)*StepSizeD
           enddo
         enddo
+      elseif(StepType==11)then                 !Log-Normal step in initial stress, strength excess, and Dc
+        do j=1,NWI
+          do i=1,NLI
+            kk=int(dble(nzt-nfs-nabc-1)/dble(NWI-1)*(j-1)+nabc+1)
+            ii=int(dble(nxt-2*nabc-1)/dble(NLI-1)*(i-1)+nabc+1)
+            SEold=TsA(i,j,ichain)*normstress(kk)+coh(ii,kk)-T0A(i,j,ichain)                 !Assuming coh is constant along strike!
+            !Sparold=SEold/T0A(i,j,ichain)
+            SEnew=SEold*exp(gasdev(iseed)*StepSizeTs)
+            !Sparnew=Sparold*exp(gasdev(iseed)*StepsizeTs)
+            T0I(i,j)=T0A(i,j,ichain)*exp(gasdev(iseed)*StepSizeT0)!SEnew/Sparnew
+            DcI(i,j)=DcA(i,j,ichain)*exp(gasdev(iseed)*StepSizeD)
+            prop12=prop12+log(T0A(i,j,ichain))+log(SEold)+log(DcA(i,j,ichain))
+            prop21=prop21+log(T0I(i,j))+log(SEnew)+log(DcI(i,j))
+            TsI(i,j)=(SEnew+T0I(i,j)-coh(ii,kk))/normstress(kk)
+          enddo
+        enddo
       else                                    !Testing new steps (log-normal + even periodic extension)
+
         prop12=0.
         prop21=0.
         do j=1,NWI
@@ -197,6 +214,7 @@ jj=jj+1
     elseif (iwaveform==2) then
      call evalmisfit2()
     elseif (iwaveform==3) then
+     misfit=0.
      call evalmisfitM()
     elseif (iwaveform==4) then
      call evalmisfitSspec()
@@ -458,6 +476,8 @@ jj=jj+1
     elseif (iwaveform==2) then
       call evalmisfit2()
     elseif (iwaveform==3) then
+      misfit=0.
+      if (modelinvalid) misfit=1.e30
       call evalmisfitM()
     elseif (iwaveform==4) then
       call evalmisfitSspec()
