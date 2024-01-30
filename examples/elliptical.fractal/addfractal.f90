@@ -96,7 +96,7 @@
     Rmax=min(L,W)/8.
 
     allocate(T0Is(NLI,NWI),TSIs(NLI,NWI),DcIs(NLI,NWI))
-    N0=floor(L/W*2**(D*(Nlevels))) ! Number of the smallest subsources (n=0)
+    N0=floor(max(L/W,W/L)*2**(D*(Nlevels))) ! Number of the smallest subsources (n=0)
     Dcmax=Dcmin*2**(Nlevels)
     TSIs(:,:)=1.
     T0Is(:,:)=1.
