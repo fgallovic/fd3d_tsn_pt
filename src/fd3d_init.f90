@@ -20,7 +20,7 @@
     MODULE medium_com
       real,allocatable,dimension(:,:,:):: lam1,mu1,d1
       real,allocatable,dimension(:,:):: vpls
-      real:: mu_mean
+      real:: mu_mean,constnormstress
     END MODULE
     
     MODULE pml_com
@@ -74,12 +74,14 @@
       CONTAINS
       
       FUNCTION normstress(j)
+      USE medium_com, only: constnormstress
       IMPLICIT NONE
       real:: normstress
       integer:: j
 #if defined FSPACE
-      normstress=100.e6
+!      normstress=100.e6
 !      normstress=21.e9
+      normstress=constnormstress
 #else
 #if defined DIPSLIP
       normstress=max(1.e5,8520.*dh*real(nzt-nfs-j)*sin(dip/180.*pi))
@@ -174,6 +176,7 @@
 
 #if defined FSPACE
 	  nfs=nabc
+      read(11,*) constnormstress
 #else
       nfs=2 ! Number of layers above free surface 
 #endif	
@@ -195,7 +198,7 @@
       endif 
 !	  read(11,*) waveT
       close(11)
-
+ 
 !----------------------------
 ! Allocate FD module arrays
 !----------------------------
