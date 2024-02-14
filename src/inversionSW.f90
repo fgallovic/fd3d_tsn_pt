@@ -141,6 +141,8 @@ jj=jj+1
           enddo
         enddo
       elseif(StepType==11)then                 !Log-Normal step in initial stress, strength excess, and Dc
+        prop12=0.
+        prop21=0.
         do j=1,NWI
           do i=1,NLI
             kk=int(dble(nzt-nfs-nabc-1)/dble(NWI-1)*(j-1)+nabc+1)
