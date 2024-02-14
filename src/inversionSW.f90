@@ -147,19 +147,16 @@ jj=jj+1
           do i=1,NLI
             kk=int(dble(nzt-nfs-nabc-1)/dble(NWI-1)*(j-1)+nabc+1)
             ii=int(dble(nxt-2*nabc-1)/dble(NLI-1)*(i-1)+nabc+1)
-            SEold=TsA(i,j,ichain)*normstress(kk)+coh(ii,kk)-T0A(i,j,ichain)                 !Assuming coh is constant along strike!
-            !Sparold=SEold/T0A(i,j,ichain)
+            SEold=TsA(i,j,ichain)*normstress(kk)+coh(ii,kk)-T0A(i,j,ichain)   !Assuming coh is constant along strike!
             SEnew=SEold*exp(gasdev(iseed)*StepSizeTs)
-            !Sparnew=Sparold*exp(gasdev(iseed)*StepsizeTs)
-            T0I(i,j)=T0A(i,j,ichain)*exp(gasdev(iseed)*StepSizeT0)!SEnew/Sparnew
+            T0I(i,j)=T0A(i,j,ichain)*exp(gasdev(iseed)*StepSizeT0)
             DcI(i,j)=DcA(i,j,ichain)*exp(gasdev(iseed)*StepSizeD)
-            prop12=prop12+log(T0A(i,j,ichain))+log(SEold)+log(DcA(i,j,ichain))
-            prop21=prop21+log(T0I(i,j))+log(SEnew)+log(DcI(i,j))
+            prop12=prop12+log(abs(T0A(i,j,ichain)))+log(abs(SEold))+log(DcA(i,j,ichain))
+            prop21=prop21+log(abs(T0I(i,j)))+log(abs(SEnew))+log(DcI(i,j))
             TsI(i,j)=(SEnew+T0I(i,j)-coh(ii,kk))/normstress(kk)
           enddo
         enddo
       else                                    !Testing new steps (log-normal + even periodic extension)
-
         prop12=0.
         prop21=0.
         do j=1,NWI
