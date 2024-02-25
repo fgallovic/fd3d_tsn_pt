@@ -112,15 +112,15 @@
       stasigma(:)=staweight(1,:)  !Only the first weigth column defines the weigth in the misfit
       open(225,file='stations.dat',status='old')
       do i=1,NRseis
-!        read(225,*) STAn(i),STAe(i),STAu(i)
+        read(225,*) STAn(i),STAe(i),STAu(i)
 !if azimuth and take-off angles are provided, otherwise comment all lines below
-        read(225,*) STAn(i),STAe(i),STAu(i),dumname,STAazimuth(i),STAtakeoff(i)
-        dum=sqrt(STAn(i)**2+STAe(i)**2+(hypodepth/1.e3-STAu(i))**2)
-        write(*,*)STAn(i),STAe(i),STAu(i)
-        STAn(i)=dum*sin(STAtakeoff(i)/180.*pi)*cos(STAazimuth(i)/180.*pi)
-        STAe(i)=dum*sin(STAtakeoff(i)/180.*pi)*sin(STAazimuth(i)/180.*pi)
-        STAu(i)=hypodepth/1.e3+dum*cos(STAtakeoff(i)/180.*pi)
-        write(*,*)STAn(i),STAe(i),STAu(i)
+!        read(225,*) STAn(i),STAe(i),STAu(i),dumname,STAazimuth(i),STAtakeoff(i)
+!        dum=sqrt(STAn(i)**2+STAe(i)**2+(hypodepth/1.e3-STAu(i))**2)
+!        write(*,*)STAn(i),STAe(i),STAu(i)
+!        STAn(i)=dum*sin(STAtakeoff(i)/180.*pi)*cos(STAazimuth(i)/180.*pi)
+!        STAe(i)=dum*sin(STAtakeoff(i)/180.*pi)*sin(STAazimuth(i)/180.*pi)
+!        STAu(i)=hypodepth/1.e3+dum*cos(STAtakeoff(i)/180.*pi)
+!        write(*,*)STAn(i),STAe(i),STAu(i)
       enddo
       close(225)
       open(224,file='sources.dat',status='old')
@@ -954,6 +954,7 @@ subroutine evalmisfitStime()
     SUBROUTINE smoothspectrum(Nf,Nfsmooth,df,flo,fro,spec,freqaxis,smoothspec)
     !Smoothing spectrum by Konno & Omachi, 1998 BSSA, method
     IMPLICIT NONE
+    REAL,PARAMETER:: b=40.
     INTEGER Nf,Nfsmooth
     REAL spec(Nf),WB(Nf/2+1,Nfsmooth),freqaxis(Nfsmooth),smoothspec(Nfsmooth),flo,fro
     REAL freq,df
@@ -964,7 +965,7 @@ subroutine evalmisfitStime()
       do i=2,Nf/2+1
         freq=df*(i-1)
         if(freq.ne.freqaxis(j))then
-          WB(i,j)=(sin(20.*log10(freq/freqaxis(j)))/20./log10(freq/freqaxis(j)))**4
+          WB(i,j)=(sin(b*log10(freq/freqaxis(j)))/b/log10(freq/freqaxis(j)))**4
         else
           WB(i,j)=1.
         endif
