@@ -297,6 +297,12 @@
 #endif
           enddo
         enddo
+        cseis1(:)=astf(:,j)
+        CALL four1(cseis1,np,-1)
+        do i=1,np
+          astfspec(i,j)=abs(cseis1(i)*dtseis)*(2.*PI*df*(i-1))**2
+        enddo
+        CALL smoothspectrum(np,nper,df,fc1(1),fc2(1),astfspec(:,j),per(:),astfspecs(:,j)) !First filter is considered for all stations
         dumts=1
         dum=maxval(astf(:,j))
         do i=1,np
@@ -308,11 +314,6 @@
         cseis1=0.
         cseis1(1:np-dumts+1)=astf(dumts:np,j)
         astf(:,j)=cseis1(:)
-        CALL four1(cseis1,np,-1)
-        do i=1,np
-          astfspec(i,j)=abs(cseis1(i)*dtseis)*(2.*PI*df*(i-1))**2
-        enddo
-        CALL smoothspectrum(np,nper,df,fc1(1),fc2(1),astfspec(:,j),per(:),astfspecs(:,j)) !First filter is considered for all stations
       enddo
       deallocate(cseis1)
       if(ioutput==1)then
