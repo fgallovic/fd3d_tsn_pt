@@ -34,6 +34,8 @@
 #if defined DIPSLIP
       normstress=max(1.e5,8520.*dh*real(nzt-j)*sin(dip/180.*pi))
 !      normstress=min(18.*dh*real(nzt-j)*sin(dip/180.*pi)/1.e3,100.);normstress=1.e6*max(1.,normstress)
+#elseif defined FSPACE
+      normstress=100.e6
 #else
       !normstress=max(1.e5,16200.*dh*real(nzt-j)*sin(dip/180.*pi))
       normstress=min(18.*dh*real(nzt-j)*sin(dip/180.*pi)/1.e3,100.);normstress=1.e6*max(1.,normstress)
@@ -141,8 +143,8 @@
     
 !    misfitaccept=maxval(misfits(1:ntot))
 !    misfitaccept=bestmisfit-log(0.02) !Probability threashold (2% for real data)
-    misfitaccept=bestmisfit-log(0.05) !Probability threashold (5% for real data)
-!    misfitaccept=bestmisfit-log(0.01) !Probability threashold (2% for real data)
+!    misfitaccept=bestmisfit-log(0.05) !Probability threashold (5% for real data)
+    misfitaccept=bestmisfit-log(0.01) !Probability threashold (1% for real data)
 !    misfitaccept=bestmisfit-log(0.001) !Probability threashold (1%% for inv1)
 !   misfitaccept=bestmisfit-log(0.00001) !Probability threashold (.1%% for pga)
 !   misfitaccept=bestmisfit+20. !Honzuv napad
@@ -265,7 +267,7 @@ coh=0.5e6
             dum = (sqrt((ruptime1(i+1,j,k)-ruptime1(i,j,k))**2+(ruptime1(i,j+1,k)-ruptime1(i,j,k))**2) &
               +sqrt((ruptime1(i,j,k)-ruptime1(i-1,j,k))**2+(ruptime1(i,j,k)-ruptime1(i,j-1,k))**2))
             if (dum.ne.0.) then
-              rupvel1(i,j,k)=2*dh/dum/1000.
+              rupvel1(i,j,k)=2*dh/dum
             else
               rupvel1(i,j,k) = 0.
             endif
@@ -330,7 +332,7 @@ coh=0.5e6
     open(201,FILE='processBayes.MomentRates.dat')
     do k=1,NM
       do j=1,nSR
-        write(201,'(10000E13.5)')dtseis*(j-1),MomentRate(j,k)
+        write(201,'(10000E13.5)')dtseis*(j-1),MomentRate(j,k),exp(-(misfits(k)-bestmisfit))
       enddo
       write(201,*)
       write(201,*)
