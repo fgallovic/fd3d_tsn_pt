@@ -49,7 +49,8 @@
       real    :: pdx, pdz,tabs
       real    :: u1out
       real    :: CPUT1,CPUT2
-      REAL    :: maxvelX,maxvelZ,maxvelsave,tint, tint2, eraddt !Maximum velocities, temporary variables, time integrated part of radiated energy
+      real    :: maxvelX,maxvelZ,maxvelsave,stoptimecheck
+      real    :: tint, tint2, eraddt !temporary variables, time integrated part of radiated energy
       real    :: dht, ek, es, ef, c1, c2
       integer :: i,j,it,k, nxe, nxb, nyb, nye, nzb, nze
       integer :: ifrom,ito,jfrom,jto,kk,ii,jj
@@ -221,6 +222,7 @@
       
       CALL CPU_TIME(CPUT1)
       maxvelsave=0.
+      stoptimecheck=min(1.,dt*real(ntfd)/10.)
 
       !$ACC DATA COPYIN (LAM1,MU1,D1) &
       !$ACC      COPYIN (U1,V1,W1) COPYIN (XX,YY,ZZ,XY,YZ,XZ) &
@@ -713,7 +715,7 @@ _ACC_END_PARALLEL
 #endif
 
 !$ACC END DATA
-        if(mod(it,ceiling(1./dt))==0)then
+        if(mod(it,ceiling(stoptimecheck/dt))==0)then
           maxvelZ=maxval(sliprateoutZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
           maxvelX=maxval(sliprateoutX(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
           write(*,*)'Time: ',time,'Slip rate max: ',maxvelX,maxvelZ
@@ -779,7 +781,7 @@ _ACC_END_PARALLEL
         efrac(k)=efracds
         erad(k)=tint2-eraddt
 		
-        if(mod(it,ceiling(1./dt))==0)then
+        if(mod(it,ceiling(stoptimecheck/dt))==0)then
           if(stopnexttime==1)exit
 #if defined DIPSLIP
           if(maxvelZ<1.e-7)stopnexttime=1
