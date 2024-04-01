@@ -27,18 +27,23 @@
       real,parameter:: pi=3.1415926535
       REAL dip
       CONTAINS
+
       FUNCTION normstress(j)
       IMPLICIT NONE
       real:: normstress
       integer:: j
+#if defined FSPACE
+      normstress=100.e6
+!      normstress=21.e9
+#else
 #if defined DIPSLIP
       normstress=max(1.e5,8520.*dh*real(nzt-j)*sin(dip/180.*pi))
-!      normstress=min(18.*dh*real(nzt-j)*sin(dip/180.*pi)/1.e3,100.);normstress=1.e6*max(1.,normstress)
-#elseif defined FSPACE
-      normstress=100.e6
+      !normstress=min(18.*dh*real(nzt-j)*sin(dip/180.*pi)/1.e3,100.);normstress=1.e6*max(1.,normstress)
 #else
-      !normstress=max(1.e5,16200.*dh*real(nzt-j)*sin(dip/180.*pi))
-      normstress=min(18.*dh*real(nzt-j)*sin(dip/180.*pi)/1.e3,100.);normstress=1.e6*max(1.,normstress)
+      normstress=max(1.e5,16200.*dh*real(nzt-j)*sin(dip/180.*pi))
+      !normstress=min(18.*dh*real(nzt-j)*sin(dip/180.*pi)/1.e3,100.);normstress=1.e6*max(1.,normstress)
+       !normstress=min(18.*dh*real(nzt-j)*sin(dip/180.*pi)/1.e3,60.);normstress=1.e6*max(1.,normstress)
+#endif
 #endif
       END FUNCTION
     END MODULE
@@ -78,8 +83,6 @@
     read(11,*) dt
     read(11,*) dip
     close(11)
-
-
 
     open(10,file='input.dat',action='read')
     read(10,*)
@@ -143,8 +146,8 @@
     
 !    misfitaccept=maxval(misfits(1:ntot))
 !    misfitaccept=bestmisfit-log(0.02) !Probability threashold (2% for real data)
-!    misfitaccept=bestmisfit-log(0.05) !Probability threashold (5% for real data)
-    misfitaccept=bestmisfit-log(0.01) !Probability threashold (1% for real data)
+    misfitaccept=bestmisfit-log(0.05) !Probability threashold (5% for real data)
+!    misfitaccept=bestmisfit-log(0.01) !Probability threashold (1% for real data)
 !    misfitaccept=bestmisfit-log(0.001) !Probability threashold (1%% for inv1)
 !   misfitaccept=bestmisfit-log(0.00001) !Probability threashold (.1%% for pga)
 !   misfitaccept=bestmisfit+20. !Honzuv napad
@@ -434,12 +437,12 @@ coh=0.5e6
     DW=dh*(nzt-1)/real(NWI-1)
     do k=1,nzt
       ZS=dh*(k-1)
-      kk=int(ZS/DW)+1
-      u=(ZS-DW*(kk-1))/DW
+      kk=min(NWI-1,int(ZS/DW)+1)
+      u=min(1.,(ZS-DW*(kk-1))/DW)
       do i=1,nxt
         XS=dh*(i-1)
-        ii=int(XS/DL)+1
-        t=(XS-DL*(ii-1))/DL
+        ii=min(NLI-1,int(XS/DL)+1)
+        t=min(1.,(XS-DL*(ii-1))/DL)
         arrout(i,k)=(1.-t)*(1.-u)*arrin(ii,kk)+t*(1.-u)*arrin(ii+1,kk)+t*u*arrin(ii+1,kk+1)+(1.-t)*u*arrin(ii,kk+1)
       enddo
     enddo
