@@ -293,11 +293,11 @@ jj=jj+1
           return
         endif
 #if defined DIPSLIP
-        if(striniZ(i,j)-dyn_xz(i,j)<strinixMin.or.striniZ(i,j)-dyn_xz(i,j)>strinixMax)then
-!         write(*,*)'Strinix',i,j,striniZ(i,j),strinixMin,strinixMax
+        if(striniZ(i,j)-dyn_xz(i,j)<strinixMin.or.striniZ(i,j)-dyn_xz(i,j)>strinixMax.or.striniZ(i,j)<=0.)then
+!         write(*,*)'StriniZ',i,j,striniZ(i,j),strinixMin,strinixMax
 #else
-        if(striniX(i,j)-dyn_xz(i,j)<strinixMin.or.striniX(i,j)-dyn_xz(i,j)>strinixMax)then
-!          write(*,*)'Strinix',i,j,striniX(i,j),strinixMin,strinixMax
+        if(striniX(i,j)-dyn_xz(i,j)<strinixMin.or.striniX(i,j)-dyn_xz(i,j)>strinixMax.or.striniX(i,j)<=0.)then
+!          write(*,*)'StriniX',i,j,striniX(i,j),strinixMin,strinixMax
 #endif
           return
         endif
