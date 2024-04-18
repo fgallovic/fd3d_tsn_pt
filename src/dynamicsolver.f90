@@ -68,25 +68,31 @@
       if(mrank>0 .or. ncpu==1)then
         ifile=1111+mrank
         write(fname,'(a,i3.3)') 'samples',mrank
-        open(unit=ifile,file=trim(fname),iostat=ierr,STATUS='REPLACE')
+!        open(unit=ifile,file=trim(fname),iostat=ierr,STATUS='REPLACE')
+        open(unit=ifile,file=trim(fname),iostat=ierr,action='write',position='append')
         write(fname,'(a,i3.3)') 'sampls',mrank
-        open(unit=ifile+2,file=trim(fname),iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
+!        open(unit=ifile+2,file=trim(fname),iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
+        open(unit=ifile+2,file=trim(fname),iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM',action='write',position='append')
         write(rname,'(a,i3.3)') 'restart',mrank
         if (iwaveform==2) then
          write(dname,'(a,i3.3)') 'SA', mrank
-         open(unit=ifile*10,file=trim(dname),iostat=ierr,access='STREAM',STATUS='REPLACE')
+!         open(unit=ifile*10,file=trim(dname),iostat=ierr,access='STREAM',STATUS='REPLACE')
+         open(unit=ifile*10,file=trim(dname),iostat=ierr,access='STREAM',action='write',position='append')
         endif
       endif
 #else
       ifile=1111+mrank
       write(fname,'(a,i3.3)') 'samples',mrank
-      open(unit=ifile,file=trim(fname),iostat=ierr,STATUS='REPLACE')
+!      open(unit=ifile,file=trim(fname),iostat=ierr,STATUS='REPLACE')
+      open(unit=ifile,file=trim(fname),iostat=ierr,action='write',position='append')
       write(fname,'(a,i3.3)') 'sampls',mrank
-      open(unit=ifile+2,file=trim(fname),iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
+!      open(unit=ifile+2,file=trim(fname),iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM',STATUS='REPLACE')
+      open(unit=ifile+2,file=trim(fname),iostat=ierr,FORM='UNFORMATTED',ACCESS='STREAM',action='write',position='append')
       write(rname,'(a,i3.3)') 'restart',mrank
       if (iwaveform==2) then
         write(dname,'(a,i3.3)') 'SA', mrank
-        open(unit=ifile*10,file=trim(dname),iostat=ierr,access='STREAM',STATUS='REPLACE')
+!        open(unit=ifile*10,file=trim(dname),iostat=ierr,access='STREAM',STATUS='REPLACE')
+        open(unit=ifile*10,file=trim(dname),iostat=ierr,access='STREAM',action='write',position='append')
       endif
 #endif
     endif
