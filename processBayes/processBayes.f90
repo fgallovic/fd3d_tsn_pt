@@ -73,7 +73,7 @@
     INTEGER i,j,k,ml(1),ncent
     integer :: nsr,np
 
-    real :: T,dtseis
+    real :: T,SRdur,dtseis
 !--------------------
 ! Read the input file
 !--------------------
@@ -90,7 +90,7 @@
     read(10,*)
     read(10,*) !nfmax
     read(10,*)
-    read(10,*) T!,dum,T1,T2
+    read(10,*) T,SRdur !,T1,T2
     read(10,*)
     read(10,*) !artifDT
     read(10,*)
@@ -112,7 +112,8 @@
     close(10)
 
     dtseis=T/real(np)
-    nSR=ceiling(real(ntfd)/(dtseis/dt))
+!    nSR=ceiling(real(ntfd)/(dtseis/dt))
+    nSR=ceiling(SRdur/dtseis)
     allocate(MRate(nSR))
 
     allocate(lam1(nxt,nyt,nzt),mu1(nxt,nyt,nzt),d1(nxt,nyt,nzt))
