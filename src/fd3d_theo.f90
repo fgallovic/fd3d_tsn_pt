@@ -759,8 +759,8 @@ _ACC_END_PARALLEL
             ifrom=int(dL/dh*(i-1))+1+nabc
             ito=int(dL/dh*i)+nabc
             kk=((j-1)*NL+i-1)*nSR+k
-            MSRX(kk)=MSRX(kk)+sum(sliprateoutX(ifrom:ito,jfrom:jto))/dble((ito-ifrom+1)*(jto-jfrom+1))*(dtseis/dt)
-            MSRZ(kk)=MSRZ(kk)+sum(sliprateoutZ(ifrom:ito,jfrom:jto))/dble((ito-ifrom+1)*(jto-jfrom+1))*(dtseis/dt)
+            MSRX(kk)=MSRX(kk)+sum(sliprateoutX(ifrom:ito,jfrom:jto))/dble((ito-ifrom+1)*(jto-jfrom+1))/(dtseis/dt)
+            MSRZ(kk)=MSRZ(kk)+sum(sliprateoutZ(ifrom:ito,jfrom:jto))/dble((ito-ifrom+1)*(jto-jfrom+1))/(dtseis/dt)
           enddo
         enddo
         
