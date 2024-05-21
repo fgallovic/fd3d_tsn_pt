@@ -55,6 +55,7 @@
       integer :: i,j,it,k, nxe, nxb, nyb, nye, nzb, nze
       integer :: ifrom,ito,jfrom,jto,kk,ii,jj
       integer :: stopnexttime
+      integer, allocatable :: nkk(:)
       real    :: rup_tresh, rv, cz, efracds, alphakoef, schangef
       real,allocatable,dimension (:,:):: distX,distZ
       real,allocatable,dimension (:):: erad, efrac, timek
@@ -63,7 +64,6 @@
 #if defined FVW
       real    :: fss, flv, psiss, dpsi,  sr
       real    :: FXZ, GT, hx, hz, rr,AA,BB
-
 #endif
 !-------------------------------------------------------
 !   initialize arrays
@@ -91,6 +91,8 @@
       RFx = 0.; RFz = 0.
       au1=0.; av1=0.; aw1=0 
       MSRX=0.; MSRZ=0.; MomentRate=0.
+      allocate(nkk(nSR))
+      nkk=0
       stopnexttime=0
       distX=0.; distZ=0.
       rup_tresh=1e-3 !	Rate treshold for rupture time calculation
@@ -737,6 +739,8 @@ _ACC_END_PARALLEL
         endif
 
         k=int(real(it-1)*dt/dtseis)+1
+        nkk(k)=nkk(k)+1
+
         if(k<=nSR)then
 		timek(k)=time
         if(ioutput.eq.1) then
@@ -759,14 +763,14 @@ _ACC_END_PARALLEL
             ifrom=int(dL/dh*(i-1))+1+nabc
             ito=int(dL/dh*i)+nabc
             kk=((j-1)*NL+i-1)*nSR+k
-            MSRX(kk)=MSRX(kk)+sum(sliprateoutX(ifrom:ito,jfrom:jto))/dble((ito-ifrom+1)*(jto-jfrom+1))/(dtseis/dt)
-            MSRZ(kk)=MSRZ(kk)+sum(sliprateoutZ(ifrom:ito,jfrom:jto))/dble((ito-ifrom+1)*(jto-jfrom+1))/(dtseis/dt)
+            MSRX(kk)=MSRX(kk)+sum(sliprateoutX(ifrom:ito,jfrom:jto))/(dble((ito-ifrom+1)*(jto-jfrom+1)))!*(dtseis/dt))
+            MSRZ(kk)=MSRZ(kk)+sum(sliprateoutZ(ifrom:ito,jfrom:jto))/(dble((ito-ifrom+1)*(jto-jfrom+1)))!*(dtseis/dt))
           enddo
         enddo
         
         do j = nabc+1,nzt-nfs
           do i = nabc+1,nxt-nabc
-            MomentRate(k)=MomentRate(k)+sqrt(sliprateoutX(i,j)**2+sliprateoutZ(i,j)**2)*muSource(i,j)*dh*dh/(dtseis/dt)
+            MomentRate(k)=MomentRate(k)+sqrt(sliprateoutX(i,j)**2+sliprateoutZ(i,j)**2)*muSource(i,j)*dh*dh!/(dtseis/dt)
           enddo
         enddo
         !tint=0.
@@ -806,9 +810,24 @@ _ACC_END_PARALLEL
 !		endif
 
       enddo ! --- End of the time loop
-	  
+       
       !$ACC END DATA
-
+      
+      
+      !divide by number of dt timesteps in each dtseis time interval
+      do k=1,nSR
+        if (nkk(k)>0) then
+          MomentRate(k)=MomentRate(k)/nkk(k)
+          do j=1,NW
+            do i=1,NL
+              kk=((j-1)*NL+i-1)*nSR+k
+              MSRX(kk)=MSRX(kk)/nkk(k)
+              MSRZ(kk)=MSRZ(kk)/nkk(k)
+            enddo
+          enddo
+        endif           
+      enddo
+      
 !===============================================================================================================================================
 !Postprocessing
 !===============================================================================================================================================
@@ -1060,5 +1079,6 @@ _ACC_END_PARALLEL
 #endif
 
       deallocate(efrac,erad,slipt,timek)
+      deallocate(nkk)
 
       END SUBROUTINE
