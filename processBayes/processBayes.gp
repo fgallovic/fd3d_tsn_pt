@@ -71,7 +71,7 @@ set xtics 1.
 width=.5
 set boxwidth width*.9
 set xrange [0:15]
-plot 'processBayes.dat' using (bin1($3/$17/1.e3)):(norm1/width) notitle smooth freq with boxes lc 7
+plot 'processBayes.dat' using (bin1($6/$17/1.e3)):(norm1/width) notitle smooth freq with boxes lc 7
 set xtics autofreq
 set autoscale x
 
