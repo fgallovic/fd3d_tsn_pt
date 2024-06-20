@@ -57,7 +57,7 @@ character*6 filename
   
   lambda =1.
   mu=1.
-  ALPHA=1.40047868354247!(lambda+mu)/(lambda+2.*mu)
+  ALPHA=(lambda+mu)/(lambda+2.*mu)
   dL=leng(1)/(ng1(1))
   dW=widt(1)/(ng2(1))
   
