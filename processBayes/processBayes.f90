@@ -23,7 +23,7 @@
 
     MODULE friction_pb
       USE fd3dparam_pb
-      real,allocatable,dimension(:,:):: strinix,peak_xz,Dc
+      real,allocatable,dimension(:,:,:):: strinix,peak_xz,Dc
       real,parameter:: pi=3.1415926535
       REAL dip
       CONTAINS
@@ -66,6 +66,10 @@
     real, allocatable, dimension(:) :: MRate
     real, allocatable, dimension(:,:) :: MomentRate
     INTEGER, allocatable, dimension(:) :: indx
+    REAL*8,ALLOCATABLE,DIMENSION(:,:) :: dumFFT,strinixSpatialmean,peak_xzSpatialmean,Dcspatialmean
+    COMPLEX*16,ALLOCATABLE :: dumFFTq(:),DcFFTc(:,:,:),strinixFFTc(:,:,:),peak_xzFFTc(:,:,:)!,DcFFTq(:,:)
+    INTEGER nxtfft,nztfft
+    REAL kx,ky,krad,strinixpwr,peak_xzpwr,Dcpwr
     REAL M0dum,EGdum,ERdum,VRgpsdum
     REAL bestmisfit,misfitaccept,dum,coh,dyn,dumarr(8)
     REAL vr,mf,x0,z0,x,z,slipmax
@@ -117,7 +121,6 @@
     allocate(MRate(nSR))
 
     allocate(lam1(nxt,nyt,nzt),mu1(nxt,nyt,nzt),d1(nxt,nyt,nzt))
-    allocate(strinix(nxt,nzt),peak_xz(nxt,nzt),Dc(nxt,nzt))
 
     CALL readcrustalmodel(dip)
 
@@ -149,9 +152,9 @@
     
 !    misfitaccept=maxval(misfits(1:ntot))
 !    misfitaccept=bestmisfit-log(0.02) !Probability threashold (2% for real data)
-    misfitaccept=bestmisfit-log(0.05) !Probability threashold (5% for real data)
+!    misfitaccept=bestmisfit-log(0.05) !Probability threashold (5% for real data)
 !    misfitaccept=bestmisfit-log(0.01) !Probability threashold (1% for real data)
-!    misfitaccept=bestmisfit-log(0.001) !Probability threashold (1%% for inv1)
+    misfitaccept=bestmisfit-log(0.001) !Probability threashold (1%% for inv1)
 !   misfitaccept=bestmisfit-log(0.00001) !Probability threashold (.1%% for pga)
 !   misfitaccept=bestmisfit+20. !Honzuv napad
     
@@ -163,6 +166,7 @@
     DEALLOCATE(misfits,VRs)
 
 !------ Read accepted models
+    allocate(strinix(nxt,nzt,NM),peak_xz(nxt,nzt,NM),Dc(nxt,nzt,NM))
     ALLOCATE(misfits(NM),VRs(NM),meansd(NM),meansl(NM),duration(NM),nuclsize(NM),EG(NM),ER(NM),RE(NM),meanoverstress(NM),M0(NM),EGrate(NM),VRgps(NM))
     ALLOCATE(meanDc(NM),meanStrengthExcess(NM),meanslip(NM),rupturearea(NM),meanruptvel(NM),meanstrength(NM))
     allocate(DcA(NLI,NWI,NM),TsA(NLI,NWI,NM),T0A(NLI,NWI,NM),SEA(NLI,NWI,NM))
@@ -214,16 +218,13 @@
 coh=0.5e6
 
     do k=1,NM
-      strinix=0.
-      ms1=0.
-      peak_xz=0.
-      CALL interpolate(T0A(:,:,k),strinix(:,:))
+      CALL interpolate(T0A(:,:,k),strinix(:,:,k))
       CALL interpolate(TSA(:,:,k),ms1(:,:))
-      CALL interpolate(DcA(:,:,k),Dc(:,:))
+      CALL interpolate(DcA(:,:,k),Dc(:,:,k))
       do i=1,nzt
-        peak_xz(:,i)=ms1(:,i)*normalstress(i)+coh
+        peak_xz(:,i,k)=ms1(:,i)*normalstress(i)+coh
       enddo
-      es1(:,:,k)=(peak_xz(:,:)-strinix(:,:))/max(1.,strinix(:,:))
+      es1(:,:,k)=(peak_xz(:,:,k)-strinix(:,:,k))/max(1.,strinix(:,:,k))
       slipmax=maxval(slip1(:,:,k))
 
 !calculate nucleation center
@@ -235,7 +236,7 @@ coh=0.5e6
         z=dh*(real(j)-0.5)
         do i=1,nxt
           x=dh*(real(i)-0.5)
-          if (peak_xz(i,j)<=strinix(i,j)) then
+          if (peak_xz(i,j,k)<=strinix(i,j,k)) then
             x0=x0+x
             z0=z0+z
             ncent=ncent+1
@@ -245,12 +246,12 @@ coh=0.5e6
       x0=x0/ncent
       z0=z0/ncent
 
-      strengthexcess1(:,:,k)=strinix(:,:)-peak_xz(:,:)
+      strengthexcess1(:,:,k)=strinix(:,:,k)-peak_xz(:,:,k)
 !      nuclsize(k)=dh*dh*COUNT(strengthexcess1(:,:,k)>=1.e5)/1.e6
 !      meanoverstress(k)=sum(strengthexcess1(:,:,k),strengthexcess1(:,:,k)>=1.e5)*dh*dh/1.e6/nuclsize(k)/1.e6
       nuclsize(k)=dh*dh*COUNT(strengthexcess1(:,:,k)>=0.)/1.e6
       meanoverstress(k)=sum(strengthexcess1(:,:,k),strengthexcess1(:,:,k)>=0.)*dh*dh/1.e6/nuclsize(k)/1.e6
-      meanstrength(k)=sum(peak_xz(:,:)*slip1(:,:,k))/sum(slip1(:,:,k))
+      meanstrength(k)=sum(peak_xz(:,:,k)*slip1(:,:,k))/sum(slip1(:,:,k))
 
     if(meanoverstress(k)<2.)write(231,'(10000E13.5)')misfits(k),VRs(k),T0A(:,:,k),TsA(:,:,k),DcA(:,:,k)
     if(nuclsize(k)<2.)write(232,'(10000E13.5)')misfits(k),VRs(k),T0A(:,:,k),TsA(:,:,k),DcA(:,:,k)
@@ -259,7 +260,7 @@ coh=0.5e6
       if(mod(k,10)==0)then
         do j=1,nzt,10
           do i=1,nxt,10
-            if(slip1(i,j,k)>0.05*slipmax)write(428,*)slip1(i,j,k),Dc(i,j),strengthexcess1(i,j,k)
+            if(slip1(i,j,k)>0.05*slipmax)write(428,*)slip1(i,j,k),Dc(i,j,k),strengthexcess1(i,j,k)
           enddo
         enddo
         write(428,*);write(428,*)
@@ -292,13 +293,13 @@ coh=0.5e6
 !      EGrate(k)=sum((peak_xz(1:nxt,1:nzt-2)*(Dc(1:nxt,1:nzt-2)-(Dc(1:nxt,1:nzt-2)-slip1(1:nxt,1:nzt-2,k))/Dc(1:nxt,1:nzt-2)*max(0.,Dc(1:nxt,1:nzt-2)-slip1(1:nxt,1:nzt-2,k))))*slip1(1:nxt,1:nzt-2,k))/2./sum(slip1(1:nxt,1:nzt-2,k))   ! Dissipated breakdown work rate
 !      EGrate(k)=EG(k)/sum(slip1(:,:,k))*real(nxt*nzt)
 
-      meansl(k)=sum(strinix(:,:)/peak_xz(:,:)*slip1(:,:,k))/sum(slip1(:,:,k)) !Stress level (Eq. 4 in Ripperger et al., 2007)
+      meansl(k)=sum(strinix(:,:,k)/peak_xz(:,:,k)*slip1(:,:,k))/sum(slip1(:,:,k)) !Stress level (Eq. 4 in Ripperger et al., 2007)
       
       duration(k)=maxval(ruptime1(:,:,k),slip1(:,:,k)>0.05*slipmax)-minval(ruptime1(:,:,k),slip1(:,:,k)>0.05*slipmax)
       
 !      M0(k)=sum(slip1(:,:,k)*mu1(:,nyt,:))*dh*dh
 
-      meanDc(k)=sum(Dc(:,:)*slip1(:,:,k))/sum(slip1(:,:,k))
+      meanDc(k)=sum(Dc(:,:,k)*slip1(:,:,k))/sum(slip1(:,:,k))
       
 !      meanslip(k)=sum(slip1(:,:,k)*slip1(:,:,k))/sum(slip1(:,:,k))
       meanslip(k)=sum(slip1(:,:,k))/count(slip1(:,:,k)>0.001)
@@ -362,6 +363,68 @@ coh=0.5e6
     CALL meansigma2(ruptime1(:,:,:),NM)
     CALL meansigma2(rupvel1(:,:,:),NM)
     close(201)
+
+!FFT of dynamic parameters
+    nxtfft=2**int(log(dble(nxt))/log(2.d0)+1)
+    nztfft=2**int(log(dble(nzt))/log(2.d0)+1)
+    allocate(strinixFFTc(nxtfft/2,nztfft,NM),peak_xzFFTc(nxtfft/2,nztfft,NM),DcFFTc(nxtfft/2,nztfft,NM))
+    allocate(dumFFT(nxtfft,nztfft),dumFFTq(nztfft))
+    allocate(strinixSpatialmean(nxt,nzt),peak_xzSpatialmean(nxt,nzt),DcSpatialmean(nxt,nzt))
+    strinixSpatialmean=0.d0;peak_xzSpatialmean=0.d0;DcSpatialmean=0.d0
+    strinixpwr=0.;peak_xzpwr=0.;Dcpwr=0.
+    do k=1,NM
+      strinixSpatialmean(:,:)=strinixSpatialmean(:,:)+strinix(:,:,k)/1.e6/real(NM)
+      peak_xzSpatialmean(:,:)=peak_xzSpatialmean(:,:)+peak_xz(:,:,k)/1.e6/real(NM)
+      DcSpatialmean(:,:)=DcSpatialmean(:,:)+Dc(:,:,k)/real(NM)
+    enddo
+    do k=1,NM
+      dumFFT=0.d0;dumFFT(1:nxt,1:nzt)=(strinix(1:nxt,1:nzt,k)/1.e6-strinixSpatialmean(1:nxt,1:nzt))*slip1(1:nxt,1:nzt,k)/sqrt(sum(slip1(:,:,k)**2)/dble(nxt*nzt))
+      strinixpwr=strinixpwr+sum((strinix(1:nxt,1:nzt,k)/1.e6-strinixSpatialmean(1:nxt,1:nzt))**2*slip1(1:nxt,1:nzt,k)**2)/sum(slip1(1:nxt,1:nzt,k)**2)/real(NM)
+!      if(k==100)then
+!        do j=1,nzt
+!          write(399,'(10000E13.5)')(strinix(i,j,k)/1.e6-strinixSpatialmean(i,j),i=1,nxt)
+!        enddo
+!      endif      
+      CALL rlft3(dumFFT,dumFFTq,nxtfft,nztfft,1,1)
+      do i=1,nxtfft/2
+        strinixFFTc(i,:,k)=cmplx(dumFFT(2*i-1,:),dumFFT(2*i,:))*(dh*dh)/sqrt(dble(nxt*nzt)*dh*dh)
+      enddo
+      dumFFT=0.d0;dumFFT(1:nxt,1:nzt)=(peak_xz(1:nxt,1:nzt,k)/1.e6-peak_xzSpatialmean(1:nxt,1:nzt))*slip1(1:nxt,1:nzt,k)/sqrt(sum(slip1(:,:,k)**2)/dble(nxt*nzt))
+      peak_xzpwr=peak_xzpwr+sum((peak_xz(1:nxt,1:nzt,k)/1.e6-peak_xzSpatialmean(1:nxt,1:nzt))**2*slip1(1:nxt,1:nzt,k)**2)/sum(slip1(1:nxt,1:nzt,k)**2)/real(NM)
+      CALL rlft3(dumFFT,dumFFTq,nxtfft,nztfft,1,1)
+      do i=1,nxtfft/2
+        peak_xzFFTc(i,:,k)=cmplx(dumFFT(2*i-1,:),dumFFT(2*i,:))*(dh*dh)/sqrt(dble(nxt*nzt)*dh*dh)
+      enddo
+      dumFFT=0.d0;dumFFT(1:nxt,1:nzt)=(Dc(1:nxt,1:nzt,k)-DcSpatialmean(1:nxt,1:nzt))*slip1(1:nxt,1:nzt,k)/sqrt(sum(slip1(:,:,k)**2)/dble(nxt*nzt))
+      Dcpwr=Dcpwr+sum((Dc(1:nxt,1:nzt,k)-DcSpatialmean(1:nxt,1:nzt))**2*slip1(1:nxt,1:nzt,k)**2)/sum(slip1(1:nxt,1:nzt,k)**2)/real(NM)
+      CALL rlft3(dumFFT,dumFFTq,nxtfft,nztfft,1,1)
+      do i=1,nxtfft/2
+        DcFFTc(i,:,k)=cmplx(dumFFT(2*i-1,:),dumFFT(2*i,:))*(dh*dh)/sqrt(dble(nxt*nzt)*dh*dh)
+      enddo
+      !DcFFTq(:,k)=dumFFTq(:,k)*dh*dh   !neglecting Nyqist frequency in DcFFTq
+    enddo
+    deallocate(dumFFT,dumFFTq)
+    write(*,*)'strinixpwr,peak_xzpwr,Dcpwr: ',strinixpwr,peak_xzpwr,Dcpwr
+    open(438,FILE='paramspectra.dat')
+    strinixpwr=0.;peak_xzpwr=0.;Dcpwr=0.
+    do j=1,nztfft
+      if(j<=nztfft/2+1)then
+        ky=1./dble(nztfft)/dh*real(j-1)
+      else
+        ky=-1./dble(nztfft)/dh*real(nztfft-j+1)
+      endif
+      do i=1,nxtfft/2    !neglecting Nyqist frequency in DcFFTq, otherwise +1
+        kx=1./dble(nxtfft)/dh*real(i-1)
+        krad=sqrt(kx**2+ky**2)
+        !write(438,*)krad,abs(DcFFTc(i,j,1))
+        write(438,'(4E13.5)')krad,sum(abs(strinixFFTc(i,j,:))**2)/real(NM),sum(abs(peak_xzFFTc(i,j,:))**2)/real(NM),sum(abs(DcFFTc(i,j,:))**2)/real(NM)
+        strinixpwr=strinixpwr+2.*sum(abs(strinixFFTc(i,j,:))**2)/real(NM)/dble(nxtfft*nztfft)/dh**2
+        peak_xzpwr=peak_xzpwr+2.*sum(abs(peak_xzFFTc(i,j,:))**2)/real(NM)/dble(nxtfft*nztfft)/dh**2
+        Dcpwr=Dcpwr+2.*sum(abs(DcFFTc(i,j,:))**2)/real(NM)/dble(nxtfft*nztfft)/dh**2
+      enddo
+    enddo
+    write(*,*)strinixpwr,peak_xzpwr,Dcpwr
+    close(438)
     
     END
     
@@ -594,4 +657,135 @@ coh=0.5e6
         endif
       endif
       goto 1
+    END
+
+
+      SUBROUTINE rlft3(data,speq,nn1,nn2,nn3,isign)
+      INTEGER isign,nn1,nn2,nn3
+      COMPLEX*16 data(nn1/2,nn2,nn3),speq(nn2,nn3)
+      INTEGER i1,i2,i3,j1,j2,j3,nn(3)
+      DOUBLE PRECISION theta,wi,wpi,wpr,wr,wtemp
+      COMPLEX*16 c1,c2,h1,h2,w
+      c1=dcmplx(0.5d0,0.0d0)
+      c2=dcmplx(0.0d0,-0.5d0*isign)
+      theta=6.28318530717959d0/dble(isign*nn1)
+      wpr=-2.0d0*sin(0.5d0*theta)**2
+      wpi=sin(theta)
+      nn(1)=nn1/2
+      nn(2)=nn2
+      nn(3)=nn3
+      if(isign.eq.1)then
+        call fourn(data,nn,3,isign)
+        do 12 i3=1,nn3
+          do 11 i2=1,nn2
+            speq(i2,i3)=data(1,i2,i3)
+11        continue
+12      continue
+      endif
+      do 15 i3=1,nn3
+        j3=1
+        if (i3.ne.1) j3=nn3-i3+2
+        wr=1.0d0
+        wi=0.0d0
+        do 14 i1=1,nn1/4+1
+          j1=nn1/2-i1+2
+          do 13 i2=1,nn2
+            j2=1
+            if (i2.ne.1) j2=nn2-i2+2
+            if(i1.eq.1)then
+              h1=c1*(data(1,i2,i3)+conjg(speq(j2,j3)))
+              h2=c2*(data(1,i2,i3)-conjg(speq(j2,j3)))
+              data(1,i2,i3)=h1+h2
+              speq(j2,j3)=conjg(h1-h2)
+            else
+              h1=c1*(data(i1,i2,i3)+conjg(data(j1,j2,j3)))
+              h2=c2*(data(i1,i2,i3)-conjg(data(j1,j2,j3)))
+              data(i1,i2,i3)=h1+w*h2
+              data(j1,j2,j3)=conjg(h1-w*h2)
+            endif
+13        continue
+          wtemp=wr
+          wr=wr*wpr-wi*wpi+wr
+          wi=wi*wpr+wtemp*wpi+wi
+          w=dcmplx(dble(wr),dble(wi))
+14      continue
+15    continue
+      if(isign.eq.-1)then
+        call fourn(data,nn,3,isign)
+      endif
+      return
+      END
+
+    
+      SUBROUTINE fourn(data,nn,ndim,isign)
+      INTEGER isign,ndim,nn(ndim)
+      DOUBLE PRECISION data(*)
+      INTEGER i1,i2,i2rev,i3,i3rev,ibit,idim,ifp1,ifp2,ip1,ip2,ip3,k1,k2,n,nprev,nrem,ntot
+      DOUBLE PRECISION tempi,tempr
+      DOUBLE PRECISION theta,wi,wpi,wpr,wr,wtemp
+      ntot=1
+      do 11 idim=1,ndim
+        ntot=ntot*nn(idim)
+11    continue
+      nprev=1
+      do 18 idim=1,ndim
+        n=nn(idim)
+        nrem=ntot/(n*nprev)
+        ip1=2*nprev
+        ip2=ip1*n
+        ip3=ip2*nrem
+        i2rev=1
+        do 14 i2=1,ip2,ip1
+          if(i2.lt.i2rev)then
+            do 13 i1=i2,i2+ip1-2,2
+              do 12 i3=i1,ip3,ip2
+                i3rev=i2rev+i3-i2
+                tempr=data(i3)
+                tempi=data(i3+1)
+                data(i3)=data(i3rev)
+                data(i3+1)=data(i3rev+1)
+                data(i3rev)=tempr
+                data(i3rev+1)=tempi
+12            continue
+13          continue
+          endif
+          ibit=ip2/2
+1         if ((ibit.ge.ip1).and.(i2rev.gt.ibit)) then
+            i2rev=i2rev-ibit
+            ibit=ibit/2
+          goto 1
+          endif
+          i2rev=i2rev+ibit
+14      continue
+        ifp1=ip1
+2       if(ifp1.lt.ip2)then
+          ifp2=2*ifp1
+          theta=isign*6.28318530717959d0/(ifp2/ip1)
+          wpr=-2.d0*sin(0.5d0*theta)**2
+          wpi=sin(theta)
+          wr=1.d0
+          wi=0.d0
+          do 17 i3=1,ifp1,ip1
+            do 16 i1=i3,i3+ip1-2,2
+              do 15 i2=i1,ip3,ifp2
+                k1=i2
+                k2=k1+ifp1
+                tempr=dble(wr)*data(k2)-dble(wi)*data(k2+1)
+                tempi=dble(wr)*data(k2+1)+dble(wi)*data(k2)
+                data(k2)=data(k1)-tempr
+                data(k2+1)=data(k1+1)-tempi
+                data(k1)=data(k1)+tempr
+                data(k1+1)=data(k1+1)+tempi
+15            continue
+16          continue
+            wtemp=wr
+            wr=wr*wpr-wi*wpi+wr
+            wi=wi*wpr+wtemp*wpi+wi
+17        continue
+          ifp1=ifp2
+        goto 2
+        endif
+        nprev=n*nprev
+18    continue
+      return
       END
