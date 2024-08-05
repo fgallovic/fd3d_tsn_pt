@@ -1,7 +1,7 @@
 !-------------------------------------------------------
-! Processing of Bayesian posterior samples from for fd3d_tsn_pt
+! Processing of Bayesian posterior samples from for fd3d_tsn_pt, considering multiple sampls*.dat a removing burn-in phase
 !-------------------------------------------------------
-! Authors: Frantisek Gallovic and Jan Premus (10/2023)
+! Authors: Frantisek Gallovic, Jan Premus, ¼. Valentová (10/2024)
 ! Charles University in Prague, Faculty of Mathematics and Physics
 
 ! This code is published under the GNU General Public License. To any
@@ -21,6 +21,10 @@
       real    :: dh,dt
     END MODULE
 
+    MODULE mask_pb
+      REAL,ALLOCATABLE,DIMENSION(:,:):: mask
+    END MODULE
+    
     MODULE friction_pb
       USE fd3dparam_pb
       real,allocatable,dimension(:,:,:):: strinix,peak_xz,Dc
@@ -58,12 +62,14 @@
     USE friction_pb
     USE interp_pb
     USE medium_pb
+    USE mask_pb
     IMPLICIT NONE
     INTEGER,PARAMETER:: NMAX=1e6
+    INTEGER,ALLOCATABLE,DIMENSION(:):: accepted,iknow,kchain
     REAL,ALLOCATABLE,DIMENSION(:):: normalstress,VRs,misfits,meansd,meansl,duration,nuclsize,EG,ER,RE,meanoverstress,M0,meanDc,meanStrengthExcess,meanslip,rupturearea,meanruptvel,meanstrength,EGrate,VRgps
     REAL,ALLOCATABLE,DIMENSION(:,:,:):: DcA,TsA,T0A,SEA,ruptime1,slip1,rise1,schange1,es1,strengthexcess1,rupvel1
     REAL,ALLOCATABLE,DIMENSION(:,:):: dum11,dum12,dum13,dum21,dum22,dum23,dum24,ms1
-    real, allocatable, dimension(:) :: MRate
+    real, allocatable, dimension(:) :: MRate,fc
     real, allocatable, dimension(:,:) :: MomentRate
     INTEGER, allocatable, dimension(:) :: indx
     REAL*8,ALLOCATABLE,DIMENSION(:,:) :: dumFFT,strinixSpatialmean,peak_xzSpatialmean,Dcspatialmean
@@ -73,11 +79,18 @@
     REAL M0dum,EGdum,ERdum,VRgpsdum
     REAL bestmisfit,misfitaccept,dum,coh,dyn,dumarr(8)
     REAL vr,mf,x0,z0,x,z,slipmax
-    INTEGER NM,NTOT
-    INTEGER i,j,k,ml(1),ncent
+    REAL M0toMw,Mw,maxmr,dur1,dur2
+    complex, allocatable :: cmrate(:)
+    INTEGER NM,NTOT,ndoub,nchains,kall
+    INTEGER i,j,k,kk,ml(1),ncent,ichain,ierr
     integer :: nsr,np
-
     real :: T,SRdur,dtseis
+    character(50) :: fname
+!    real :: burn=0.1
+!    integer :: idown=5
+    real :: burn=0.2
+    integer :: idown=1
+
 !--------------------
 ! Read the input file
 !--------------------
@@ -128,7 +141,7 @@
     read(10,*)
     read(10,*)NLI,NWI
     
-    ALLOCATE(misfits(NMAX),VRs(NMAX))
+    ALLOCATE(misfits(NMAX),VRs(NMAX),accepted(NMAX),iknow(NMAX))
     ALLOCATE(dum11(NLI,NWI),dum12(NLI,NWI),dum13(NLI,NWI),dum21(nxt,nzt),dum22(nxt,nzt),dum23(nxt,nzt),dum24(nxt,nzt))
     ALLOCATE(normalstress(nzt))
     do i=1,nzt
@@ -136,71 +149,199 @@
     enddo
 
 !------ Learn about misfits
-    k=0
-    open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
-!10  read(101,END=11,ERR=11)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),MRate(:)
-10  read(101,END=11,ERR=11)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),MRate(:),dumarr(1:5)
-    k=k+1
-    misfits(k)=mf
-    if(k==NMAX)stop 'Increase dimension!'
-    goto 10
-11  close(101)
-    NTOT=k
-    write(*,*)'Total number of models: ',NTOT
-    bestmisfit=minval(misfits(1:NTOT))
-    write(*,*)'Best misfit: ',bestmisfit
-    
-!    misfitaccept=maxval(misfits(1:ntot))
-!    misfitaccept=bestmisfit-log(0.02) !Probability threashold (2% for real data)
-!    misfitaccept=bestmisfit-log(0.05) !Probability threashold (5% for real data)
-!    misfitaccept=bestmisfit-log(0.01) !Probability threashold (1% for real data)
-    misfitaccept=bestmisfit-log(0.001) !Probability threashold (1%% for inv1)
-!   misfitaccept=bestmisfit-log(0.00001) !Probability threashold (.1%% for pga)
-!   misfitaccept=bestmisfit+20. !Honzuv napad
-    
-    NM=0
-    do i=1,NTOT
-      if(misfits(i)<=misfitaccept)NM=NM+1
-    enddo
-    write(*,*)'Number of accepted models: ',NM
-    DEALLOCATE(misfits,VRs)
+    accepted=0;iknow=0
+    write(*,*)'Set number of chains to read sampls files. If set to 0, will read the joint sampls.dat'
+    read(*,*) nchains
 
+    if (nchains==0) then    !READ FROM A SINGLE FILE
+      k=0
+      open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
+10    read(101,END=11,ERR=11)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),MRate(:),dumarr(1:5)
+      k=k+1
+      misfits(k)=mf
+      if(k==NMAX)stop 'Increase dimension!'
+      goto 10
+11    close(101)
+      NTOT=k
+      bestmisfit=minval(misfits(1:NTOT))
+      write(*,*)'Total number of models: ',NTOT
+      write(*,*)'Best misfit: ',bestmisfit
+!      misfitaccept=maxval(misfits(1:ntot))
+!      misfitaccept=bestmisfit-log(0.02) !Probability threashold (2% for real data)
+!      misfitaccept=bestmisfit-log(0.05) !Probability threashold (5% for real data)
+!      misfitaccept=bestmisfit-log(0.01) !Probability threashold (1% for real data)
+      misfitaccept=bestmisfit-log(0.001) !Probability threashold (1%% for inv1)
+!     misfitaccept=bestmisfit-log(0.00001) !Probability threashold (.1%% for pga)
+!     misfitaccept=bestmisfit+20. !Honzuv napad
+      allocate(T0A(NLI,NWI,NTOT),TsA(NLI,NWI,NTOT),DcA(NLI,NWI,NTOT))
+      open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
+      do i=1,NTOT
+        read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),MRate(:),dumarr(1:5)
+        do k=1,i-1
+          if (all(abs((dum11(:,:)-T0A(:,:,k)))<1.e-5) .and. all(abs((dum12(:,:)-TsA(:,:,k)))<1.e-5) .and. all(abs((dum13(:,:)-DcA(:,:,k)))<1.e-5))then
+            iknow(i)=1
+            exit
+          endif
+        enddo
+        if(mf<=misfitaccept.and.iknow(i)==0)accepted(i)=1
+        T0A(:,:,i)=dum11(:,:)
+        TsA(:,:,i)=dum12(:,:)
+        DcA(:,:,i)=dum13(:,:)
+      enddo
+      NM=sum(accepted)
+      ndoub=sum(iknow)
+      write(*,*)'Removed doubles:',ndoub
+      write(*,*)'Number of accepted models: ',NM
+      DEALLOCATE(T0A,TsA,DcA)
+      DEALLOCATE(misfits,VRs)
+      close(101)
+      
+    else    !READ FROM MULTIPLE FILES
+      kall=0
+      allocate(kchain(nchains))
+      do ichain=1,nchains
+        write(fname,'(a,i3.3)') 'sampls',ichain
+        write(*,*)fname
+        open(101,FILE=fname,FORM='UNFORMATTED',ACCESS='STREAM')
+        ierr=0
+        k=0
+        do while(ierr==0)
+          read(101,iostat=ierr)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),MRate(:),dumarr(1:5)
+          k=k+1
+          kall=kall+1
+          misfits(kall)=mf
+        enddo
+        close(101)
+        kchain(ichain)=k-1
+        kall=kall-1
+      enddo
+      NTOT=kall !=sum(kchain(:))
+      bestmisfit=minval(misfits(1:NTOT))
+      write(*,*)'Total number of models: ',NTOT
+      write(*,*)'Best misfit: ',bestmisfit
+      !reduce samples by the burn-in phase and by idown on each chain
+      kall=0;kk=0
+      do ichain=1,nchains
+        do j=1,kchain(ichain) !NTOT
+           kk=kk+1
+           if (j>nint(burn*kchain(ichain)) .and. mod(kk,idown)==0)kall=kall+1
+        enddo
+      enddo
+      NTOT=kall
+!      NTOT=ceiling(sum(nint((1.-burn)*kchain(:)))/real(idown))
+      write(*,*)'Total number of models after reduction: ',NTOT
+!      misfitaccept=maxval(misfits(1:ntot))
+!      misfitaccept=bestmisfit-log(0.02) !Probability threashold (2% for real data)
+!      misfitaccept=bestmisfit-log(0.05) !Probability threashold (5% for real data)
+!      misfitaccept=bestmisfit-log(0.01) !Probability threashold (1% for real data)
+      misfitaccept=bestmisfit-log(0.001) !Probability threashold (1%% for inv1)
+!     misfitaccept=bestmisfit-log(0.00001) !Probability threashold (.1%% for pga)
+!     misfitaccept=bestmisfit+20. !Honzuv napad
+      misfitaccept=1.e10
+      allocate(T0A(NLI,NWI,NTOT),TsA(NLI,NWI,NTOT),DcA(NLI,NWI,NTOT))
+      i=0
+      kk=0
+      iknow=0
+      ndoub=0
+      do ichain=1,nchains
+        write(fname,'(a,i3.3)') 'sampls',ichain
+        open(101,FILE=fname,FORM='UNFORMATTED',ACCESS='STREAM')
+        do j=1,kchain(ichain) !NTOT
+          kk=kk+1
+          read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),MRate(:),dumarr(1:5)
+          if (j>nint(burn*kchain(ichain)) .and. mod(kk,idown)==0) then
+            i=i+1
+            do k=1,i-1
+              if (all(abs((dum11(:,:)-T0A(:,:,k)))<1.e-5) .and. all(abs((dum12(:,:)-TsA(:,:,k)))<1.e-5) .and. all(abs((dum13(:,:)-DcA(:,:,k)))<1.e-5))then
+                iknow(kk)=1
+                exit
+              endif
+            enddo
+            if(mf<=misfitaccept.and.iknow(kk)==0)accepted(kk)=1
+            T0A(:,:,i)=dum11(:,:)
+            TsA(:,:,i)=dum12(:,:)
+            DcA(:,:,i)=dum13(:,:)
+          endif
+        enddo
+        close(101)
+      enddo
+      NM=sum(accepted)
+      ndoub=sum(iknow)
+      write(*,*)'Removed doubles:',ndoub
+      write(*,*)'Number of accepted models: ',NM
+      DEALLOCATE(T0A,TsA,DcA)
+      DEALLOCATE(misfits,VRs)
+    endif
+      
 !------ Read accepted models
     allocate(strinix(nxt,nzt,NM),peak_xz(nxt,nzt,NM),Dc(nxt,nzt,NM))
     ALLOCATE(misfits(NM),VRs(NM),meansd(NM),meansl(NM),duration(NM),nuclsize(NM),EG(NM),ER(NM),RE(NM),meanoverstress(NM),M0(NM),EGrate(NM),VRgps(NM))
     ALLOCATE(meanDc(NM),meanStrengthExcess(NM),meanslip(NM),rupturearea(NM),meanruptvel(NM),meanstrength(NM))
     allocate(DcA(NLI,NWI,NM),TsA(NLI,NWI,NM),T0A(NLI,NWI,NM),SEA(NLI,NWI,NM))
     allocate(ruptime1(nxt,nzt,NM),slip1(nxt,nzt,NM),rise1(nxt,nzt,NM),schange1(nxt,nzt,NM),es1(nxt,nzt,NM),ms1(nxt,nzt),strengthexcess1(nxt,nzt,NM),rupvel1(nxt,nzt,NM))
-    allocate(MomentRate(nSr,NM),indx(NM))
-    open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
-    k=0
-    do i=1,NTOT
-      read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),Mrate(:),M0dum,EGdum,ERdum,dum,VRgpsdum
-      if(mf<=misfitaccept)then
-        k=k+1
-        misfits(k)=mf
-        VRs(k)=vr
-        T0A(:,:,k)=dum11(:,:)
-        TsA(:,:,k)=dum12(:,:)
-        DcA(:,:,k)=dum13(:,:)
-        
-        do j=1,NWI
-          SEA(:,j,k)=TsA(:,j,k)*normalstress((j-1)*((nzt)/(NWI-1))+1)-T0A(:,j,k)
+    allocate(MomentRate(nSr,NM),indx(NM),fc(NM))
+    if (nchains==0) then    !READ FROM A SINGLE FILE
+      open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
+      k=0
+      do i=1,NTOT
+        read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),Mrate(:),M0dum,EGdum,ERdum,dum,VRgpsdum
+        if(accepted(i)==1)then
+          k=k+1
+          misfits(k)=mf
+          VRs(k)=vr
+          T0A(:,:,k)=dum11(:,:)
+          TsA(:,:,k)=dum12(:,:)
+          DcA(:,:,k)=dum13(:,:)
+          do kk=1,NWI
+            SEA(:,kk,k)=TsA(:,kk,k)*normalstress((kk-1)*((nzt)/(NWI-1))+1)-T0A(:,kk,k)
+          enddo
+          ruptime1(:,:,k)=dum21(:,:)
+          slip1(:,:,k)=dum22(:,:)
+          rise1(:,:,k)=dum23(:,:)
+          schange1(:,:,k)=dum24(:,:)
+          MomentRate(:,k)=Mrate(:)
+          M0(k)=M0dum
+          Eg(k)=Egdum
+          Er(k)=Erdum
+          VRgps(k)=VRgpsdum
+        endif
+      enddo
+      close(101)
+    else
+      open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
+      k=0
+      i=0
+      do ichain=1,nchains
+        write(fname,'(a,i3.3)') 'sampls',ichain
+        open(101,FILE=fname,FORM='UNFORMATTED',ACCESS='STREAM')
+        do j=1,kchain(ichain)
+          read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),Mrate(:),M0dum,EGdum,ERdum,dum,VRgpsdum
+          i=i+1
+          if(accepted(i)==1)then
+            k=k+1
+            misfits(k)=mf
+            VRs(k)=vr
+            T0A(:,:,k)=dum11(:,:)
+            TsA(:,:,k)=dum12(:,:)
+            DcA(:,:,k)=dum13(:,:)
+            do kk=1,NWI
+              SEA(:,kk,k)=TsA(:,kk,k)*normalstress((kk-1)*((nzt)/(NWI-1))+1)-T0A(:,kk,k)
+            enddo
+            ruptime1(:,:,k)=dum21(:,:)
+            slip1(:,:,k)=dum22(:,:)
+            rise1(:,:,k)=dum23(:,:)
+            schange1(:,:,k)=dum24(:,:)
+            MomentRate(:,k)=Mrate(:)
+            M0(k)=M0dum
+            Eg(k)=Egdum
+            Er(k)=Erdum
+            VRgps(k)=VRgpsdum
+          endif
         enddo
-        
-        ruptime1(:,:,k)=dum21(:,:)
-        slip1(:,:,k)=dum22(:,:)
-        rise1(:,:,k)=dum23(:,:)
-        schange1(:,:,k)=dum24(:,:)
-        MomentRate(:,k)=Mrate(:)
-        M0(k)=M0dum
-        Eg(k)=Egdum
-        Er(k)=Erdum
-        VRgps(k)=VRgpsdum
-      endif
-    enddo
-    close(101)
-
+        close(101)
+      enddo
+     
+    endif
 ! Save best and worst accepted models
     open(201,FILE='forwardmodel.best.dat')
     ml(:)=minloc(misfits(:))
@@ -217,6 +358,7 @@
 
 coh=0.5e6
 
+    allocate(cmrate(np))
     do k=1,NM
       CALL interpolate(T0A(:,:,k),strinix(:,:,k))
       CALL interpolate(TSA(:,:,k),ms1(:,:))
@@ -310,8 +452,29 @@ coh=0.5e6
       
       meanStrengthExcess(k)=-sum(strengthexcess1(:,:,k)*slip1(:,:,k),strengthexcess1(:,:,k)<1.e5)/sum(slip1(:,:,k),strengthexcess1(:,:,k)<1.e5)/1.e6
 
-!                               1         2       3         4            5        6    7      8       9             10          11      12             13               14       15 16      17             18            19            20
-      write(201,'(100E13.5)')misfits(k),VRs(k),meansd(k),duration(k),nuclsize(k),EG(k),ER(k),RE(k),meansl(k),meanoverstress(k),M0(k),meanDc(k),meanStrengthExcess(k),meanslip(k),x0,z0,rupturearea(k),meanruptvel(k),meanstrength(k),Egrate(k)
+      cmrate=0.
+      cmrate(1:nSr)=MomentRate(1:nSr,k)
+      call four1(cmrate,np,-1)
+      cmrate=cmrate*dtseis
+      call findfc(cmrate(:),m0(k),np,dtseis,fc(k))
+      maxMR=maxval(MomentRate(1:nSr,k))
+      i=0
+      ierr=0
+      do while (ierr==0)
+        i=i+1
+        if (Momentrate(i,k)>0.1*maxMR) ierr=1
+      enddo
+      ierr=0
+      j=nSr+1
+      do while (ierr==0)
+        j=j-1
+        if (momentrate(j,k)>0.1*maxMR) ierr=1
+      enddo
+      dur1=(j-i)*dtseis
+      dur2=2*m0(k)/maxMR
+      
+!                               1         2       3         4            5        6    7      8       9             10          11      12             13               14       15 16      17             18            19            20       21
+      write(201,'(100E13.5)')misfits(k),VRs(k),meansd(k),duration(k),nuclsize(k),EG(k),ER(k),RE(k),meansl(k),meanoverstress(k),M0(k),meanDc(k),meanStrengthExcess(k),meanslip(k),x0,z0,rupturearea(k),meanruptvel(k),meanstrength(k),Egrate(k),fc(k)
     enddo
     close(201)
 
@@ -346,6 +509,15 @@ coh=0.5e6
       write(201,*)
     enddo
     close(201)
+
+    allocate(mask(nxt,nzt))
+    mask=1.
+    !Optional: Apply mask from file mask.dat, which can be obtained by processBayes.slipmodels.sh:
+    !open(201,FILE='mask.dat')
+    !do j=1,nzt
+    !  read(201,*)(mask(i,j),i=1,nxt)
+    !enddo
+    !close(201)
     
     open(201,FILE='processBayes.meansigma.dat')
     CALL meansigma(T0A(:,:,:)/1.e6,NM)
@@ -353,9 +525,9 @@ coh=0.5e6
     CALL meansigma(SEA(:,:,:)/1.e6,NM)
     CALL meansigma(DcA(:,:,:),NM)
     CALL meansigma2(es1(:,:,:),NM)
-!    CALL meansigma(SEA(:,:,:)/max(1.,T0A(:,:,:)),NM)  !Dava jen uzky pruh, hodne ta hodnota asi lita.
+    CALL meansigma(SEA(:,:,:)/max(1.,T0A(:,:,:)),NM)  !Dava jen uzky pruh, hodne ta hodnota asi lita.
     close(201)
-    
+
     open(201,FILE='processBayes.meansigma2.dat')
     CALL meansigma2(slip1(:,:,:),NM)
     CALL meansigma2(schange1(:,:,:),NM)
@@ -433,6 +605,7 @@ Dc=log(Dc)   !POZOR!!
     SUBROUTINE meansigma(arr,NM)
     USE fd3dparam_pb
     USE interp_pb
+    USE mask_pb
     IMPLICIT NONE
     INTEGER NM
     real arr(NLI,NWI,NM)
@@ -443,18 +616,18 @@ Dc=log(Dc)   !POZOR!!
     do j=1,NWI
       do i=1,NLI
         meanA(i,j)=sum(arr(i,j,1:NM))/real(NM)
-        sigmaA(i,j)=sqrt(sum(arr(i,j,:)**2)/real(NM)-meanA(i,j)**2)
+        sigmaA(i,j)=sqrt(sum(arr(i,j,1:NM)**2)/real(NM)-meanA(i,j)**2)
 !        sigmaA(i,j)=(maxval(arr(i,j,:))-minval(arr(i,j,:)))    !Histogram maximum width
       enddo
     enddo
     CALL interpolate(meanA(:,:),mean(:,:))
     CALL interpolate(sigmaA(:,:),sigma(:,:)) 
     do j=1,nzt
-      write(201,'(10000E13.5)')(mean(i,j),i=1,nxt)
+      write(201,'(10000E13.5)')(mean(i,j)*mask(i,j),i=1,nxt)
     enddo
     write(201,*);write(201,*)
     do j=1,nzt
-      write(201,'(10000E13.5)')(sigma(i,j)*2.,i=1,nxt)
+      write(201,'(10000E13.5)')(sigma(i,j)*2.*mask(i,j),i=1,nxt)
 !      write(201,'(10000E13.5)')(sigma(i,j)/mean(i,j),i=1,nxt)  !Relative sigma
     enddo
     write(201,*);write(201,*)
@@ -475,7 +648,7 @@ Dc=log(Dc)   !POZOR!!
     do j=1,nzt
       do i=1,nxt
         mean(i,j)=sum(arr(i,j,1:NM))/real(NM)
-        sigma(i,j)=sqrt(sum(arr(i,j,:)**2)/real(NM)-mean(i,j)**2)
+        sigma(i,j)=sqrt(sum(arr(i,j,1:NM)**2)/real(NM)-mean(i,j)**2)
 !        sigma(i,j)=(maxval(arr(i,j,:))-minval(arr(i,j,:)))    !Histogram maximum width
       enddo
     enddo
@@ -491,6 +664,97 @@ Dc=log(Dc)   !POZOR!!
     deallocate(mean,sigma)
     
     END
+    
+subroutine findfc(mrspectr,m0,np,dtseis,fc)
+implicit none
+complex :: mrspectr(1:np)
+real :: m0,dtseis
+real :: fc
+integer :: n1,np,ipoint,npoints,i
+integer :: fmin,fmax
+real :: fprop,df
+real*8 :: misf,bestmisf
+real :: fi(1:np),teor(1:np)
+df=1./(dtseis*np)
+fmin=floor(0.02/df)
+fmax=ceiling(5./df)
+n1=np/2+1
+do i=1,n1
+  fi(i)=(i-1)*df
+enddo
+bestmisf=1.e30
+do ipoint=fmin,fmax,2
+  fprop=df*(ipoint-1)
+  !fprop=fmin+(ipoint-1)*(fmax-fmin)/npoints
+  teor(:)=m0/(1.+(fi(:)/fprop)**2.)
+  misf=0.5*sum((log(abs(mrspectr(fmin:fmax))/teor(fmin:fmax)))**2)  
+  if (misf<bestmisf) then
+    bestmisf=misf
+    fc=fprop
+  endif
+enddo
+end subroutine    
+
+
+      SUBROUTINE four1(data,nn,isign)
+      INTEGER isign,nn
+      REAL data(2*nn)
+      INTEGER i,istep,j,m,mmax,n
+      REAL tempi,tempr
+      DOUBLE PRECISION theta,wi,wpi,wpr,wr,wtemp
+      n=2*nn
+      j=1
+      do 11 i=1,n,2
+        if(j.gt.i)then
+          tempr=data(j)
+          tempi=data(j+1)
+          data(j)=data(i)
+          data(j+1)=data(i+1)
+          data(i)=tempr
+          data(i+1)=tempi
+        endif
+        m=n/2
+1       if ((m.ge.2).and.(j.gt.m)) then
+          j=j-m
+          m=m/2
+        goto 1
+        endif
+        j=j+m
+11    continue
+      mmax=2
+2     if (n.gt.mmax) then
+        istep=2*mmax
+        theta=6.28318530717959d0/(isign*mmax)
+        wpr=-2.d0*sin(0.5d0*theta)**2
+        wpi=sin(theta)
+        wr=1.d0
+        wi=0.d0
+        do 13 m=1,mmax,2
+          do 12 i=m,n,istep
+            j=i+mmax
+            tempr=sngl(wr)*data(j)-sngl(wi)*data(j+1)
+            tempi=sngl(wr)*data(j+1)+sngl(wi)*data(j)
+            data(j)=data(i)-tempr
+            data(j+1)=data(i+1)-tempi
+            data(i)=data(i)+tempr
+            data(i+1)=data(i+1)+tempi
+12        continue
+          wtemp=wr
+          wr=wr*wpr-wi*wpi+wr
+          wi=wi*wpr+wtemp*wpi+wi
+13      continue
+        mmax=istep
+      goto 2
+      endif
+      return
+    END
+
+    
+    FUNCTION M0toMw(m0)
+    implicit none
+    real :: m0,m0tomw
+    m0tomw=(log10(m0)-9.1)/1.5
+    END FUNCTION 
     
     
     SUBROUTINE interpolate(arrin,arrout)     ! Bilinear interpolation
