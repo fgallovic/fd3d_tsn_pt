@@ -38,6 +38,7 @@
       integer:: j
 #if defined FSPACE
       normstress=100.e6
+!      normstress=2.8e9
 !      normstress=21.e9
 #else
 #if defined DIPSLIP
@@ -75,7 +76,7 @@
     REAL*8,ALLOCATABLE,DIMENSION(:,:) :: dumFFT,strinixSpatialmean,peak_xzSpatialmean,Dcspatialmean
     COMPLEX*16,ALLOCATABLE :: dumFFTq(:),DcFFTc(:,:,:),strinixFFTc(:,:,:),peak_xzFFTc(:,:,:)!,DcFFTq(:,:)
     INTEGER nxtfft,nztfft
-    REAL kx,ky,krad,strinixpwr,peak_xzpwr,Dcpwr
+    REAL kx,ky,krad,strinixpwr,peak_xzpwr,Dcpwr,strinixpeak_xzxcorr,strinixDcxcorr,peak_xzDcxcorr
     REAL M0dum,EGdum,ERdum,VRgpsdum
     REAL bestmisfit,misfitaccept,dum,coh,dyn,dumarr(8)
     REAL vr,mf,x0,z0,x,z,slipmax
@@ -545,6 +546,7 @@ Dc=log(Dc)   !POZOR!!
     allocate(strinixSpatialmean(nxt,nzt),peak_xzSpatialmean(nxt,nzt),DcSpatialmean(nxt,nzt))
     strinixSpatialmean=0.d0;peak_xzSpatialmean=0.d0;DcSpatialmean=0.d0
     strinixpwr=0.;peak_xzpwr=0.;Dcpwr=0.
+    strinixpeak_xzxcorr=0.;strinixDcxcorr=0.;peak_xzDcxcorr=0.
     do k=1,NM
       strinixSpatialmean(:,:)=strinixSpatialmean(:,:)+strinix(:,:,k)/1.e6/real(NM)
       peak_xzSpatialmean(:,:)=peak_xzSpatialmean(:,:)+peak_xz(:,:,k)/1.e6/real(NM)
@@ -575,8 +577,12 @@ Dc=log(Dc)   !POZOR!!
         DcFFTc(i,:,k)=cmplx(dumFFT(2*i-1,:),dumFFT(2*i,:))*(dh*dh)/sqrt(dble(nxt*nzt)*dh*dh)
       enddo
       !DcFFTq(:,k)=dumFFTq(:,k)*dh*dh   !neglecting Nyqist frequency in DcFFTq
+      strinixpeak_xzxcorr=strinixpeak_xzxcorr+sum((strinix(1:nxt,1:nzt,k)/1.e6-strinixSpatialmean(1:nxt,1:nzt))*(peak_xz(1:nxt,1:nzt,k)/1.e6-peak_xzSpatialmean(1:nxt,1:nzt))*slip1(1:nxt,1:nzt,k)**2)/sum(slip1(1:nxt,1:nzt,k)**2)/real(NM)
+      strinixDcxcorr=strinixDcxcorr+sum((strinix(1:nxt,1:nzt,k)/1.e6-strinixSpatialmean(1:nxt,1:nzt))*(Dc(1:nxt,1:nzt,k)-DcSpatialmean(1:nxt,1:nzt))*slip1(1:nxt,1:nzt,k)**2)/sum(slip1(1:nxt,1:nzt,k)**2)/real(NM)
+      peak_xzDcxcorr=peak_xzDcxcorr+sum((peak_xz(1:nxt,1:nzt,k)/1.e6-peak_xzSpatialmean(1:nxt,1:nzt))*(Dc(1:nxt,1:nzt,k)-DcSpatialmean(1:nxt,1:nzt))*slip1(1:nxt,1:nzt,k)**2)/sum(slip1(1:nxt,1:nzt,k)**2)/real(NM)
     enddo
     deallocate(dumFFT,dumFFTq)
+    write(*,*)'strinixpeak_xzxcorr,strinixDcxcorr,peak_xzDcxcorr: ',strinixpeak_xzxcorr/sqrt(strinixpwr)/sqrt(peak_xzpwr),strinixDcxcorr/sqrt(strinixpwr)/sqrt(Dcpwr),peak_xzDcxcorr/sqrt(peak_xzpwr)/sqrt(Dcpwr)
     write(*,*)'strinixstd,peak_xzstd,Dcstd: ',sqrt(strinixpwr),sqrt(peak_xzpwr),sqrt(Dcpwr)
     open(438,FILE='paramspectra.dat')
     strinixpwr=0.;peak_xzpwr=0.;Dcpwr=0.
