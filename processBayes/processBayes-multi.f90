@@ -47,7 +47,8 @@
 #else
       normstress=max(1.e5,16200.*dh*real(nzt-j)*sin(dip/180.*pi))
       !normstress=min(18.*dh*real(nzt-j)*sin(dip/180.*pi)/1.e3,100.);normstress=1.e6*max(1.,normstress)
-       !normstress=min(18.*dh*real(nzt-j)*sin(dip/180.*pi)/1.e3,60.);normstress=1.e6*max(1.,normstress)
+      !normstress=min(18.*dh*real(nzt-j)*sin(dip/180.*pi)/1.e3,100.);normstress=1.e6*max(1.,normstress)
+      !normstress=min(18.*dh*real(nzt-j)*sin(dip/180.*pi)/1.e3,60.);normstress=1.e6*max(1.,normstress)
 #endif
 #endif
       END FUNCTION
@@ -66,12 +67,15 @@
     USE mask_pb
     IMPLICIT NONE
     INTEGER,PARAMETER:: NMAX=1e6
+    INTEGER,PARAMETER:: nper=56    !Three lines related to the smoothing of the moment rate spectra
+    REAL,PARAMETER:: fc1=0.5286,fc2=24.5279
+    REAL per(NMAX)
     INTEGER,ALLOCATABLE,DIMENSION(:):: accepted,iknow,kchain
-    REAL,ALLOCATABLE,DIMENSION(:):: normalstress,VRs,misfits,meansd,meansl,duration,nuclsize,EG,ER,RE,meanoverstress,M0,meanDc,meanStrengthExcess,meanslip,rupturearea,meanruptvel,meanstrength,EGrate,VRgps
+    REAL,ALLOCATABLE,DIMENSION(:):: normalstress,VRs,misfits,meansd,meansl,duration,nuclsize,EG,ER,RE,meanoverstress,M0,meanDc,meanStrengthExcess,meanslip,rupturearea,meanruptvel,meanstrength,EGrate,VRgps,x0,z0
     REAL,ALLOCATABLE,DIMENSION(:,:,:):: DcA,TsA,T0A,SEA,ruptime1,slip1,rise1,schange1,es1,strengthexcess1,rupvel1
     REAL,ALLOCATABLE,DIMENSION(:,:):: dum11,dum12,dum13,dum21,dum22,dum23,dum24,ms1
     real, allocatable, dimension(:) :: MRate,fc
-    real, allocatable, dimension(:,:) :: MomentRate
+    real, allocatable, dimension(:,:) :: MomentRate,MomentSpec
     INTEGER, allocatable, dimension(:) :: indx
     REAL*8,ALLOCATABLE,DIMENSION(:,:) :: dumFFT,strinixSpatialmean,peak_xzSpatialmean,Dcspatialmean
     COMPLEX*16,ALLOCATABLE :: dumFFTq(:),DcFFTc(:,:,:),strinixFFTc(:,:,:),peak_xzFFTc(:,:,:)!,DcFFTq(:,:)
@@ -79,17 +83,17 @@
     REAL kx,ky,krad,strinixpwr,peak_xzpwr,Dcpwr,strinixpeak_xzxcorr,strinixDcxcorr,peak_xzDcxcorr
     REAL M0dum,EGdum,ERdum,VRgpsdum
     REAL bestmisfit,misfitaccept,dum,coh,dyn,dumarr(8)
-    REAL vr,mf,x0,z0,x,z,slipmax
+    REAL vr,mf,x,z,slipmax
     REAL M0toMw,Mw,maxmr,dur1,dur2
     complex, allocatable :: cmrate(:)
     INTEGER NM,NTOT,ndoub,nchains,kall
     INTEGER i,j,k,kk,ml(1),ncent,ichain,ierr
     integer :: nsr,np
-    real :: T,SRdur,dtseis
+    real :: T,SRdur,dtseis,dfseis
     character(50) :: fname
 !    real :: burn=0.1
 !    integer :: idown=5
-    real :: burn=0.2
+    real :: burn=0.2,slipfact=0.05
     integer :: idown=1
 
 !--------------------
@@ -130,6 +134,7 @@
     close(10)
 
     dtseis=T/real(np)
+    dfseis=1./T
 !    nSR=ceiling(real(ntfd)/(dtseis/dt))
     nSR=ceiling(SRdur/dtseis)
     allocate(MRate(nSR))
@@ -277,10 +282,11 @@
 !------ Read accepted models
     allocate(strinix(nxt,nzt,NM),peak_xz(nxt,nzt,NM),Dc(nxt,nzt,NM))
     ALLOCATE(misfits(NM),VRs(NM),meansd(NM),meansl(NM),duration(NM),nuclsize(NM),EG(NM),ER(NM),RE(NM),meanoverstress(NM),M0(NM),EGrate(NM),VRgps(NM))
-    ALLOCATE(meanDc(NM),meanStrengthExcess(NM),meanslip(NM),rupturearea(NM),meanruptvel(NM),meanstrength(NM))
+    ALLOCATE(meanDc(NM),meanStrengthExcess(NM),meanslip(NM),rupturearea(NM),meanruptvel(NM),meanstrength(NM),x0(NM),z0(NM))
     allocate(DcA(NLI,NWI,NM),TsA(NLI,NWI,NM),T0A(NLI,NWI,NM),SEA(NLI,NWI,NM))
     allocate(ruptime1(nxt,nzt,NM),slip1(nxt,nzt,NM),rise1(nxt,nzt,NM),schange1(nxt,nzt,NM),es1(nxt,nzt,NM),ms1(nxt,nzt),strengthexcess1(nxt,nzt,NM),rupvel1(nxt,nzt,NM))
-    allocate(MomentRate(nSr,NM),indx(NM),fc(NM))
+    allocate(MomentRate(nSr,NM),MomentSpec(nper,NM),indx(NM),fc(NM))
+
     if (nchains==0) then    !READ FROM A SINGLE FILE
       open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
       k=0
@@ -309,7 +315,6 @@
       enddo
       close(101)
     else
-      open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
       k=0
       i=0
       do ichain=1,nchains
@@ -353,7 +358,6 @@
     write(201,'(10000E13.5)')misfits(ml(1)),VRs(ml(1)),T0A(:,:,ml(1)),TsA(:,:,ml(1)),DcA(:,:,ml(1))
     close(201)
     
-    open(201,FILE='processBayes.dat')
     open(231,FILE='forwardmodel.lowoverstress.dat')
     open(232,FILE='forwardmodel.smallestnucl.dat')
 
@@ -371,8 +375,8 @@ coh=0.5e6
       slipmax=maxval(slip1(:,:,k))
 
 !calculate nucleation center
-      x0=0.
-      z0=0.
+      x0(k)=0.
+      z0(k)=0.
       ncent=0
       !find  center
       do j=1,nzt
@@ -380,14 +384,14 @@ coh=0.5e6
         do i=1,nxt
           x=dh*(real(i)-0.5)
           if (peak_xz(i,j,k)<=strinix(i,j,k)) then
-            x0=x0+x
-            z0=z0+z
+            x0(k)=x0(k)+x
+            z0(k)=z0(k)+z
             ncent=ncent+1
           endif
         enddo
       enddo
-      x0=x0/ncent
-      z0=z0/ncent
+      x0(k)=x0(k)/ncent
+      z0(k)=z0(k)/ncent
 
       strengthexcess1(:,:,k)=strinix(:,:,k)-peak_xz(:,:,k)
 !      nuclsize(k)=dh*dh*COUNT(strengthexcess1(:,:,k)>=1.e5)/1.e6
@@ -403,7 +407,7 @@ coh=0.5e6
       if(mod(k,10)==0)then
         do j=1,nzt,10
           do i=1,nxt,10
-            if(slip1(i,j,k)>0.05*slipmax)write(428,*)slip1(i,j,k),Dc(i,j,k),strengthexcess1(i,j,k)
+            if(slip1(i,j,k)>slipfact*slipmax)write(428,*)slip1(i,j,k),Dc(i,j,k),strengthexcess1(i,j,k)
           enddo
         enddo
         write(428,*);write(428,*)
@@ -438,7 +442,7 @@ coh=0.5e6
 
       meansl(k)=sum(strinix(:,:,k)/peak_xz(:,:,k)*slip1(:,:,k))/sum(slip1(:,:,k)) !Stress level (Eq. 4 in Ripperger et al., 2007)
       
-      duration(k)=maxval(ruptime1(:,:,k),slip1(:,:,k)>0.05*slipmax)-minval(ruptime1(:,:,k),slip1(:,:,k)>0.05*slipmax)
+      duration(k)=maxval(ruptime1(:,:,k),slip1(:,:,k)>slipfact*slipmax)-minval(ruptime1(:,:,k),slip1(:,:,k)>slipfact*slipmax)
       
 !      M0(k)=sum(slip1(:,:,k)*mu1(:,nyt,:))*dh*dh
 
@@ -447,7 +451,7 @@ coh=0.5e6
 !      meanslip(k)=sum(slip1(:,:,k)*slip1(:,:,k))/sum(slip1(:,:,k))
       meanslip(k)=sum(slip1(:,:,k))/count(slip1(:,:,k)>0.001)
 
-      rupturearea(k)=count(slip1(:,:,k)>0.05*slipmax)*dh*dh
+      rupturearea(k)=count(slip1(:,:,k)>slipfact*slipmax)*dh*dh
       
       EGrate(k)=EG(k)/rupturearea(k)
       
@@ -458,6 +462,10 @@ coh=0.5e6
       call four1(cmrate,np,-1)
       cmrate=cmrate*dtseis
       call findfc(cmrate(:),m0(k),np,dtseis,fc(k))
+      do j=1,np/2+1
+        cmrate(j)=-cmrate(j)*(2.*pi*dfseis*(j-1))**2
+      enddo
+      CALL smoothspectrum(np,nper,dfseis,fc1,fc2,abs(cmrate),per(:),MomentSpec(:,k))
       maxMR=maxval(MomentRate(1:nSr,k))
       i=0
       ierr=0
@@ -473,9 +481,14 @@ coh=0.5e6
       enddo
       dur1=(j-i)*dtseis
       dur2=2*m0(k)/maxMR
-      
-!                               1         2       3         4            5        6    7      8       9             10          11      12             13               14       15 16      17             18            19            20       21
-      write(201,'(100E13.5)')misfits(k),VRs(k),meansd(k),duration(k),nuclsize(k),EG(k),ER(k),RE(k),meansl(k),meanoverstress(k),M0(k),meanDc(k),meanStrengthExcess(k),meanslip(k),x0,z0,rupturearea(k),meanruptvel(k),meanstrength(k),Egrate(k),fc(k)
+    enddo
+
+    CALL indexx(NM,exp(-(misfits(:)-bestmisfit)),indx)
+    open(201,FILE='processBayes.dat')
+    do j=NM,1,-1
+      k=indx(j)
+!                               1         2       3         4            5        6    7      8       9             10          11      12             13               14        15     16      17             18            19            20       21
+      write(201,'(100E13.5)')misfits(k),VRs(k),meansd(k),duration(k),nuclsize(k),EG(k),ER(k),RE(k),meansl(k),meanoverstress(k),M0(k),meanDc(k),meanStrengthExcess(k),meanslip(k),x0(k),z0(k),rupturearea(k),meanruptvel(k),meanstrength(k),Egrate(k),fc(k)
     enddo
     close(201)
 
@@ -501,15 +514,19 @@ coh=0.5e6
     close(202)
 
     open(201,FILE='processBayes.MomentRates.dat')
-    CALL indexx(NM,exp(-(misfits(:)-bestmisfit)),indx)
+    open(202,FILE='processBayes.MomentSpectra.dat')
     do k=1,NM
       do j=1,nSR
         write(201,'(10000E13.5)')dtseis*(j-1),MomentRate(j,indx(k)),exp(-(misfits(indx(k))-bestmisfit))
       enddo
-      write(201,*)
-      write(201,*)
+      do j=1,nper
+        write(202,'(10000E13.5)')per(j),MomentSpec(j,indx(k)),exp(-(misfits(indx(k))-bestmisfit))
+      enddo
+      write(201,*);write(201,*)
+      write(202,*);write(202,*)
     enddo
     close(201)
+    close(202)
 
     allocate(mask(nxt,nzt))
     mask=1.
@@ -521,12 +538,12 @@ coh=0.5e6
     !close(201)
     
     open(201,FILE='processBayes.meansigma.dat')
-    CALL meansigma(T0A(:,:,:)/1.e6,NM)
+    CALL meansigma(T0A(:,:,:),NM)   !Removed conversion to MPa, so the plotting scripts must be modified accordingly
     CALL meansigma(TSA(:,:,:),NM)
-    CALL meansigma(SEA(:,:,:)/1.e6,NM)
+    CALL meansigma(SEA(:,:,:),NM)   !Removed conversion to MPa, so the plotting scripts must be modified accordingly
     CALL meansigma(DcA(:,:,:),NM)
     CALL meansigma2(es1(:,:,:),NM)
-    CALL meansigma(SEA(:,:,:)/max(1.,T0A(:,:,:)),NM)  !Dava jen uzky pruh, hodne ta hodnota asi lita.
+!    CALL meansigma(SEA(:,:,:)/max(1.,T0A(:,:,:)),NM)  !Dava jen uzky pruh, hodne ta hodnota asi lita.
     close(201)
 
     open(201,FILE='processBayes.meansigma2.dat')
@@ -564,8 +581,10 @@ Dc=log(Dc)   !POZOR!!
       do i=1,nxtfft/2
         strinixFFTc(i,:,k)=cmplx(dumFFT(2*i-1,:),dumFFT(2*i,:))*(dh*dh)/sqrt(dble(nxt*nzt)*dh*dh)
       enddo
-      dumFFT=0.d0;dumFFT(1:nxt,1:nzt)=(peak_xz(1:nxt,1:nzt,k)/1.e6-peak_xzSpatialmean(1:nxt,1:nzt))*slip1(1:nxt,1:nzt,k)/sqrt(sum(slip1(:,:,k)**2)/dble(nxt*nzt))
-      peak_xzpwr=peak_xzpwr+sum((peak_xz(1:nxt,1:nzt,k)/1.e6-peak_xzSpatialmean(1:nxt,1:nzt))**2*slip1(1:nxt,1:nzt,k)**2)/sum(slip1(1:nxt,1:nzt,k)**2)/real(NM)
+!      dumFFT=0.d0;dumFFT(1:nxt,1:nzt)=(peak_xz(1:nxt,1:nzt,k)/1.e6-peak_xzSpatialmean(1:nxt,1:nzt))*slip1(1:nxt,1:nzt,k)/sqrt(sum(slip1(:,:,k)**2)/dble(nxt*nzt))  !peak stress
+!      peak_xzpwr=peak_xzpwr+sum((peak_xz(1:nxt,1:nzt,k)/1.e6-peak_xzSpatialmean(1:nxt,1:nzt))**2*slip1(1:nxt,1:nzt,k)**2)/sum(slip1(1:nxt,1:nzt,k)**2)/real(NM)   !peak stress
+      dumFFT=0.d0;dumFFT(1:nxt,1:nzt)=(peak_xz(1:nxt,1:nzt,k)/1.e6-peak_xzSpatialmean(1:nxt,1:nzt)-(strinix(1:nxt,1:nzt,k)/1.e6-strinixSpatialmean(1:nxt,1:nzt)))*slip1(1:nxt,1:nzt,k)/sqrt(sum(slip1(:,:,k)**2)/dble(nxt*nzt))   !strength excess
+      peak_xzpwr=peak_xzpwr+sum((peak_xz(1:nxt,1:nzt,k)/1.e6-peak_xzSpatialmean(1:nxt,1:nzt)-(strinix(1:nxt,1:nzt,k)/1.e6-strinixSpatialmean(1:nxt,1:nzt)))**2*slip1(1:nxt,1:nzt,k)**2)/sum(slip1(1:nxt,1:nzt,k)**2)/real(NM)   !strength excess
       CALL rlft3(dumFFT,dumFFTq,nxtfft,nztfft,1,1)
       do i=1,nxtfft/2
         peak_xzFFTc(i,:,k)=cmplx(dumFFT(2*i-1,:),dumFFT(2*i,:))*(dh*dh)/sqrt(dble(nxt*nzt)*dh*dh)
@@ -576,8 +595,9 @@ Dc=log(Dc)   !POZOR!!
       do i=1,nxtfft/2
         DcFFTc(i,:,k)=cmplx(dumFFT(2*i-1,:),dumFFT(2*i,:))*(dh*dh)/sqrt(dble(nxt*nzt)*dh*dh)
       enddo
-      !DcFFTq(:,k)=dumFFTq(:,k)*dh*dh   !neglecting Nyqist frequency in DcFFTq
-      strinixpeak_xzxcorr=strinixpeak_xzxcorr+sum((strinix(1:nxt,1:nzt,k)/1.e6-strinixSpatialmean(1:nxt,1:nzt))*(peak_xz(1:nxt,1:nzt,k)/1.e6-peak_xzSpatialmean(1:nxt,1:nzt))*slip1(1:nxt,1:nzt,k)**2)/sum(slip1(1:nxt,1:nzt,k)**2)/real(NM)
+      !DcFFTq(:,k)=dumFFTq(:,k)*(dh*dh)/sqrt(dble(nxt*nzt)*dh*dh)   !neglecting Nyqist frequency in DcFFTq
+      !strinixpeak_xzxcorr=strinixpeak_xzxcorr+sum((strinix(1:nxt,1:nzt,k)/1.e6-strinixSpatialmean(1:nxt,1:nzt))*(peak_xz(1:nxt,1:nzt,k)/1.e6-peak_xzSpatialmean(1:nxt,1:nzt))*slip1(1:nxt,1:nzt,k)**2)/sum(slip1(1:nxt,1:nzt,k)**2)/real(NM)   !peak stress
+      strinixpeak_xzxcorr=strinixpeak_xzxcorr+sum((strinix(1:nxt,1:nzt,k)/1.e6-strinixSpatialmean(1:nxt,1:nzt))*(peak_xz(1:nxt,1:nzt,k)/1.e6-peak_xzSpatialmean(1:nxt,1:nzt)-(strinix(1:nxt,1:nzt,k)/1.e6-strinixSpatialmean(1:nxt,1:nzt)))*slip1(1:nxt,1:nzt,k)**2)/sum(slip1(1:nxt,1:nzt,k)**2)/real(NM)   !strength excess
       strinixDcxcorr=strinixDcxcorr+sum((strinix(1:nxt,1:nzt,k)/1.e6-strinixSpatialmean(1:nxt,1:nzt))*(Dc(1:nxt,1:nzt,k)-DcSpatialmean(1:nxt,1:nzt))*slip1(1:nxt,1:nzt,k)**2)/sum(slip1(1:nxt,1:nzt,k)**2)/real(NM)
       peak_xzDcxcorr=peak_xzDcxcorr+sum((peak_xz(1:nxt,1:nzt,k)/1.e6-peak_xzSpatialmean(1:nxt,1:nzt))*(Dc(1:nxt,1:nzt,k)-DcSpatialmean(1:nxt,1:nzt))*slip1(1:nxt,1:nzt,k)**2)/sum(slip1(1:nxt,1:nzt,k)**2)/real(NM)
     enddo
@@ -761,6 +781,32 @@ end subroutine
     real :: m0,m0tomw
     m0tomw=(log10(m0)-9.1)/1.5
     END FUNCTION 
+    
+
+    SUBROUTINE smoothspectrum(Nf,Nfsmooth,df,flo,fro,spec,freqaxis,smoothspec)
+    !Smoothing spectrum by Konno & Omachi, 1998 BSSA, method
+    IMPLICIT NONE
+    REAL,PARAMETER:: b=40.
+    INTEGER Nf,Nfsmooth
+    REAL spec(Nf),WB(Nf/2+1,Nfsmooth),freqaxis(Nfsmooth),smoothspec(Nfsmooth),flo,fro
+    REAL freq,df
+    INTEGER i,j
+    do j=1,Nfsmooth
+      freqaxis(j)=10.**((log10(fro)-log10(flo))/real(Nfsmooth-1)*real(j-1)+log10(flo))
+      WB(:,j)=0.
+      do i=2,Nf/2+1
+        freq=df*(i-1)
+        if(freq.ne.freqaxis(j))then
+          WB(i,j)=(sin(b*log10(freq/freqaxis(j)))/b/log10(freq/freqaxis(j)))**4
+        else
+          WB(i,j)=1.
+        endif
+      enddo
+    enddo
+    do j=1,Nfsmooth
+      smoothspec(j)=sum(abs(spec(1:Nf/2+1))*WB(1:Nf/2+1,j))/sum(WB(1:Nf/2+1,j))
+    enddo        
+    END
     
     
     SUBROUTINE interpolate(arrin,arrout)     ! Bilinear interpolation
