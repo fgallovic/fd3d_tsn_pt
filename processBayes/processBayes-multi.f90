@@ -37,8 +37,8 @@
       real:: normstress
       integer:: j
 #if defined FSPACE
-      normstress=100.e6
-!      normstress=2.8e9
+!      normstress=100.e6
+      normstress=2.8e9
 !      normstress=21.e9
 #else
 #if defined DIPSLIP
@@ -506,8 +506,8 @@ coh=0.5e6
     open(202,FILE='processBayes.strengthexcess.dat')
     do j=1,nzt
       do i=1,nxt
-        write(201,'(10000E13.5)')slip1(i,j,1:NM)
-        write(202,'(10000E13.5)')strengthexcess1(i,j,1:NM)/1.e6
+        write(201,'(10000E13.5)')(slip1(i,j,indx(k)),k=NM,1,-1)
+        write(202,'(10000E13.5)')(strengthexcess1(i,j,indx(k))/1.e6,k=NM,1,-1)
       enddo
     enddo
     close(201)
