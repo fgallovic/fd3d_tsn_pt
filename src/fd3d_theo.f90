@@ -835,19 +835,6 @@ _ACC_END_PARALLEL
 	  if (igps==1) then
 #if defined FVW	  
 	    call QDYN3D()
-        !MSX=0.
-		!MSZ=0.    
-        !do k=1,nSr 
-        !    kk=0
-        !    do j=1,NW
-        !        do i=1,NL
-		!          kk=((j-1)*NL+i-1)*nSR!kk=kk+1
-        !          MSX(kk)=MSX(kk)+MSRX(kk+(k-1)*NL*NW)*dtseis
-	!			  MSZ(kk)=MSZ(kk)+MSRZ(kk+(k-1)*NL*NW)*dtseis
-    !            enddo
-    !        enddo
-    !    enddo
-		
 #else
         MSX=0.
 		MSZ=0.
@@ -856,8 +843,8 @@ _ACC_END_PARALLEL
             do j=1,NW
                 do i=1,NL
 		          kk=kk+1
-                  MSX(kk)=MSX(kk)+MSRX(kk+(k-1)*NL*NW)*dtseis
-				  MSZ(kk)=MSZ(kk)+MSRZ(kk+(k-1)*NL*NW)*dtseis
+                  MSX(kk)=MSX(kk)+MSRX(((j-1)*NL+i-1)*nSR+k)*dtseis
+				  MSZ(kk)=MSZ(kk)+MSRZ(((j-1)*NL+i-1)*nSR+k)*dtseis
                 enddo
             enddo
         enddo
