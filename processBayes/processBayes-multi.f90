@@ -702,8 +702,8 @@ real :: fprop,df
 real*8 :: misf,bestmisf
 real :: fi(1:np),teor(1:np)
 df=1./(dtseis*np)
-fmin=floor(0.02/df)
-fmax=ceiling(5./df)
+fmin=max(1,floor(0.02/df))
+fmax=min(np/2,ceiling(5./df))
 n1=np/2+1
 do i=1,n1
   fi(i)=(i-1)*df
@@ -711,7 +711,6 @@ enddo
 bestmisf=1.e30
 do ipoint=fmin,fmax,2
   fprop=df*(ipoint-1)
-  !fprop=fmin+(ipoint-1)*(fmax-fmin)/npoints
   teor(:)=m0/(1.+(fi(:)/fprop)**2.)
   misf=0.5*sum((log(abs(mrspectr(fmin:fmax))/teor(fmin:fmax)))**2)  
   if (misf<bestmisf) then
