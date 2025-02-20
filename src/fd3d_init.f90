@@ -79,8 +79,6 @@
       real:: normstress
       integer:: j
 #if defined FSPACE
-!      normstress=100.e6
-!      normstress=21.e9
       normstress=constnormstress
 #else
 #if defined DIPSLIP

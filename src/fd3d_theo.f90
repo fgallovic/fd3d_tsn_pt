@@ -56,13 +56,13 @@
       integer :: ifrom,ito,jfrom,jto,kk,ii,jj
       integer :: stopnexttime
       integer, allocatable :: nkk(:)
-      real    :: rup_tresh, rv, cz, efracds, alphakoef, schangef
+      real    :: rup_tresh, rv, cz, efracds, alphakoef, schangef,  sr, tau_damp
       real,allocatable,dimension (:,:):: distX,distZ
       real,allocatable,dimension (:):: erad, efrac, timek
       real,allocatable,dimension (:,:,:)::slipt
 !     real,allocatable,dimension (:,:,:):: waveU,waveV,waveW
 #if defined FVW
-      real    :: fss, flv, psiss, dpsi,  sr
+      real    :: fss, flv, psiss, dpsi
       real    :: FXZ, GT, hx, hz, rr,AA,BB
 #endif
 !-------------------------------------------------------
@@ -464,10 +464,12 @@
 
 
 #else
+            !sr=sqrt((2*w1(i,nyt,k))**2+(2*uZ(i,k))**2)
+            !tau_damp=8.e6*((1+(sr/2.)**4.)**(1./4.)-1.)
             if (distZ(i,k).le.DcZ(i,k)) then
-              friction = peakZ(i,k) * (1.0 - distZ(i,k)/DcZ(i,k)) + dynZ(i,k)*distZ(i,k)/DcZ(i,k) + coh(i,k)
+              friction = peakZ(i,k) * (1.0 - distZ(i,k)/DcZ(i,k)) + dynZ(i,k)*distZ(i,k)/DcZ(i,k) + coh(i,k) !+ tau_damp
             else
-              friction = dynZ(i,k) + coh(i,k)
+              friction = dynZ(i,k) + coh(i,k) !+ tau_damp
             endif
             
             if (tabs>=friction.and.time<=SRdur) then
@@ -504,10 +506,12 @@
             schangeX(I,K) = (tx(i,k) + t0X(i,k))*friction/tabs! - t0X(i,k)
             
 #else
+            !sr=sqrt((2*wX(i,k))**2+(2*u1(i,nyt,k))**2)
+            !tau_damp=8.e6*((1+(sr/2.)**4.)**(1./4.)-1.)
             if (distX(i,k).le.Dc(i,k)) then
-              friction = peakX(i,k) * (1.0 - distX(i,k)/DcX(i,k)) + dynX(i,k)*distX(i,k)/DcX(i,k) + coh(i,k)
+              friction = peakX(i,k) * (1.0 - distX(i,k)/DcX(i,k)) + dynX(i,k)*distX(i,k)/DcX(i,k) + coh(i,k) !+ tau_damp
             else
-              friction = dynX(i,k) + coh(i,k)
+              friction = dynX(i,k) + coh(i,k) !+ tau_damp
             endif
             
             if (tabs>=friction.and.time<=SRdur) then

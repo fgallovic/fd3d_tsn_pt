@@ -197,14 +197,19 @@
           & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),slipOUT(1,:),slipOUT(2,:),M0,Eg,Er,-1000.,output_param(1),output_param(4),-1.,output_param(3)
 #endif
         close(594)
-      elseif(iwaveform==4.or.iwaveform==5)then
-        if(iwaveform==4)then
+      elseif(iwaveform==4.or.iwaveform==5.or.iwaveform==45)then
+        if(iwaveform==4.or.iwaveform==45)then
           call evalmisfitSspec()
-          write(*,*)'Variance reduction: ',VR
-        else  !iwaveform==5
-          call evalmisfitStime()
-          write(*,*)'Variance reduction: ',VR,' for shift',Tshift,'s'
+          write(*,*)'Variance reduction (spec): ',VR
         endif
+        if(iwaveform==5.or.iwaveform==45)then
+          call evalmisfitStime()
+          write(*,*)'Variance reduction (time): ',VR,' for shift',Tshift,'s'
+        endif
+        if(iwaveform==45)then
+          call evalmisfitSspectime()
+          write(*,*)'Variance reduction (total): ',VR
+        endif            
         open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
         write(594,'(10000000E13.5)')misfit,VR,nucl(1:5),T0I(:,:),aI(:,:),baI(:,:),psiI(:,:),f0I(:,:),fwI(:,:),DcI(:,:),vwI(:,:),viniI(:,:),M0,Eg,Er,Tshift,output_param(1),output_param(4),-1.,output_param(3)
         close(594)
@@ -279,13 +284,18 @@
           & rise(nabc+1:nxt-nabc,nabc+1:nzt-nfs),schangeX(nabc+1:nxt-nabc,nabc+1:nzt-nfs),MomentRate(:),M0,Eg,Er,-1000.,output_param(1),output_param(4),-1.,output_param(3)
 #endif
         close(594)
-      elseif(iwaveform==4.or.iwaveform==5)then
-        if(iwaveform==4)then
+      elseif(iwaveform==4.or.iwaveform==5.or.iwaveform==45)then
+        if(iwaveform==4.or.iwaveform==45)then
           call evalmisfitSspec()
-          write(*,*)'Variance reduction: ',VR
-        else  !iwaveform==5
+          write(*,*)'Variance reduction (spec): ',VR
+        endif
+        if(iwaveform==5.or.iwaveform==45)then
           call evalmisfitStime()
-          write(*,*)'Variance reduction: ',VR,' for shift',Tshift,'s'
+          write(*,*)'Variance reduction (time): ',VR,' for shift',Tshift,'s'
+        endif
+        if(iwaveform==45)then
+          call evalmisfitSspectime()
+          write(*,*)'Variance reduction (total): ',VR
         endif
         open(594,FILE='forwardmodelsamples.dat',iostat=ierr)
         write(594,'(10000000E13.5)')misfit,VR,T0I(:,:),TsI(:,:),DcI(:,:),M0,Eg,Er,Tshift,output_param(1),output_param(4),-1.,output_param(3)

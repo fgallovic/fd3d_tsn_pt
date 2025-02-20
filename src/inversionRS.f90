@@ -74,14 +74,21 @@
     read(10,*)StepSizeT0, StepSizea, StepSizeba, StepSizepsi, StepSizef0, StepSizefw, StepSizeDc, StepSizevw, StepSizevini
     read(10,*)StepSizenucl(1),StepSizenucl(2),StepSizenucl(3),StepSizenucl(4),StepSizenucl(5)
 	
-	read(10,*)SigmaData,Mwsigma    !Mw constraint applies only when Mwsigma>0 (see evalmisfit())
+    if (iwaveform==45)then
+      read(10,*)SigmaData4,SigmaData5,Mwsigma    !Mw constraint applies only when Mwsigma>0 (see evalmisfit())
+    else
+      read(10,*)SigmaData,Mwsigma    !Mw constraint applies only when Mwsigma>0 (see evalmisfit())
+    endif
+    if(iwaveform==4)SigmaData4=SigmaData
+    if(iwaveform==5)SigmaData5=SigmaData
+    
     if (iwaveform==2) then !for gmpes read additional parameters:
        read(10,*) GMPE_id ! 1 for Zhao, 2 for Boore
        read(10,*) nper !here we define periods for which psa are calculated
        allocate(per(nper))
        read(10,*) per(:) !periods stored here
     endif
-    if (iwaveform==4.or.iwaveform==5) then !for ASTFs read additional parameters:
+    if (iwaveform==4.or.iwaveform==5.or.iwaveform==45) then !for ASTFs read additional parameters:
       read(10,*)nper,VSt  !periods for smoothed spectra,S-wave velocity
       allocate(per(nper))
     endif
@@ -101,7 +108,7 @@
 	
 	!Read postseismic GFs and deformation 
 	if (igps==1) call readSGFs()
-    if(iwaveform==4.or.iwaveform==5)call readastfs()
+    if(iwaveform==4.or.iwaveform==5.or.iwaveform==45)call readastfs()
 	
     allocate(MomentRateA(nSr,nchains))
     if (iwaveform==2) allocate(ruptdistA(NRseis,nchains),pgaA(NRseis,nper,nchains))
@@ -235,6 +242,8 @@
      call evalmisfitSspec()
     elseif (iwaveform==5) then
      call evalmisfitStime()
+    elseif (iwaveform==45) then
+      call evalmisfitSspectime()
     endif
     newmisfit=misfit
 
@@ -457,6 +466,9 @@
       call evalmisfitSspec()
     elseif (iwaveform==5) then
       call evalmisfitStime()
+      write(*,*)'Initial model VR: ',VR,' for shift',Tshift,'s'
+    elseif (iwaveform==45) then
+      call evalmisfitSspectime()
       write(*,*)'Initial model VR: ',VR,' for shift',Tshift,'s'
     endif
 

@@ -59,14 +59,21 @@
     read(10,*)DcMin,DcMax
     read(10,*)ConstraintNucl,NuclConstraintL,NuclConstraintW,NuclConstraintR,OverstressConstraint	
     read(10,*)StepType,StepSizeT0,StepSizeTs,StepSizeD
-	read(10,*)SigmaData,Mwsigma    !Mw constraint applies only when Mwsigma>0 (see evalmisfit())
+	if(iwaveform==45)then
+      read(10,*)SigmaData4,SigmaData5,Mwsigma    !Mw constraint applies only when Mwsigma>0 (see evalmisfit())
+    else
+      read(10,*)SigmaData,Mwsigma    !Mw constraint applies only when Mwsigma>0 (see evalmisfit())
+    endif
+    if(iwaveform==4)SigmaData4=SigmaData
+    if(iwaveform==5)SigmaData5=SigmaData
+    
     if (iwaveform==2) then !for gmpes read additional parameters:
        read(10,*) GMPE_id ! 1 for Zhao, 2 for Boore
        read(10,*) nper !here we define periods for which psa are calculated
        allocate(per(nper))
        read(10,*) per(:) !periods stored here
     endif
-    if (iwaveform==4.or.iwaveform==5) then !for ASTFs read additional parameters:
+    if (iwaveform==4.or.iwaveform==5.or.iwaveform==45) then !for ASTFs read additional parameters:
       read(10,*)nper,VSt  !periods for smoothed spectra,S-wave velocity
       allocate(per(nper))
     endif
@@ -80,7 +87,7 @@
     !Read GFs and seismograms
     call readGFs()
     if(iwaveform==1)call readwaveforms()
-    if(iwaveform==4.or.iwaveform==5)call readastfs()
+    if(iwaveform==4.or.iwaveform==5.or.iwaveform==45)call readastfs()
 
     !Read postseismic GFs and deformation 
     if (igps==1) call readSGFs()	
@@ -209,16 +216,18 @@ jj=jj+1
     call syntseis()
 	if (igps==1) call CalcSyntGPS
     if (iwaveform==1) then
-     call evalmisfit() 
+      call evalmisfit() 
     elseif (iwaveform==2) then
-     call evalmisfit2()
+      call evalmisfit2()
     elseif (iwaveform==3) then
-     misfit=0.
-     call evalmisfitM()
+      misfit=0.
+      call evalmisfitM()
     elseif (iwaveform==4) then
-     call evalmisfitSspec()
+      call evalmisfitSspec()
     elseif (iwaveform==5) then
-     call evalmisfitStime()
+      call evalmisfitStime()
+    elseif (iwaveform==45) then
+      call evalmisfitSspectime()
     endif
     newmisfit=misfit
 
@@ -482,6 +491,9 @@ jj=jj+1
       call evalmisfitSspec()
     elseif (iwaveform==5) then
       call evalmisfitStime()
+      write(*,*)'Initial model VR: ',VR,' for shift',Tshift,'s'
+    elseif (iwaveform==45) then
+      call evalmisfitSspectime()
       write(*,*)'Initial model VR: ',VR,' for shift',Tshift,'s'
     endif
 

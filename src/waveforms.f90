@@ -3,17 +3,17 @@
 !waveforms for misfit
       integer,allocatable,dimension(:,:):: stainfo
       integer:: NRseis,NSTAcomp,Nseis
-      real,allocatable,dimension(:):: Dsynt,stasigma, ruptdist
+      real,allocatable,dimension(:):: Dsynt,stasigma,stasigma4,stasigma5,ruptdist
       real,allocatable,dimension(:,:):: Dseis, StaDist
       logical, allocatable :: srfmask(:) !for estimation Rjb for nga-west2
-      real SigmaData   ! Typically 0.05m
+      real SigmaData,SigmaData4,SigmaData5
       real misfit,VR,Tshift
       real VSt
       integer iwaveform,nper
       real,allocatable:: pgaM(:,:),pgaD(:,:),per(:)
       real,allocatable:: PGAsigma(:,:),PGAtau(:,:) ! now tau and sigma of gmpe are on output..
       real,allocatable,dimension(:):: SRn,SRe,SRu,STAn,STAe,STAu,STAazimuth,STAtakeoff
-      real,allocatable,dimension(:,:):: astf,astfspec,astfspecs,rastfs
+      real,allocatable,dimension(:,:):: astf,astfspec,astfspecs,rastf,rastfspecs
       real,allocatable,dimension(:,:):: Dastfspecs
 
 !GFs for synthetic seismograms
@@ -104,12 +104,12 @@
     enddo
     close(10)
     
-    if(iwaveform==4.or.iwaveform==5)then
+    if(iwaveform==4.or.iwaveform==5.or.iwaveform==45)then
       write(*,*)'  (Computing ASTF, skipping GFs)'
-      NSTAcomp=sum(stainfo(1,:))  !Only the first column defines whether the component is considered in the misfit
       allocate(SRn(NL*NW),SRe(NL*NW),SRu(NL*NW),STAn(NRseis),STAe(NRseis),STAu(NRseis),STAazimuth(NRseis),STAtakeoff(NRseis))
-      allocate(stasigma(NRseis))
-      stasigma(:)=staweight(1,:)  !Only the first weigth column defines the weigth in the misfit
+      allocate(stasigma4(NRseis),stasigma5(NRseis))
+      stasigma4(:)=staweight(1,:)  !Only the first weight column defines the weight in the misfit for spectrum
+      stasigma5(:)=staweight(2,:)  !Only the second weight column defines the weight in the misfit for time-domain
       open(225,file='stations.dat',status='old')
       do i=1,NRseis
         read(225,*) STAn(i),STAe(i),STAu(i)
@@ -278,7 +278,7 @@
     COMPLEX,ALLOCATABLE,DIMENSION(:):: seis1,cseis1
     logical, allocatable :: slipmask(:,:)
 
-    if (iwaveform==4.or.iwaveform==5) then
+    if (iwaveform==4.or.iwaveform==5.or.iwaveform==45) then
       !Needed: sources.dat and stations.dat
       astf=0.
       allocate(cseis1(np))
@@ -287,7 +287,7 @@
         do jw=1,NW
           do jl=1,NL
             k=k+1
-            dummu=sum(muSource(int(dL/dh*(jl-1))+nabc+1:nabc+int(dL/dh*jl),int(dW/dh*(jw-1))+nabc+1:nabc+int(dW/dh*jw)))/(dL/dh*dW/dh)
+            dummu=sum(muSource(int(dL/dh*(jl-1))+nabc+1:nabc+int(dL/dh*jl),int(dW/dh*(jw-1))+nabc+1:nabc+int(dW/dh*jw)))/(dL/dh*dW/dh)   !This should be improved!
             dumts=int(sqrt((SRn(k)-STAn(j))**2+(SRe(k)-STAe(j))**2+(SRu(k)-STAu(j))**2)/VSt/dtseis)
             if(dumts+nSR>np) stop 'Increase ASTF duration!'
 #if defined DIPSLIP 
@@ -470,20 +470,21 @@
     integer k
     
     write(*,*)'Reading data...'
-    if(iwaveform==4)then
-      allocate(rastfs(nper,NRseis))
+    if(iwaveform==4.or.iwaveform==45)then
+      allocate(rastfspecs(nper,NRseis))
       open(290,FILE='rastfspecsmooth.dat')
       write(*,*)'  (Reading smoothed ASTF spectra - check the frequencies of data and synthetics do match!)'
       do k=1,nper
-        read(290,*)dum,rastfs(k,1:NRseis)
+        read(290,*)dum,rastfspecs(k,1:NRseis)
       enddo
       close(290)
-    else  !iwaveform==5
-      allocate(rastfs(np,NRseis))
+    endif
+    if(iwaveform==5.or.iwaveform==45)then
+      allocate(rastf(np,NRseis))
       open(290,FILE='rastfs.dat')
-      rastfs=0.
+      rastf=0.
       k=1
-398   read(290,*,END=399)dum,rastfs(k,1:NRseis)
+398   read(290,*,END=399)dum,rastf(k,1:NRseis)
       k=k+1
       goto 398
 399   continue
@@ -587,6 +588,60 @@
     
     END
 
+ subroutine evalmisfitSspectime()
+    use waveforms_com
+    use SlipRates_com
+	use source_com, only: ioutput
+	implicit none
+    real dum,normdat,misfit1,VR1
+    real,parameter:: maxTshift=.1
+    real dumn,dump,normdatn,normdatp,misfit2,VR2
+    integer i,k,ims
+
+    dum=0.
+    normdat=0.
+    do k=1,NRseis
+      if(stainfo(1,k)==0)cycle   !North component = spectrum of ASTF
+      dum=dum+.5*sum(log(rastfspecs(:,k)/astfspecs(:,k))**2)*stasigma4(k)**2/SigmaData4**2
+      normdat=normdat+.5*sum(log(rastfspecs(:,k))**2)*stasigma4(k)**2/SigmaData4**2
+    enddo
+    misfit1=dum
+    VR1=dum/normdat
+    !write(*,*)'spectrum misfit: ',misfit1
+
+    ims=int(maxTshift/dtseis)
+    misfit2=1.e30
+    VR2=-1.e30
+    Tshift=0.
+    do i=0,ims-1
+      dumn=0.;dump=0.
+      normdatn=0.;normdatp=0.
+      do k=1,NRseis
+        if(stainfo(2,k)==0)cycle   !East component = ASTF
+        dumn=dumn+.5*sum((rastf(i+1:np+i-ims,k)/SigmaData5-astf(1:np-ims,k)/SigmaData5)**2)*stasigma5(k)**2
+        normdatn=normdatn+.5*sum((rastf(i+1:np+i-ims,k)/SigmaData5)**2)*stasigma5(k)**2
+        dump=dump+.5*sum((rastf(1:np-ims,k)/SigmaData5-astf(i+1:np+i-ims,k)/SigmaData5)**2)*stasigma5(k)**2
+        normdatp=normdatp+.5*sum((rastf(1:np-ims,k)/SigmaData5)**2)*stasigma5(k)**2
+      enddo
+      if(dumn<misfit2)then
+        Tshift=-dtseis*i !negative shifts
+        misfit2=dumn
+        VR2=dumn/normdatn
+      endif
+      if(dump<misfit2)then
+        Tshift=dtseis*i !positive shifts
+        misfit2=dump
+        VR2=dump/normdatp
+      endif
+    enddo
+    !write(*,*)'time-domain misfit: ',misfit2
+
+    misfit=misfit1+misfit2
+    if(Mwsigma>0.)misfit=misfit+0.5*(2./3.*log10(M0/M0aprior)/Mwsigma)**2
+    VR=1.-(VR1+VR2)
+
+    END
+
     
  subroutine evalmisfitSspec()
     use waveforms_com
@@ -600,14 +655,12 @@
     normdat=0.
     do k=1,NRseis
       if(stainfo(1,k)==0)cycle
-!      dum=dum+.5*sum((rastfspecs(:,k)/SigmaData-astfspecs(:,k)/SigmaData)**2)*stasigma(k)**2
-      dum=dum+.5*sum(log(rastfs(:,k)/astfspecs(:,k))**2)*stasigma(k)**2/SigmaData**2
-!      normdat=normdat+.5*sum((rastfspecs(:,k)/SigmaData)**2)*stasigma(k)**2
-      normdat=normdat+.5*sum(log(rastfs(:,k))**2)*stasigma(k)**2/SigmaData**2
+      dum=dum+.5*sum(log(rastfspecs(:,k)/astfspecs(:,k))**2)*stasigma4(k)**2/SigmaData4**2
+      normdat=normdat+.5*sum(log(rastfspecs(:,k))**2)*stasigma4(k)**2/SigmaData4**2
     enddo
     misfit=dum
     VR=1.-dum/normdat
-	print*,'seis misfit: ', misfit
+	print*,'spectrum misfit: ', misfit
 	
     if(Mwsigma>0.)misfit=misfit+0.5*(2./3.*log10(M0/M0aprior)/Mwsigma)**2
     
@@ -620,7 +673,7 @@ subroutine evalmisfitStime()
     use SlipRates_com
 	use source_com, only: ioutput
 	implicit none
-    real,parameter:: maxTshift=.5
+    real,parameter:: maxTshift=.1
     real dumn,dump,normdatn,normdatp
     integer i,k,ims
     
@@ -628,16 +681,15 @@ subroutine evalmisfitStime()
     misfit=1.e30
     VR=-1.e30
     Tshift=0.
-    
     do i=0,ims-1
       dumn=0.;dump=0.
       normdatn=0.;normdatp=0.
       do k=1,NRseis
-        if(stainfo(1,k)==0)cycle
-        dumn=dumn+.5*sum((rastfs(i+1:np+i-ims,k)/SigmaData-astf(1:np-ims,k)/SigmaData)**2)*stasigma(k)**2
-        normdatn=normdatn+.5*sum((rastfs(i+1:np+i-ims,k)/SigmaData)**2)*stasigma(k)**2
-        dump=dump+.5*sum((rastfs(1:np-ims,k)/SigmaData-astf(i+1:np+i-ims,k)/SigmaData)**2)*stasigma(k)**2
-        normdatp=normdatp+.5*sum((rastfs(1:np-ims,k)/SigmaData)**2)*stasigma(k)**2
+        if(stainfo(2,k)==0)cycle
+        dumn=dumn+.5*sum((rastf(i+1:np+i-ims,k)/SigmaData5-astf(1:np-ims,k)/SigmaData5)**2)*stasigma5(k)**2
+        normdatn=normdatn+.5*sum((rastf(i+1:np+i-ims,k)/SigmaData5)**2)*stasigma5(k)**2
+        dump=dump+.5*sum((rastf(1:np-ims,k)/SigmaData5-astf(i+1:np+i-ims,k)/SigmaData5)**2)*stasigma5(k)**2
+        normdatp=normdatp+.5*sum((rastf(1:np-ims,k)/SigmaData5)**2)*stasigma5(k)**2
       enddo
       if(dumn<misfit)then
         Tshift=-dtseis*i !negative shifts
@@ -650,7 +702,7 @@ subroutine evalmisfitStime()
         VR=1.-dump/normdatp
       endif
     enddo
-	print*,'seis misfit: ', misfit
+	print*,'time-domain misfit: ', misfit
     
     if(Mwsigma>0.)misfit=misfit+0.5*(2./3.*log10(M0/M0aprior)/Mwsigma)**2
     
