@@ -20,7 +20,7 @@
     MODULE medium_com
       real,allocatable,dimension(:,:,:):: lam1,mu1,d1
       real,allocatable,dimension(:,:):: vpls
-      real:: mu_mean,constnormstress
+      real:: mu_mean,constnormstress,ztop
     END MODULE
     
     MODULE pml_com
@@ -79,7 +79,19 @@
       real:: normstress
       integer:: j
 #if defined FSPACE
-      normstress=constnormstress
+      if (constnormstress>0.) then  !Homogeneous normal stress
+        normstress=constnormstress
+      else                          !Depth-dependent normal stress
+#if defined DIPSLIP
+     ! normstress=max(1.e5,8520.*(dh*real(nzt-nfs-j)*sin(dip/180.*pi)+ztop))
+      !normstress=min(18.*(dh*real(nzt-nfs-j)*sin(dip/180.*pi)+ztop)/1.e3,100.);normstress=1.e6*max(1.,normstress)
+      normstress=min(18.*(dh*real(nzt-nfs-j)*sin(dip/180.*pi)+ztop)/1.e3,100.);normstress=1.e6*normstress
+#else
+      normstress=max(1.e5,16200.*(dh*real(nzt-nfs-j)*sin(dip/180.*pi)+ztop))
+      normstress=min(18.*(dh*real(nzt-nfs-j)*sin(dip/180.*pi)+ztop)/1.e3,100.);normstress=1.e6*max(1.,normstress)
+       !normstress=min(18.*(dh*real(nzt-nfs-j)*sin(dip/180.*pi)/1.e3+ztop),60.);normstress=1.e6*max(1.,normstress)
+#endif
+      endif
 #else
 #if defined DIPSLIP
       normstress=max(1.e5,8520.*dh*real(nzt-nfs-j)*sin(dip/180.*pi))
@@ -169,14 +181,15 @@
       read(11,*) ntfd
       read(11,*) dt
       read(11,*) dip
-      read(11,*) nabc, pml_vp,pml_fact   !(pml_fact=-(N+1)*log(0.001), see Komatitsch and Martin, 2007, Geophysics 72)
+      read(11,*) nabc,pml_vp,pml_fact   !(pml_fact=-(N+1)*log(0.001), see Komatitsch and Martin, 2007, Geophysics 72)
       read(11,*) damp_s
 
 #if defined FSPACE
-	  nfs=nabc
-      read(11,*) constnormstress
+      nfs=nabc
+      read(11,*) constnormstress,ztop
 #else
-      nfs=2 ! Number of layers above free surface 
+      nfs=2 ! Number of layers above free surface
+      ztop=0.
 #endif	
       nxt=nxtT+2*nabc
       nyt=nytT+nabc
@@ -237,12 +250,12 @@
 ! Read the velocity model
 ! Be careful: the velocity model for the FD is upside down
 !------------------------------------------------------------
-      CALL readcrustalmodel(dip)
+      CALL readcrustalmodel(dip,ztop)
 
     END SUBROUTINE
 
 
-    SUBROUTINE readcrustalmodel(dip)
+    SUBROUTINE readcrustalmodel(dip,z1top)
     USE medium_com
     USE fd3dparam_com
     USE pml_com
@@ -250,7 +263,7 @@
     use SlipRates_com
     IMPLICIT NONE
     real*8,parameter:: PI=3.1415926535
-    real dip, d_zone, vlow_zone,vlowMax_zone, vlowMin_zone 
+    real dip, z1top, d_zone, vlow_zone,vlowMax_zone, vlowMin_zone 
     real    :: vpe(2),vse(2),den(2),CFL,dum,dd,vpp,vss
     real,allocatable,dimension(:):: vp,vs,depth,rho
     INTEGER ndepth,j,k,i
@@ -275,7 +288,7 @@
     depth=depth*1.e3;vp=vp*1.e3;vs=vs*1.e3;rho=rho*1.e3
     close(10)
     do k=nzt,1,-1
-      dum=(dh*real(nzt-nfs-k)+dh/2.)*sin(dip/180.d0*PI)
+      dum=(dh*real(nzt-nfs-k)+dh/2.)*sin(dip/180.d0*PI)+z1top
       if(dum>depth(ndepth))then
         vpp=vp(ndepth)
         vss=vs(ndepth)
