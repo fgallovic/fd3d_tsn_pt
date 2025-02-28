@@ -74,7 +74,7 @@
       CONTAINS
       
       FUNCTION normstress(j)
-      USE medium_com, only: constnormstress
+      USE medium_com, only: constnormstress,ztop
       IMPLICIT NONE
       real:: normstress
       integer:: j
