@@ -82,15 +82,7 @@
       if (constnormstress>0.) then  !Homogeneous normal stress
         normstress=constnormstress
       else                          !Depth-dependent normal stress
-#if defined DIPSLIP
-     ! normstress=max(1.e5,8520.*(dh*real(nzt-nfs-j)*sin(dip/180.*pi)+ztop))
-      !normstress=min(18.*(dh*real(nzt-nfs-j)*sin(dip/180.*pi)+ztop)/1.e3,100.);normstress=1.e6*max(1.,normstress)
-      normstress=min(18.*(dh*real(nzt-nfs-j)*sin(dip/180.*pi)+ztop)/1.e3,100.);normstress=1.e6*normstress
-#else
-      normstress=max(1.e5,16200.*(dh*real(nzt-nfs-j)*sin(dip/180.*pi)+ztop))
-      normstress=min(18.*(dh*real(nzt-nfs-j)*sin(dip/180.*pi)+ztop)/1.e3,100.);normstress=1.e6*max(1.,normstress)
-       !normstress=min(18.*(dh*real(nzt-nfs-j)*sin(dip/180.*pi)/1.e3+ztop),60.);normstress=1.e6*max(1.,normstress)
-#endif
+        normstress=min(18.*(dh*real(nzt-nfs-j)*sin(dip/180.*pi)+ztop)/1.e3,100.)*1.e6
       endif
 #else
 #if defined DIPSLIP
