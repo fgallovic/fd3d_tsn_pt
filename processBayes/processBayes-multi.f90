@@ -72,7 +72,7 @@
     REAL per(NMAX)
     INTEGER,ALLOCATABLE,DIMENSION(:):: accepted,iknow,kchain
     REAL,ALLOCATABLE,DIMENSION(:):: normalstress,VRs,misfits,meansd,meansl,duration,nuclsize,EG,ER,RE,meanoverstress,M0,meanDc,meanStrengthExcess,meanslip,rupturearea,meanruptvel,meanstrength,EGrate,VRgps,x0,z0
-    REAL,ALLOCATABLE,DIMENSION(:,:,:):: DcA,TsA,T0A,SEA,ruptime1,slip1,rise1,schange1,es1,strengthexcess1,rupvel1
+    REAL,ALLOCATABLE,DIMENSION(:,:,:):: DcA,TsA,T0A,SEA,ruptime1,slip1,rise1,schange1,es1,strengthexcess1,rupvel1,EGfault
     REAL,ALLOCATABLE,DIMENSION(:,:):: dum11,dum12,dum13,dum21,dum22,dum23,dum24,ms1
     real, allocatable, dimension(:) :: MRate,fc
     real, allocatable, dimension(:,:) :: MomentRate,MomentSpec
@@ -284,7 +284,7 @@
     ALLOCATE(misfits(NM),VRs(NM),meansd(NM),meansl(NM),duration(NM),nuclsize(NM),EG(NM),ER(NM),RE(NM),meanoverstress(NM),M0(NM),EGrate(NM),VRgps(NM))
     ALLOCATE(meanDc(NM),meanStrengthExcess(NM),meanslip(NM),rupturearea(NM),meanruptvel(NM),meanstrength(NM),x0(NM),z0(NM))
     allocate(DcA(NLI,NWI,NM),TsA(NLI,NWI,NM),T0A(NLI,NWI,NM),SEA(NLI,NWI,NM))
-    allocate(ruptime1(nxt,nzt,NM),slip1(nxt,nzt,NM),rise1(nxt,nzt,NM),schange1(nxt,nzt,NM),es1(nxt,nzt,NM),ms1(nxt,nzt),strengthexcess1(nxt,nzt,NM),rupvel1(nxt,nzt,NM))
+    allocate(ruptime1(nxt,nzt,NM),slip1(nxt,nzt,NM),rise1(nxt,nzt,NM),schange1(nxt,nzt,NM),es1(nxt,nzt,NM),ms1(nxt,nzt),strengthexcess1(nxt,nzt,NM),rupvel1(nxt,nzt,NM),EGfault(nxt,nzt,NM))
     allocate(MomentRate(nSr,NM),MomentSpec(nper,NM),indx(NM),fc(NM))
 
     if (nchains==0) then    !READ FROM A SINGLE FILE
@@ -374,6 +374,10 @@ coh=0.5e6
       es1(:,:,k)=(peak_xz(:,:,k)-strinix(:,:,k))/max(1.,strinix(:,:,k))
       slipmax=maxval(slip1(:,:,k))
 
+!Fracture energy along the fault
+      EGfault(:,:,k)=0.5*peak_xz(:,:,k)*(Dc(:,:,k)-max(0.,Dc(:,:,k)-slip1(:,:,k))*(Dc(:,:,k)-slip1(:,:,k))/Dc(:,:,k))
+      write(*,*)Eg(k),sum(EGfault(:,:,k))*dh*dh
+      
 !calculate nucleation center
       x0(k)=0.
       z0(k)=0.
@@ -552,6 +556,7 @@ coh=0.5e6
     CALL meansigma2(rise1(:,:,:),NM)
     CALL meansigma2(ruptime1(:,:,:),NM)
     CALL meansigma2(rupvel1(:,:,:),NM)
+    CALL meansigma2(Egfault(:,:,:),NM)
     close(201)
 
 !FFT of dynamic parameters
