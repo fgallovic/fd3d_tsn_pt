@@ -274,14 +274,30 @@
     complex, allocatable, dimension(:,:) :: sr,cseis
     integer i,j,k,m,jl,jw,jj,ii,ierr,kk
     integer ifrom,ito,jfrom,jto,kfrom,kto,dumts
-    real maxslip,dummu,dum
-    COMPLEX,ALLOCATABLE,DIMENSION(:):: seis1,cseis1
+    real maxslip,dummu,dum,triangldur
+    COMPLEX,ALLOCATABLE,DIMENSION(:):: seis1,cseis1,cseis2
     logical, allocatable :: slipmask(:,:)
 
     if (iwaveform==4.or.iwaveform==5.or.iwaveform==45) then
       !Needed: sources.dat and stations.dat
       astf=0.
-      allocate(cseis1(np))
+      allocate(cseis1(np),cseis2(np))
+!Triangular function for convolution:
+      triangldur=10.   !Set to zero if no convolution is required
+      do i=1,np
+        dum=dtseis*(i-1)
+        if(dum>triangldur)then
+          cseis2(i)=0.
+        elseif(dum>triangldur/2.)then
+          cseis2(i)=1.-(dum-triangldur/2.)/(triangldur/2.)
+        else
+          cseis2(i)=dum/(triangldur/2.)
+        endif
+      enddo
+      if(triangldur<dtseis)cseis2(1)=1.  !Delta function (no convolution)
+      CALL four1(cseis2,np,-1)
+      dum=real(cseis2(1));cseis2(:)=cseis2(:)/dum
+!ASTFs:
       do j=1,NRseis
         k=0
         do jw=1,NW
@@ -297,12 +313,18 @@
 #endif
           enddo
         enddo
-        cseis1(:)=astf(:,j)
+        cseis1(:)=astf(:,j)*dtseis
         CALL four1(cseis1,np,-1)
         do i=1,np
-          astfspec(i,j)=abs(cseis1(i)*dtseis)*(2.*PI*df*(i-1))**2
+          astfspec(i,j)=abs(cseis1(i))*(2.*PI*df*(i-1))**2
         enddo
         CALL smoothspectrum(np,nper,df,fc1(1),fc2(1),astfspec(:,j),per(:),astfspecs(:,j)) !First filter is considered for all stations
+
+    !Convolution of ASTF with a triangular function
+        cseis1(:)=cseis1(:)*cseis2(:)*df
+        CALL four1(cseis1,np,1)
+        astf(:,j)=real(cseis1(:))
+        
         dumts=1
         dum=maxval(astf(:,j))
         do i=1,np
@@ -315,7 +337,7 @@
         cseis1(1:np-dumts+1)=astf(dumts:np,j)
         astf(:,j)=cseis1(:)
       enddo
-      deallocate(cseis1)
+      deallocate(cseis1,cseis2)
       if(ioutput==1)then
         open(297,FILE='astfs.dat')
         do i=1,np
