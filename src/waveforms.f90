@@ -378,19 +378,21 @@
       enddo
     endif
  
-    if (ioutput.eq.1) then
-      open(297,FILE='mtildeX.dat',iostat=ierr)
-      write(297,'(1E13.5)')MSRX
-      close(297)
-      open(297,FILE='mtildeZ.dat',iostat=ierr)
-      write(297,'(1E13.5)')MSRZ
-      close(297)
-      open(297,FILE='mtildemomentrate.dat')
-      do k=1,nSR
-        write(297,*)dtseis*(k-1),Momentrate(k)
-      enddo
-      close(297)
-    endif
+!    if (ioutput.eq.1) then
+!      open(297,FILE='mtildeX.dat',iostat=ierr)
+!      write(297,'(1E13.5)')MSRX
+!      close(297)
+!      open(297,FILE='mtildeZ.dat',iostat=ierr)
+!      write(297,'(1E13.5)')MSRZ
+!      open(297,FILE='mtildeZ.dat',form='unformatted')
+!      write(297)MSRZ
+!      close(297)
+!      open(297,FILE='mtildemomentrate.dat')
+!      do k=1,nSR
+!        write(297,*)dtseis*(k-1),Momentrate(k)
+!      enddo
+!      close(297)
+!    endif
 
     if(M0<1.e14)then
        Dsynt=0.

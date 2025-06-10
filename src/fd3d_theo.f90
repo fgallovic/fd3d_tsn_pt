@@ -967,14 +967,16 @@ _ACC_END_PARALLEL
         open(98,file='result/slipX.res')
         open(99,file='result/stressdropX.res')
 #endif
-        open(297,FILE='mtildeX.dat')
-        open(298,FILE='mtildeZ.dat')
-        open(299,FILE='mtildemomentrate.dat')
 
-        do k=1,NL*NW*nSR
-           write(297,'(1E13.5)')MSRX(k) 
-           write(298,'(1E13.5)')MSRZ(k)	
-        enddo
+        open(297,FILE='mtildeX.dat')
+        write(297,'(1E13.5)')MSRX
+        close(297)
+        open(298,FILE='mtildeZ.dat')
+        write(298,'(1E13.5)')MSRZ
+!        open(298,FILE='mtildeZ.dat',form='unformatted')
+!        write(298)MSRZ
+        close(298)
+        open(299,FILE='mtildemomentrate.dat')
         do k=1,nSR
            write(299,*)dtseis*(k-1),Momentrate(k)
         enddo
@@ -995,10 +997,6 @@ _ACC_END_PARALLEL
           close(295)
           close(296)
         endif
-
-        close(297)
-        close(298)
-        close(299)
 
         do k = nabc+1,nzt-nfs
           do i = nabc+1,nxt-nabc
