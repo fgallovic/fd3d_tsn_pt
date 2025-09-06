@@ -24,7 +24,7 @@
 !    real,allocatable,dimension(:,:):: TsI   !Test variables (for which misfit is calculated)
 !    real,allocatable,dimension(:,:,:):: TsA  !Array of variables in MC chains:
     real,allocatable,dimension(:):: VRA, EgA, ErA, MisfitA,TshiftA, VRgpsA
-	real,allocatable,dimension(:,:,:):: ruptimeA,riseA,slipA,schangeA
+	real,allocatable,dimension(:,:,:):: ruptimeA,riseA,slipA,schangeA,peaksliprateA
 	real,allocatable,dimension(:,:,:):: slipOUTA
 	real,allocatable :: pgaA(:,:,:),MwA(:),M0A(:),ruptdistA(:,:),MomentRateA(:,:)
     integer randseed,StepType
@@ -99,7 +99,7 @@
 	allocate(f0A(NLI,NWI,nchains), fwA(NLI,NWI,nchains), DcA(NLI,NWI,nchains), vwA(NLI, NWI,nchains), viniA(NLI, NWI,nchains))
 	allocate(slipOUTA(2,MDIS*NDIS,nchains))
 	allocate(nucl(5), nuclA(5,nchains)) !hx0, hz0, RR2, TT2, perturb
-    allocate(ruptimeA(nxt,nzt,nchains),riseA(nxt,nzt,nchains),slipA(nxt,nzt,nchains),schangeA(nxt,nzt,nchains))
+    allocate(ruptimeA(nxt,nzt,nchains),riseA(nxt,nzt,nchains),slipA(nxt,nzt,nchains),schangeA(nxt,nzt,nchains),peaksliprateA(nxt,nzt,nchains))
 	allocate(VRA(nchains),VRgpsA(nchains),EgA(nchains),ErA(nchains),MisfitA(nchains),M0A(nchains),MwA(nchains),TshiftA(nchains))
     
     !Read GFs and seismograms
@@ -252,18 +252,19 @@
     if (yn) then  !step accepted
       E=newmisfit
       MisfitA(ichain)=E
-	    T0A(:,:,ichain)=T0I(:,:)
-	    aA(:,:,ichain)=aI(:,:)
-	    baA(:,:,ichain)=baI(:,:)
-	    psiA(:,:,ichain)=psiI(:,:)
-	    f0A(:,:,ichain)=f0I(:,:)
-	    fwA(:,:,ichain)=fwI(:,:)
-	    DcA(:,:,ichain)=DcI(:,:)
-	    vwA(:,:,ichain)=vwI(:,:)
-	    viniA(:,:,ichain)=viniI(:,:)
-	    nuclA(:,ichain)=nucl(:)
+      T0A(:,:,ichain)=T0I(:,:)
+      aA(:,:,ichain)=aI(:,:)
+      baA(:,:,ichain)=baI(:,:)
+      psiA(:,:,ichain)=psiI(:,:)
+      f0A(:,:,ichain)=f0I(:,:)
+     fwA(:,:,ichain)=fwI(:,:)
+      DcA(:,:,ichain)=DcI(:,:)
+      vwA(:,:,ichain)=vwI(:,:)
+      viniA(:,:,ichain)=viniI(:,:)
+      nuclA(:,ichain)=nucl(:)
       ruptimeA(:,:,ichain)=ruptime(:,:)
       riseA(:,:,ichain)=rise(:,:)
+      peaksliprateA(:,:,ichain)=peaksliprate(:,:)
 #if defined DIPSLIP
       slipA(:,:,ichain)=slipZ(:,:)
       schangeA(:,:,ichain)=schangeZ(:,:)
@@ -293,7 +294,7 @@
       write(ifile,'(1000000E13.5)')misfit,VRA(ichain),nuclA(1:5, ichain),T0A(:,:,ichain),aA(:,:,ichain),baA(:,:,ichain),psiA(:,:,ichain),f0A(:,:,ichain),fwA(:,:,ichain),DcA(:,:,ichain),vwA(:,:,ichain),viniA(:,:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
       flush(ifile)
       write(ifile+2)misfit,VRA(ichain),nuclA(1:5,ichain),T0A(:,:,ichain),aA(:,:,ichain),baA(:,:,ichain),psiA(:,:,ichain),f0A(:,:,ichain),fwA(:,:,ichain),DcA(:,:,ichain),vwA(:,:,ichain),viniA(:,:,ichain),ruptimeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),slipA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain), &
-          & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRateA(:,ichain),slipOUTA(1,:,ichain),slipOUTA(2,:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
+          & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),peaksliprateA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRateA(:,ichain),slipOUTA(1,:,ichain),slipOUTA(2,:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
       flush(ifile+2)
       if (iwaveform==2) then
         write(ifile*10) (misfit,MwA(ichain),ruptdistA(jj,ichain),pgaA(jj,:,ichain)/100., jj=1,nrseis)
@@ -486,6 +487,7 @@
     nuclA(1:5,ichain)=nucl(1:5)
     ruptimeA(:,:,ichain)=ruptime(:,:)
     riseA(:,:,ichain)=rise(:,:)
+    peaksliprateA(:,:,ichain)=peaksliprate(:,:)
 #if defined DIPSLIP
     slipA(:,:,ichain)=slipZ(:,:)
     schangeA(:,:,ichain)=schangeZ(:,:)

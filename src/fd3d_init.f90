@@ -99,7 +99,7 @@
     END MODULE
 
     MODULE source_com
-      REAL,ALLOCATABLE,DIMENSION(:,:):: ruptime,rise,slipZ,schangeX,schangeZ,sliptime,slipX
+      REAL,ALLOCATABLE,DIMENSION(:,:):: ruptime,rise,slipZ,schangeX,schangeZ,sliptime,slipX,peaksliprate
       real    :: output_param(6)
       integer :: ioutput
       integer:: Nstations
@@ -233,7 +233,7 @@
 
 #endif
       
-      allocate(ruptime(nxt,nzt),slipZ(nxt,nzt),slipX(nxt,nzt),rise(nxt,nzt),schangeZ(nxt,nzt),schangeX(nxt,nzt),sliptime(nxt,nzt))
+      allocate(ruptime(nxt,nzt),slipZ(nxt,nzt),slipX(nxt,nzt),rise(nxt,nzt),schangeZ(nxt,nzt),schangeX(nxt,nzt),sliptime(nxt,nzt),peaksliprate(nxt,nzt))
       allocate(muSource(nxt,nzt),coh(nxt,nzt))
 
       striniX=0.; striniZ=0.; peak_xz=0.; Dc=0.

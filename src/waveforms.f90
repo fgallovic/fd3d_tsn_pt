@@ -283,7 +283,7 @@
       astf=0.
       allocate(cseis1(np),cseis2(np))
 !Triangular function for convolution:
-      triangldur=10.   !Set to zero if no convolution is required
+      triangldur=2.   !Set to zero if no convolution is required
       do i=1,np
         dum=dtseis*(i-1)
         if(dum>triangldur)then

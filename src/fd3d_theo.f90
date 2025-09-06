@@ -85,6 +85,7 @@
       u1=0.; v1=0.; w1=0.
       xx=0.; yy=0.; zz=0.; xy=0.; yz=0.; xz=0.
       ruptime=1.e4; rise=0.; sliptime=1.e4
+      peaksliprate=0.
       tx=0.; tz=0.; v1t=0.
       uZ=0.; wX=0.
       avdx = 0.; avdz = 0.
@@ -259,7 +260,7 @@
       !$ACC      COPYIN (omegaxS5,omegayS5,omegazS5) &
       !$ACC      COPYIN (omegax5,omegay5,omegaz5) &
 #endif
-      !$ACC      COPY (ruptime,sliptime,rise)
+      !$ACC      COPY (ruptime,sliptime,rise,peaksliprate)
 	  
       do it = 1,ntfd
 	  
@@ -543,6 +544,8 @@
 #endif 
             efracds=efracds+schangeX(i,k)*sliprateoutX(i,k)*dt+schangeZ(i,k)*sliprateoutZ(i,k)*dt
             eraddt=eraddt+(schangeX(i,k)-t0X(i,k))*sliprateoutX(i,k)*dt+(schangeZ(i,k)-t0Z(i,k))*sliprateoutZ(i,k)*dt
+            sr=sqrt(sliprateoutX(i,k)**2+sliprateoutZ(i,k)**2)
+            if(sr>peaksliprate(i,k))peaksliprate(i,k)=sr
 		  enddo
         enddo
         _ACC_END_PARALLEL
@@ -566,15 +569,15 @@
 #endif 
             efracds=efracds+schangeX(i,k)*sliprateoutX(i,k)*dt+schangeZ(i,k)*sliprateoutZ(i,k)*dt
             eraddt=eraddt+(schangeX(i,k)-t0X(i,k))*sliprateoutX(i,k)*dt+(schangeZ(i,k)-t0Z(i,k))*sliprateoutZ(i,k)*dt
+            sr=sqrt(sliprateoutX(i,k)**2+sliprateoutZ(i,k)**2)
+            if(sr>peaksliprate(i,k))peaksliprate(i,k)=sr
         enddo
         _ACC_END_PARALLEL
 
         k=nzt-nfs!+1
-
-	_ACC_PARALLEL
+	    _ACC_PARALLEL
         _ACC_LOOP
-          do i = nabc+1,nxt-nabc+1
-            
+          do i = nabc+1,nxt-nabc+1 
 #if defined FVW
             sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I+1,NYSC,K))/2.
 	        sliprateoutZ(i,k) = - 2.*W1(I,NYSC,K)
@@ -584,7 +587,10 @@
             SCHANGEX(I,K) = (tx(i,k)+T0X(i,k)+tx(i+1,k)+T0X(i+1,k))/2.
             sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I+1,NYSC,K))/2.
 #endif 
-
+            efracds=efracds+schangeX(i,k)*sliprateoutX(i,k)*dt+schangeZ(i,k)*sliprateoutZ(i,k)*dt
+            eraddt=eraddt+(schangeX(i,k)-t0X(i,k))*sliprateoutX(i,k)*dt+(schangeZ(i,k)-t0Z(i,k))*sliprateoutZ(i,k)*dt
+            sr=sqrt(sliprateoutX(i,k)**2+sliprateoutZ(i,k)**2)
+            if(sr>peaksliprate(i,k))peaksliprate(i,k)=sr
           enddo
         _ACC_END_PARALLEL
 		
@@ -960,6 +966,7 @@ _ACC_END_PARALLEL
       if (ioutput.eq.1) then
         open(96,file='result/risetime.res')
         open(97,file='result/ruptime.res')
+        open(93,file='result/peaksliprate.dat')
 #if defined DIPSLIP
         open(94,file='result/slipZ.res')
         open(95,file='result/stressdropZ.res')
@@ -1002,6 +1009,7 @@ _ACC_END_PARALLEL
           do i = nabc+1,nxt-nabc
             write(96,*) rise(i,k)
             write(97,*) ruptime(i,k)
+            write(93,*) peaksliprate(i,k)
 #if defined DIPSLIP
             write(94,*) slipZ(i,k)
             write(95,*) schangeZ(i,k)

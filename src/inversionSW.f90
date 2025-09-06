@@ -18,7 +18,7 @@
     real:: StepSizeT0,StepSizeTs,StepSizeD    
     integer:: RUNI,NLI,NWI  
     real,allocatable,dimension(:):: VRA, EgA, ErA, MisfitA,TshiftA, VRgpsA
-    real,allocatable,dimension(:,:,:):: ruptimeA,riseA,slipA,schangeA
+    real,allocatable,dimension(:,:,:):: ruptimeA,riseA,slipA,schangeA,peaksliprateA
     real,allocatable :: pgaA(:,:,:),MwA(:),M0A(:),ruptdistA(:,:),MomentRateA(:,:)
     integer randseed,StepType
     
@@ -81,7 +81,7 @@
 
     allocate(DcI(NLI,NWI),T0I(NLI,NWI),TsI(NLI,NWI))
     allocate(DcA(NLI,NWI,nchains),T0A(NLI,NWI,nchains),TsA(NLI,NWI,nchains))
-    allocate(ruptimeA(nxt,nzt,nchains),riseA(nxt,nzt,nchains),slipA(nxt,nzt,nchains),schangeA(nxt,nzt,nchains))
+    allocate(ruptimeA(nxt,nzt,nchains),riseA(nxt,nzt,nchains),slipA(nxt,nzt,nchains),schangeA(nxt,nzt,nchains),peaksliprateA(nxt,nzt,nchains))
 	allocate(VRA(nchains),VRgpsA(nchains),EgA(nchains),ErA(nchains),MisfitA(nchains),M0A(nchains),MwA(nchains),TshiftA(nchains))
     
     !Read GFs and seismograms
@@ -240,6 +240,7 @@ jj=jj+1
       DcA(:,:,ichain)=DcI(:,:)
       ruptimeA(:,:,ichain)=ruptime(:,:)
       riseA(:,:,ichain)=rise(:,:)
+      peaksliprateA(:,:,ichain)=peaksliprate(:,:)
 #if defined DIPSLIP
       slipA(:,:,ichain)=slipZ(:,:)
       schangeA(:,:,ichain)=schangeZ(:,:)
@@ -267,7 +268,7 @@ jj=jj+1
       write(ifile,'(1000000E13.5)')misfit,VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
       flush(ifile)
       write(ifile+2)misfit,VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),ruptimeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),slipA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain), &
-          & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRateA(:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
+          & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),peaksliprateA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRateA(:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
       flush(ifile+2)
       if (iwaveform==2) then
         write(ifile*10) (misfit,mwA(ichain),ruptdistA(jj,ichain),pgaA(jj,:,ichain)/100., jj=1,nrseis)
@@ -504,6 +505,7 @@ jj=jj+1
     DcA(:,:,ichain)=DcI(:,:)
     ruptimeA(:,:,ichain)=ruptime(:,:)
     riseA(:,:,ichain)=rise(:,:)
+    peaksliprateA(:,:,ichain)=peaksliprate(:,:)
 #if defined DIPSLIP
     slipA(:,:,ichain)=slipZ(:,:)
     schangeA(:,:,ichain)=schangeZ(:,:)
