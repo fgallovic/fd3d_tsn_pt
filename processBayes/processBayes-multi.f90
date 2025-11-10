@@ -29,7 +29,7 @@
       USE fd3dparam_pb
       real,allocatable,dimension(:,:,:):: strinix,peak_xz,Dc
       real,parameter:: pi=3.1415926535
-      REAL dip
+      REAL dip,constnormstress,ztop
       CONTAINS
 
       FUNCTION normstress(j)
@@ -37,9 +37,11 @@
       real:: normstress
       integer:: j
 #if defined FSPACE
-!      normstress=100.e6
-      normstress=2.8e9
-!      normstress=21.e9
+      if (constnormstress>0.) then  !Homogeneous normal stress
+        normstress=constnormstress
+      else                          !Depth-dependent normal stress
+        normstress=min(18.*(dh*real(nzt-j)*sin(dip/180.*pi)+ztop)/1.e3,100.)*1.e6
+      endif
 #else
 #if defined DIPSLIP
       normstress=max(1.e5,8520.*dh*real(nzt-j)*sin(dip/180.*pi))
@@ -72,8 +74,8 @@
     REAL per(NMAX)
     INTEGER,ALLOCATABLE,DIMENSION(:):: accepted,iknow,kchain
     REAL,ALLOCATABLE,DIMENSION(:):: normalstress,VRs,misfits,meansd,meansl,duration,nuclsize,EG,ER,RE,meanoverstress,M0,meanDc,meanStrengthExcess,meanslip,rupturearea,meanruptvel,meanstrength,EGrate,VRgps,x0,z0
-    REAL,ALLOCATABLE,DIMENSION(:,:,:):: DcA,TsA,T0A,SEA,ruptime1,slip1,rise1,schange1,es1,strengthexcess1,rupvel1,EGfault
-    REAL,ALLOCATABLE,DIMENSION(:,:):: dum11,dum12,dum13,dum21,dum22,dum23,dum24,ms1
+    REAL,ALLOCATABLE,DIMENSION(:,:,:):: DcA,TsA,T0A,SEA,ruptime1,slip1,rise1,schange1,peaksliprate1,es1,strengthexcess1,rupvel1,EGfault
+    REAL,ALLOCATABLE,DIMENSION(:,:):: dum11,dum12,dum13,dum21,dum22,dum23,dum24,dum25,ms1
     real, allocatable, dimension(:) :: MRate,fc
     real, allocatable, dimension(:,:) :: MomentRate,MomentSpec
     INTEGER, allocatable, dimension(:) :: indx
@@ -106,6 +108,9 @@
     read(11,*) ntfd
     read(11,*) dt
     read(11,*) dip
+    read(11,*)
+    read(11,*)
+    read(11,*) constnormstress,ztop
     close(11)
 
     open(10,file='input.dat',action='read')
@@ -148,7 +153,7 @@
     read(10,*)NLI,NWI
     
     ALLOCATE(misfits(NMAX),VRs(NMAX),accepted(NMAX),iknow(NMAX))
-    ALLOCATE(dum11(NLI,NWI),dum12(NLI,NWI),dum13(NLI,NWI),dum21(nxt,nzt),dum22(nxt,nzt),dum23(nxt,nzt),dum24(nxt,nzt))
+    ALLOCATE(dum11(NLI,NWI),dum12(NLI,NWI),dum13(NLI,NWI),dum21(nxt,nzt),dum22(nxt,nzt),dum23(nxt,nzt),dum24(nxt,nzt),dum25(nxt,nzt))
     ALLOCATE(normalstress(nzt))
     do i=1,nzt
        normalstress(i)=normstress(i)
@@ -162,7 +167,7 @@
     if (nchains==0) then    !READ FROM A SINGLE FILE
       k=0
       open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
-10    read(101,END=11,ERR=11)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),MRate(:),dumarr(1:5)
+10    read(101,END=11,ERR=11)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),MRate(:),dumarr(1:5)
       k=k+1
       misfits(k)=mf
       if(k==NMAX)stop 'Increase dimension!'
@@ -182,7 +187,7 @@
       allocate(T0A(NLI,NWI,NTOT),TsA(NLI,NWI,NTOT),DcA(NLI,NWI,NTOT))
       open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
       do i=1,NTOT
-        read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),MRate(:),dumarr(1:5)
+        read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),MRate(:),dumarr(1:5)
         do k=1,i-1
           if (all(abs((dum11(:,:)-T0A(:,:,k)))<1.e-5) .and. all(abs((dum12(:,:)-TsA(:,:,k)))<1.e-5) .and. all(abs((dum13(:,:)-DcA(:,:,k)))<1.e-5))then
             iknow(i)=1
@@ -212,7 +217,7 @@
         ierr=0
         k=0
         do while(ierr==0)
-          read(101,iostat=ierr)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),MRate(:),dumarr(1:5)
+          read(101,iostat=ierr)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),MRate(:),dumarr(1:5)
           k=k+1
           kall=kall+1
           misfits(kall)=mf
@@ -254,7 +259,7 @@
         open(101,FILE=fname,FORM='UNFORMATTED',ACCESS='STREAM')
         do j=1,kchain(ichain) !NTOT
           kk=kk+1
-          read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),MRate(:),dumarr(1:5)
+          read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),MRate(:),dumarr(1:5)
           if (j>nint(burn*kchain(ichain)) .and. mod(kk,idown)==0) then
             i=i+1
             do k=1,i-1
@@ -284,14 +289,14 @@
     ALLOCATE(misfits(NM),VRs(NM),meansd(NM),meansl(NM),duration(NM),nuclsize(NM),EG(NM),ER(NM),RE(NM),meanoverstress(NM),M0(NM),EGrate(NM),VRgps(NM))
     ALLOCATE(meanDc(NM),meanStrengthExcess(NM),meanslip(NM),rupturearea(NM),meanruptvel(NM),meanstrength(NM),x0(NM),z0(NM))
     allocate(DcA(NLI,NWI,NM),TsA(NLI,NWI,NM),T0A(NLI,NWI,NM),SEA(NLI,NWI,NM))
-    allocate(ruptime1(nxt,nzt,NM),slip1(nxt,nzt,NM),rise1(nxt,nzt,NM),schange1(nxt,nzt,NM),es1(nxt,nzt,NM),ms1(nxt,nzt),strengthexcess1(nxt,nzt,NM),rupvel1(nxt,nzt,NM),EGfault(nxt,nzt,NM))
+    allocate(ruptime1(nxt,nzt,NM),slip1(nxt,nzt,NM),rise1(nxt,nzt,NM),schange1(nxt,nzt,NM),peaksliprate1(nxt,nzt,NM),es1(nxt,nzt,NM),ms1(nxt,nzt),strengthexcess1(nxt,nzt,NM),rupvel1(nxt,nzt,NM),EGfault(nxt,nzt,NM))
     allocate(MomentRate(nSr,NM),MomentSpec(nper,NM),indx(NM),fc(NM))
 
     if (nchains==0) then    !READ FROM A SINGLE FILE
       open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
       k=0
       do i=1,NTOT
-        read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),Mrate(:),M0dum,EGdum,ERdum,dum,VRgpsdum
+        read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),Mrate(:),M0dum,EGdum,ERdum,dum,VRgpsdum
         if(accepted(i)==1)then
           k=k+1
           misfits(k)=mf
@@ -306,6 +311,7 @@
           slip1(:,:,k)=dum22(:,:)
           rise1(:,:,k)=dum23(:,:)
           schange1(:,:,k)=dum24(:,:)
+          peaksliprate1(:,:,k)=dum25(:,:)
           MomentRate(:,k)=Mrate(:)
           M0(k)=M0dum
           Eg(k)=Egdum
@@ -321,7 +327,7 @@
         write(fname,'(a,i3.3)') 'sampls',ichain
         open(101,FILE=fname,FORM='UNFORMATTED',ACCESS='STREAM')
         do j=1,kchain(ichain)
-          read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),Mrate(:),M0dum,EGdum,ERdum,dum,VRgpsdum
+          read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),Mrate(:),M0dum,EGdum,ERdum,dum,VRgpsdum
           i=i+1
           if(accepted(i)==1)then
             k=k+1
@@ -337,6 +343,7 @@
             slip1(:,:,k)=dum22(:,:)
             rise1(:,:,k)=dum23(:,:)
             schange1(:,:,k)=dum24(:,:)
+            peaksliprate1(:,:,k)=dum25(:,:)
             MomentRate(:,k)=Mrate(:)
             M0(k)=M0dum
             Eg(k)=Egdum
@@ -376,7 +383,7 @@ coh=0.5e6
 
 !Fracture energy along the fault
       EGfault(:,:,k)=0.5*peak_xz(:,:,k)*(Dc(:,:,k)-max(0.,Dc(:,:,k)-slip1(:,:,k))*(Dc(:,:,k)-slip1(:,:,k))/Dc(:,:,k))
-      write(*,*)Eg(k),sum(EGfault(:,:,k))*dh*dh
+      !write(*,*)Eg(k),sum(EGfault(:,:,k))*dh*dh
       
 !calculate nucleation center
       x0(k)=0.
