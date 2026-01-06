@@ -167,7 +167,7 @@
     if (nchains==0) then    !READ FROM A SINGLE FILE
       k=0
       open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
-10    read(101,END=11,ERR=11)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),MRate(:),dumarr(1:5)
+10    read(101,END=11,ERR=11)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),MRate(:),dumarr(1:8)
       k=k+1
       misfits(k)=mf
       if(k==NMAX)stop 'Increase dimension!'
@@ -187,7 +187,7 @@
       allocate(T0A(NLI,NWI,NTOT),TsA(NLI,NWI,NTOT),DcA(NLI,NWI,NTOT))
       open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
       do i=1,NTOT
-        read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),MRate(:),dumarr(1:5)
+        read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),MRate(:),dumarr(1:8)
         do k=1,i-1
           if (all(abs((dum11(:,:)-T0A(:,:,k)))<1.e-5) .and. all(abs((dum12(:,:)-TsA(:,:,k)))<1.e-5) .and. all(abs((dum13(:,:)-DcA(:,:,k)))<1.e-5))then
             iknow(i)=1
@@ -217,7 +217,7 @@
         ierr=0
         k=0
         do while(ierr==0)
-          read(101,iostat=ierr)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),MRate(:),dumarr(1:5)
+          read(101,iostat=ierr)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),MRate(:),dumarr(1:8)
           k=k+1
           kall=kall+1
           misfits(kall)=mf
@@ -259,7 +259,7 @@
         open(101,FILE=fname,FORM='UNFORMATTED',ACCESS='STREAM')
         do j=1,kchain(ichain) !NTOT
           kk=kk+1
-          read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),MRate(:),dumarr(1:5)
+          read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),MRate(:),dumarr(1:8)
           if (j>nint(burn*kchain(ichain)) .and. mod(kk,idown)==0) then
             i=i+1
             do k=1,i-1
