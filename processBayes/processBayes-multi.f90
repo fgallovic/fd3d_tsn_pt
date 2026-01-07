@@ -296,7 +296,7 @@
       open(101,FILE='sampls.dat',FORM='UNFORMATTED',ACCESS='STREAM')
       k=0
       do i=1,NTOT
-        read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),Mrate(:),M0dum,EGdum,ERdum,dum,VRgpsdum
+        read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),Mrate(:),M0dum,EGdum,ERdum,dum,VRgpsdum,dum,dum,dum
         if(accepted(i)==1)then
           k=k+1
           misfits(k)=mf
@@ -327,7 +327,7 @@
         write(fname,'(a,i3.3)') 'sampls',ichain
         open(101,FILE=fname,FORM='UNFORMATTED',ACCESS='STREAM')
         do j=1,kchain(ichain)
-          read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),Mrate(:),M0dum,EGdum,ERdum,dum,VRgpsdum
+          read(101)mf,vr,dum11(:,:),dum12(:,:),dum13(:,:),dum21(:,:),dum22(:,:),dum23(:,:),dum24(:,:),dum25(:,:),Mrate(:),M0dum,EGdum,ERdum,dum,VRgpsdum,dum,dum,dum
           i=i+1
           if(accepted(i)==1)then
             k=k+1
