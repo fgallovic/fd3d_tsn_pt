@@ -537,7 +537,8 @@
 #else
             SCHANGEZ(I,K) = tz(i,k) + T0Z(i,k)
             sliprateoutZ(i,k) = - 2.*W1(I,NYSC,K)
-            SCHANGEX(I,K) = (tx(i,k)+T0X(i,k)+tx(i+1,k)+T0X(i+1,k)+tx(i,k+1)+T0X(i,k+1)+tx(i+1,k+1)+T0X(i+1,k+1))/4.
+!            SCHANGEX(I,K) = (tx(i,k)+T0X(i,k)+tx(i+1,k)+T0X(i+1,k)+tx(i,k+1)+T0X(i,k+1)+tx(i+1,k+1)+T0X(i+1,k+1))/4.
+            SCHANGEX(I,K) = (tx(i,k)+tx(i+1,k)+tx(i,k+1)+tx(i+1,k+1))/4.+T0X(i,k)
             sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I+1,NYSC,K)-2.*U1(I,NYSC,K+1)-2.*U1(I+1,NYSC,K+1))/4.
             slipZ(i,k)=slipZ(i,k)+sliprateoutZ(i,k)*dt
             slipX(i,k)=slipX(i,k)+sliprateoutX(i,k)*dt
@@ -562,7 +563,8 @@
 #else
             SCHANGEZ(I,K) = tz(i,k) + T0Z(i,k)
             sliprateoutZ(i,k) = - 2.*W1(I,NYSC,K)
-            SCHANGEX(I,K) = (tx(i,k)+T0X(i,k)+tx(i,k+1)+T0X(i,k+1))/2.
+!            SCHANGEX(I,K) = (tx(i,k)+T0X(i,k)+tx(i,k+1)+T0X(i,k+1))/2.
+            SCHANGEX(I,K) = (tx(i,k)+tx(i,k+1))/2.+T0X(i,k)
             sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I,NYSC,K+1))/2.
             slipZ(i,k)=slipZ(i,k)+sliprateoutZ(i,k)*dt
             slipX(i,k)=slipX(i,k)+sliprateoutX(i,k)*dt
@@ -584,7 +586,8 @@
 #else
             SCHANGEZ(I,K) = tz(i,k) + T0Z(i,k)
             sliprateoutZ(i,k) = - 2.*W1(I,NYSC,K)
-            SCHANGEX(I,K) = (tx(i,k)+T0X(i,k)+tx(i+1,k)+T0X(i+1,k))/2.
+!            SCHANGEX(I,K) = (tx(i,k)+T0X(i,k)+tx(i+1,k)+T0X(i+1,k))/2.
+            SCHANGEX(I,K) = (tx(i,k)+tx(i+1,k))/2.+T0X(i,k)
             sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I+1,NYSC,K))/2.
 #endif 
             efracds=efracds+schangeX(i,k)*sliprateoutX(i,k)*dt+schangeZ(i,k)*sliprateoutZ(i,k)*dt
@@ -975,8 +978,10 @@ _ACC_END_PARALLEL
         open(99,file='result/stressdropX.res')
 #endif
 
-        open(297,FILE='mtildeX.dat')
-        write(297,'(1E13.5)')MSRX
+!        open(297,FILE='mtildeX.dat')
+!        write(297,'(1E13.5)')MSRX
+        open(297,FILE='mtildeX.dat',form='unformatted')
+        write(297)MSRX
         close(297)
         open(298,FILE='mtildeZ.dat')
         write(298,'(1E13.5)')MSRZ
