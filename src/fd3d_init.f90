@@ -67,7 +67,11 @@
       real,allocatable,dimension(:,:):: peak_xz,dyn_xz,coh
       real,allocatable,dimension(:,:):: peakX,DcX,dynX
       real,allocatable,dimension(:,:):: peakZ,DcZ,dynZ
-      
+#if defined NONLINDAMPING
+      real:: rd_V0,rd_n,rd_Cr   !radiation damping following Barall and Harris (TSR 2023)
+      real:: tau_damp
+#endif
+
       real:: dip
       real,parameter:: pi=3.1415926535	 
       
@@ -182,7 +186,12 @@
 #else
       nfs=2 ! Number of layers above free surface
       ztop=0.
-#endif	
+#endif
+
+#if defined NONLINDAMPING
+      read(11,*) rd_V0,rd_n,rd_Cr
+#endif
+
       nxt=nxtT+2*nabc
       nyt=nytT+nabc
       nzt=nztT+nabc+nfs

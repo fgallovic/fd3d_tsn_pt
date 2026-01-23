@@ -56,7 +56,7 @@
       integer :: ifrom,ito,jfrom,jto,kk,ii,jj
       integer :: stopnexttime
       integer, allocatable :: nkk(:)
-      real    :: rup_tresh, rv, cz, efracds, alphakoef, schangef,  sr, tau_damp
+      real    :: rup_tresh, rv, cz, efracds, alphakoef, schangef, sr
       real,allocatable,dimension (:,:):: distX,distZ
       real,allocatable,dimension (:):: erad, efrac, timek
       real,allocatable,dimension (:,:,:)::slipt
@@ -465,14 +465,18 @@
 
 
 #else
-            !sr=sqrt((2*w1(i,nyt,k))**2+(2*uZ(i,k))**2)
-            !tau_damp=8.e6*((1+(sr/2.)**4.)**(1./4.)-1.)
+
             if (distZ(i,k).le.DcZ(i,k)) then
-              friction = peakZ(i,k) * (1.0 - distZ(i,k)/DcZ(i,k)) + dynZ(i,k)*distZ(i,k)/DcZ(i,k) + coh(i,k) !+ tau_damp
+              friction = peakZ(i,k) * (1.0 - distZ(i,k)/DcZ(i,k)) + dynZ(i,k)*distZ(i,k)/DcZ(i,k) + coh(i,k)
             else
-              friction = dynZ(i,k) + coh(i,k) !+ tau_damp
+              friction = dynZ(i,k) + coh(i,k)
             endif
-            
+#if defined NONLINDAMPING
+            sr=sqrt((2.*w1(i,nyt,k))**2+(2.*uZ(i,k))**2)
+            tau_damp=rd_Cr*((1.+(sr/rd_V0)**rd_n)**(1./rd_n)-1.)
+            friction = friction + tau_damp
+#endif
+
             if (tabs>=friction.and.time<=SRdur) then
               distZ(i,k) = distZ(i,k)  - 2*u1out*dt
               tz(i,k) =  (tz(i,k) + T0Z(i,k))*friction/tabs - T0Z(i,k)
@@ -507,14 +511,18 @@
             schangeX(I,K) = (tx(i,k) + t0X(i,k))*friction/tabs! - t0X(i,k)
             
 #else
-            !sr=sqrt((2*wX(i,k))**2+(2*u1(i,nyt,k))**2)
-            !tau_damp=8.e6*((1+(sr/2.)**4.)**(1./4.)-1.)
+
             if (distX(i,k).le.Dc(i,k)) then
-              friction = peakX(i,k) * (1.0 - distX(i,k)/DcX(i,k)) + dynX(i,k)*distX(i,k)/DcX(i,k) + coh(i,k) !+ tau_damp
+              friction = peakX(i,k) * (1.0 - distX(i,k)/DcX(i,k)) + dynX(i,k)*distX(i,k)/DcX(i,k) + coh(i,k)
             else
-              friction = dynX(i,k) + coh(i,k) !+ tau_damp
+              friction = dynX(i,k) + coh(i,k)
             endif
-            
+#if defined NONLINDAMPING
+            sr=sqrt((2.*wX(i,k))**2+(2.*u1(i,nyt,k))**2)
+            tau_damp=rd_Cr*((1.+(sr/rd_V0)**rd_n)**(1./rd_n)-1.)
+            friction = friction + tau_damp
+#endif
+
             if (tabs>=friction.and.time<=SRdur) then
               distX(i,k) = distX(i,k)  - 2*u1out*dt
               tx(i,k) = (tx(i,k) + T0X(i,k))*friction/tabs - T0X(i,k)
