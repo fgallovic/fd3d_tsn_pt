@@ -116,11 +116,6 @@
       CALL readinversionresult()
       ioutput=1
       if(iwaveform==0)write(*,*)'Note: No seismogram calculation.'
-#if !defined FVW
-      if(RUNI==10)then
-        CALL randomdynmod(nxt,nzt,dh,striniZ,peak_xz,Dc)
-      endif
-#endif
       if(RUNI==0)then
         write(*,*)'Note: Saving normal stress profile.'
         open(719,FILE='normalstressprofile.dat')
