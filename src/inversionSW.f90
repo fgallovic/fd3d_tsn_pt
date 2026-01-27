@@ -18,14 +18,13 @@
     real:: StepSizeT0,StepSizeTs,StepSizeD    
     integer:: RUNI,NLI,NWI  
     real,allocatable,dimension(:):: VRA, EgA, ErA, MisfitA,TshiftA, VRgpsA
-    real,allocatable,dimension(:,:,:):: ruptimeA,riseA,slipA,schangeA,peaksliprateA
+    real,allocatable,dimension(:,:,:):: ruptimeA,riseA,slipA,schangeA,peaksliprateA,efracdsA,DceffA
     real,allocatable :: pgaA(:,:,:),MwA(:),M0A(:),ruptdistA(:,:),MomentRateA(:,:)
     integer randseed,StepType
     
     end module
 
-
-
+    
     module frictionconstraints_com
 	
     real:: DcMin,DcMax,strinixMin,strinixMax,peak_xzMin,peak_xzMax
@@ -81,7 +80,8 @@
 
     allocate(DcI(NLI,NWI),T0I(NLI,NWI),TsI(NLI,NWI))
     allocate(DcA(NLI,NWI,nchains),T0A(NLI,NWI,nchains),TsA(NLI,NWI,nchains))
-    allocate(ruptimeA(nxt,nzt,nchains),riseA(nxt,nzt,nchains),slipA(nxt,nzt,nchains),schangeA(nxt,nzt,nchains),peaksliprateA(nxt,nzt,nchains))
+    allocate(ruptimeA(nxt,nzt,nchains),riseA(nxt,nzt,nchains),slipA(nxt,nzt,nchains),schangeA(nxt,nzt,nchains))
+    allocate(peaksliprateA(nxt,nzt,nchains),efracdsA(nxt,nzt,nchains),DceffA(nxt,nzt,nchains))
 	allocate(VRA(nchains),VRgpsA(nchains),EgA(nchains),ErA(nchains),MisfitA(nchains),M0A(nchains),MwA(nchains),TshiftA(nchains))
     
     !Read GFs and seismograms
@@ -241,6 +241,8 @@ jj=jj+1
       ruptimeA(:,:,ichain)=ruptime(:,:)
       riseA(:,:,ichain)=rise(:,:)
       peaksliprateA(:,:,ichain)=peaksliprate(:,:)
+      efracdsA(:,:,ichain)=efracds(:,:)
+      DceffA(:,:,ichain)=Dceff(:,:)
 #if defined DIPSLIP
       slipA(:,:,ichain)=slipZ(:,:)
       schangeA(:,:,ichain)=schangeZ(:,:)
@@ -268,7 +270,8 @@ jj=jj+1
       write(ifile,'(1000000E13.5)')misfit,VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
       flush(ifile)
       write(ifile+2)misfit,VRA(ichain),T0A(:,:,ichain),TsA(:,:,ichain),DcA(:,:,ichain),ruptimeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),slipA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain), &
-          & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),peaksliprateA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),MomentRateA(:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
+          & riseA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),schangeA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),peaksliprateA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),efracdsA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain),DceffA(nabc+1:nxt-nabc,nabc+1:nzt-nfs,ichain), &
+          MomentRateA(:,ichain),M0A(ichain),EgA(ichain),ErA(ichain),TshiftA(ichain),VRgpsA(ichain)
       flush(ifile+2)
       if (iwaveform==2) then
         write(ifile*10) (misfit,mwA(ichain),ruptdistA(jj,ichain),pgaA(jj,:,ichain)/100., jj=1,nrseis)
@@ -298,10 +301,16 @@ jj=jj+1
 !Constraints on Min/Max values
     do j=nabc+1,nzt-nfs
       do i=nabc+1,nxt-nabc
+#if defined NONLINDAMPING
+        if(rd_V0(i,j)<DcMin.or.rd_V0(i,j)>DcMax)then
+!          write(*,*)'rd_V0',i,j,rd_V0(i,j),Dcmin,DcMax
+#else
         if(Dc(i,j)<DcMin.or.Dc(i,j)>DcMax)then
 !          write(*,*)'Dc',i,j,Dc(i,j),Dcmin,DcMax
+#endif
           return
         endif
+
 #if defined DIPSLIP
         if(striniZ(i,j)-dyn_xz(i,j)<strinixMin.or.striniZ(i,j)-dyn_xz(i,j)>strinixMax.or.striniZ(i,j)<=0.)then
 !         write(*,*)'StriniZ',i,j,striniZ(i,j),strinixMin,strinixMax
@@ -506,6 +515,8 @@ jj=jj+1
     ruptimeA(:,:,ichain)=ruptime(:,:)
     riseA(:,:,ichain)=rise(:,:)
     peaksliprateA(:,:,ichain)=peaksliprate(:,:)
+    efracdsA(:,:,ichain)=efracds(:,:)
+    DceffA(:,:,ichain)=Dceff(:,:)
 #if defined DIPSLIP
     slipA(:,:,ichain)=slipZ(:,:)
     schangeA(:,:,ichain)=schangeZ(:,:)

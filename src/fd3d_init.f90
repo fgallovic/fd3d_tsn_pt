@@ -68,7 +68,8 @@
       real,allocatable,dimension(:,:):: peakX,DcX,dynX
       real,allocatable,dimension(:,:):: peakZ,DcZ,dynZ
 #if defined NONLINDAMPING
-      real:: rd_V0,rd_n,rd_Cr   !radiation damping following Barall and Harris (TSR 2023)
+      real:: rd_n,rd_Cr   !radiation damping following Barall and Harris (TSR 2023)
+      real,allocatable,dimension(:,:):: rd_V0
       real:: tau_damp
 #endif
 
@@ -103,7 +104,8 @@
     END MODULE
 
     MODULE source_com
-      REAL,ALLOCATABLE,DIMENSION(:,:):: ruptime,rise,slipZ,schangeX,schangeZ,sliptime,slipX,peaksliprate
+      REAL,ALLOCATABLE,DIMENSION(:,:):: ruptime,rise,slipZ,schangeX,schangeZ,sliptime,slipX
+      REAL,ALLOCATABLE,DIMENSION(:,:):: peaksliprate,peakstress,efracds,Dceff
       real    :: output_param(6)
       integer :: ioutput
       integer:: Nstations
@@ -164,7 +166,7 @@
       IMPLICIT NONE
       integer nxtT, nytT, nztT
       integer i
-      real pml_vp,pml_fact  
+      real pml_vp,pml_fact
 
 !--------------------
 ! Read the input file
@@ -188,15 +190,16 @@
       ztop=0.
 #endif
 
-#if defined NONLINDAMPING
-      read(11,*) rd_V0,rd_n,rd_Cr
-#endif
-
       nxt=nxtT+2*nabc
       nyt=nytT+nabc
       nzt=nztT+nabc+nfs
       nysc=nyt
       omegaM_pml=pml_fact*pml_vp/(2.*dh*(nabc-1))
+
+#if defined NONLINDAMPING
+      allocate(rd_V0(nxt,nzt))
+      read(11,*) rd_n,rd_Cr
+#endif
 
       read(11,*) Nstations
       if(Nstations>0) then
@@ -235,14 +238,13 @@
 	  allocate(slipOUT(2,MDIS*NDIS))
 	  allocate(f0PS(MDIS,NDIS),baPS(MDIS,NDIS),fwPS(MDIS,NDIS),vwPS(MDIS,NDIS),aPS(MDIS,NDIS),dcPS(MDIS,NDIS),snPS(MDIS,NDIS))
 #else
-
       allocate(striniZ(nxt,nzt),striniX(nxt,nzt),peak_xz(nxt,nzt),Dc(nxt,nzt),dyn_xz(nxt,nzt))
       allocate(peakX(nxt,nzt),T0X(nxt,nzt),DcX(nxt,nzt),dynX(nxt,nzt))
       allocate(peakZ(nxt,nzt),T0Z(nxt,nzt),DcZ(nxt,nzt),dynZ(nxt,nzt))
-
 #endif
       
-      allocate(ruptime(nxt,nzt),slipZ(nxt,nzt),slipX(nxt,nzt),rise(nxt,nzt),schangeZ(nxt,nzt),schangeX(nxt,nzt),sliptime(nxt,nzt),peaksliprate(nxt,nzt))
+      allocate(ruptime(nxt,nzt),slipZ(nxt,nzt),slipX(nxt,nzt),rise(nxt,nzt),schangeZ(nxt,nzt),schangeX(nxt,nzt))
+      allocate(sliptime(nxt,nzt),peaksliprate(nxt,nzt),peakstress(nxt,nzt),efracds(nxt,nzt),Dceff(nxt,nzt))
       allocate(muSource(nxt,nzt),coh(nxt,nzt))
 
       striniX=0.; striniZ=0.; peak_xz=0.; Dc=0.
@@ -962,7 +964,22 @@
 #endif
       enddo
     enddo
-    coh=0.5e6
+    coh(:,:)=0.5e6
+
+#if defined NONLINDAMPING
+    do k=nabc+1,nzt-nfs
+      ZS=dh*(k-1-nabc)
+      kk=min(NWI-1,int(ZS/DW)+1)
+      u=min(1.,(ZS-DW*(kk-1))/DW)
+      do i=nabc+1,nxt-nabc
+        XS=dh*(i-1-nabc)
+        ii=min(NLI-1,int(XS/DL)+1)
+        t=min(1.,(XS-DL*(ii-1))/DL) 
+        rd_V0(i,k)=(1.-t)*(1.-u)*DcI(ii,kk)+t*(1.-u)*DcI(ii+1,kk)+t*u*DcI(ii+1,kk+1)+(1.-t)*u*DcI(ii,kk+1)
+      enddo
+    enddo
+    Dc(:,:)=0.001
+#endif
 
     END SUBROUTINE
     

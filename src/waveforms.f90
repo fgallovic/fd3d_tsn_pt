@@ -112,14 +112,14 @@
       stasigma5(:)=staweight(2,:)  !Only the second weight column defines the weight in the misfit for time-domain
       open(225,file='stations.dat',status='old')
       do i=1,NRseis
-        read(225,*) STAn(i),STAe(i),STAu(i)
+!        read(225,*) STAn(i),STAe(i),STAu(i)
 !if azimuth and take-off angles are provided, otherwise comment all lines below
-!        read(225,*) STAn(i),STAe(i),STAu(i),dumname,STAazimuth(i),STAtakeoff(i)
-!        dum=sqrt(STAn(i)**2+STAe(i)**2+(hypodepth/1.e3-STAu(i))**2)
+        read(225,*) STAn(i),STAe(i),STAu(i),dumname,STAazimuth(i),STAtakeoff(i)
+        dum=sqrt(STAn(i)**2+STAe(i)**2+(hypodepth/1.e3-STAu(i))**2)
 !        write(*,*)STAn(i),STAe(i),STAu(i)
-!        STAn(i)=dum*sin(STAtakeoff(i)/180.*pi)*cos(STAazimuth(i)/180.*pi)
-!        STAe(i)=dum*sin(STAtakeoff(i)/180.*pi)*sin(STAazimuth(i)/180.*pi)
-!        STAu(i)=hypodepth/1.e3+dum*cos(STAtakeoff(i)/180.*pi)
+        STAn(i)=dum*sin(STAtakeoff(i)/180.*pi)*cos(STAazimuth(i)/180.*pi)
+        STAe(i)=dum*sin(STAtakeoff(i)/180.*pi)*sin(STAazimuth(i)/180.*pi)
+        STAu(i)=hypodepth/1.e3+dum*cos(STAtakeoff(i)/180.*pi)
 !        write(*,*)STAn(i),STAe(i),STAu(i)
       enddo
       close(225)
@@ -328,7 +328,7 @@
         dumts=1
         dum=maxval(astf(:,j))
         do i=1,np
-          if(abs(astf(i,j))>0.01*dum)then
+          if(abs(astf(i,j))>0.05*dum)then
             dumts=i
             exit
           endif
@@ -618,7 +618,7 @@
 	use source_com, only: ioutput
 	implicit none
     real dum,normdat,misfit1,VR1
-    real,parameter:: maxTshift=.1
+    real,parameter:: maxTshift=1.
     real dumn,dump,normdatn,normdatp,misfit2,VR2
     integer i,k,ims
 
@@ -697,38 +697,82 @@ subroutine evalmisfitStime()
     use SlipRates_com
 	use source_com, only: ioutput
 	implicit none
-    real,parameter:: maxTshift=.1
+    real,parameter:: maxTshift=1.
+    integer,parameter:: MisfitType=2  !1=L2 norm, 2=Wasserstein distance
     real dumn,dump,normdatn,normdatp
+    real,dimension(:,:),allocatable:: crastf,castf
     integer i,k,ims
     
     ims=int(maxTshift/dtseis)
     misfit=1.e30
     VR=-1.e30
     Tshift=0.
-    do i=0,ims-1
-      dumn=0.;dump=0.
-      normdatn=0.;normdatp=0.
+    
+    if(MisfitType==1)then
+      do i=0,ims-1
+        dumn=0.;dump=0.
+        normdatn=0.;normdatp=0.
+        do k=1,NRseis
+          if(stainfo(2,k)==0)cycle
+          dumn=dumn+.5*sum((rastf(i+1:np+i-ims,k)/SigmaData5-astf(1:np-ims,k)/SigmaData5)**2)*stasigma5(k)**2
+          normdatn=normdatn+.5*sum((rastf(i+1:np+i-ims,k)/SigmaData5)**2)*stasigma5(k)**2
+          dump=dump+.5*sum((rastf(1:np-ims,k)/SigmaData5-astf(i+1:np+i-ims,k)/SigmaData5)**2)*stasigma5(k)**2
+          normdatp=normdatp+.5*sum((rastf(1:np-ims,k)/SigmaData5)**2)*stasigma5(k)**2
+        enddo
+        if(dumn<misfit)then
+          Tshift=-dtseis*i !negative shifts
+          misfit=dumn
+          VR=1.-dumn/normdatn
+        endif
+        if(dump<misfit)then
+          Tshift=dtseis*i !positive shifts
+          misfit=dump
+          VR=1.-dump/normdatp
+        endif
+      enddo
+      print*,'time-domain misfit: ', misfit
+    
+    else
+    
+      allocate(crastf(np,NRseis),castf(np,NRseis))
+      crastf(1,:)=rastf(1,:)
+      castf(1,:)=astf(1,:)
+      do i = 2, np
+        crastf(i,:)=crastf(i-1,:)+rastf(i,:)
+        castf(i,:)=castf(i-1,:)+astf(i,:)
+      end do
       do k=1,NRseis
         if(stainfo(2,k)==0)cycle
-        dumn=dumn+.5*sum((rastf(i+1:np+i-ims,k)/SigmaData5-astf(1:np-ims,k)/SigmaData5)**2)*stasigma5(k)**2
-        normdatn=normdatn+.5*sum((rastf(i+1:np+i-ims,k)/SigmaData5)**2)*stasigma5(k)**2
-        dump=dump+.5*sum((rastf(1:np-ims,k)/SigmaData5-astf(i+1:np+i-ims,k)/SigmaData5)**2)*stasigma5(k)**2
-        normdatp=normdatp+.5*sum((rastf(1:np-ims,k)/SigmaData5)**2)*stasigma5(k)**2
+        crastf(:,k)=crastf(:,k)/crastf(np,k)
+        castf(:,k)=castf(:,k)/castf(np,k)
       enddo
-      if(dumn<misfit)then
-        Tshift=-dtseis*i !negative shifts
-        misfit=dumn
-        VR=1.-dumn/normdatn
-      endif
-      if(dump<misfit)then
-        Tshift=dtseis*i !positive shifts
-        misfit=dump
-        VR=1.-dump/normdatp
-      endif
-    enddo
-	print*,'time-domain misfit: ', misfit
+      do i=0,ims-1
+        dumn=0.;dump=0.
+        do k=1,NRseis
+          if(stainfo(2,k)==0)cycle
+          dumn=dumn+sum(abs(crastf(i+1:np+i-ims,k)-castf(i+1:np+i-ims,k)))
+          dump=dump+sum(abs(crastf(1:np-ims,k)-castf(1:np-ims,k)))
+        enddo
+        if(dumn<misfit)then
+          Tshift=-dtseis*i !negative shifts
+          misfit=dumn/real(NRseis)
+          VR=misfit
+        endif
+        if(dump<misfit)then
+          Tshift=dtseis*i !positive shifts
+          misfit=dump/real(NRseis)
+          VR=misfit
+        endif
+      enddo
+      deallocate(crastf,castf)
+      print*,'Wasserstein misfit: ', misfit
+    endif
     
-    if(Mwsigma>0.)misfit=misfit+0.5*(2./3.*log10(M0/M0aprior)/Mwsigma)**2
+    if(Mwsigma>0.)then
+        dumn=0.5*(2./3.*log10(M0/M0aprior)/Mwsigma)**2
+        write(*,*)'Seismic moment misfit: ',dumn
+        misfit=misfit+dumn
+    endif
     
     END
 

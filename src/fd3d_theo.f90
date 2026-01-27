@@ -56,11 +56,11 @@
       integer :: ifrom,ito,jfrom,jto,kk,ii,jj
       integer :: stopnexttime
       integer, allocatable :: nkk(:)
-      real    :: rup_tresh, rv, cz, efracds, alphakoef, schangef, sr
-      real,allocatable,dimension (:,:):: distX,distZ
-      real,allocatable,dimension (:):: erad, efrac, timek
-      real,allocatable,dimension (:,:,:)::slipt
-!     real,allocatable,dimension (:,:,:):: waveU,waveV,waveW
+      real    :: rup_tresh, rv, cz, sr
+      real,allocatable,dimension(:,:) :: distX,distZ
+      real,allocatable,dimension(:) :: erad, timek
+      real,allocatable,dimension(:,:,:) ::slipt
+!     real,allocatable,dimension(:,:,:) :: waveU,waveV,waveW
 #if defined FVW
       real    :: fss, flv, psiss, dpsi
       real    :: FXZ, GT, hx, hz, rr,AA,BB
@@ -77,7 +77,7 @@
       allocate(sliprateoutX(nxt,nzt),sliprateoutZ(nxt,nzt),distX(nxt,nzt),distZ(nxt,nzt))
       allocate(omega_pml(nabc-1), omegaR_pml(nabc-1),omega_pmlM(nabc-1), omegaR_pmlM(nabc-1))
       allocate(au1(nxt,nzt),av1(nxt,nzt),aw1(nxt,nzt))
-      allocate(erad(nSR), efrac(nSR), slipt(nxt,nzt,nSR),timek(nSR))
+      allocate(erad(nSR), slipt(nxt,nzt,nSR), timek(nSR))
 !   allocate(waveU(nxt,nyt,nzt),waveV(nxt,nyt,nzt),waveW(nxt,nyt,nzt))
 #if defined FVW
 	  allocate(psiout(nxt,nzt))
@@ -85,7 +85,7 @@
       u1=0.; v1=0.; w1=0.
       xx=0.; yy=0.; zz=0.; xy=0.; yz=0.; xz=0.
       ruptime=1.e4; rise=0.; sliptime=1.e4
-      peaksliprate=0.
+      peaksliprate=0.;peakstress=0.
       tx=0.; tz=0.; v1t=0.
       uZ=0.; wX=0.
       avdx = 0.; avdz = 0.
@@ -102,10 +102,11 @@
       tabsX=0.; tabsZ=0.
       sliprateoutZ=0.; sliprateoutX=0.
       SCHANGEZ=0.; SCHANGEX=0.
+      efracds=0.; Dceff=0.
 	  timek=0.
       tabs=0.; 
       slipX=0.; slipZ=0.
-      efrac=0.;erad=0.;eraddt=0.;efracds=0.;schangef=0.;slipt=0.
+      erad=0.;eraddt=0.;slipt=0.
 !     waveU=0.; waveV=0.; waveW=0.
       dht = dh/dt
       if(Nstations>0) then
@@ -194,7 +195,11 @@
         do k = nabc+1,nzt-nfs
           do i = nabc+1,nxt-nabc
             write(95,*) mu1(i,nysc,k)
+#if defined NONLINDAMPING
+            write(96,'(5E13.5)') striniX(i,k),striniZ(i,k),peak_xz(i,k),rd_V0(i,k),peak_xz(i,k)/normstress(k)
+#else
             write(96,'(5E13.5)') striniX(i,k),striniZ(i,k),peak_xz(i,k),Dc(i,k),peak_xz(i,k)/normstress(k)
+#endif
           enddo
         enddo
         close(95)
@@ -249,18 +254,21 @@
       !$ACC      COPYIN (dyn_xz,striniZ,striniX,peak_xz,Dc,coh,tabsX,tabsZ) &
       !$ACC      COPYIN (peakX, dynX, DcX, peakZ, dynZ, DcZ,staX,staY,staZ, distX, distZ) &
 #if defined FVW
-      !$ACC      COPYIN (aX,baX,psiX,vwX,SnX,f0X,fwX)&
-      !$ACC      COPYIN (aZ,baZ,psiZ,vwZ,SnZ,f0Z,fwZ)&
-      !$ACC      COPYIN (uini,wini,t0xi,t0zi)&
+      !$ACC      COPYIN (aX,baX,psiX,vwX,SnX,f0X,fwX) &
+      !$ACC      COPYIN (aZ,baZ,psiZ,vwZ,SnZ,f0Z,fwZ) &
+      !$ACC      COPYIN (uini,wini,t0xi,t0zi) &
 #endif
 #if defined FSPACE
-      !$ACC      COPYIN (u51,u52,u53,v51,v52,v53,w51,w52,w53)&
-      !$ACC      COPYIN (xx51,xx52,xx53,yy51,yy52,yy53,zz51,zz52,zz53)&
-      !$ACC      COPYIN (xy51,xy52,xz51,xz52,yz51,yz52)&
+      !$ACC      COPYIN (u51,u52,u53,v51,v52,v53,w51,w52,w53) &
+      !$ACC      COPYIN (xx51,xx52,xx53,yy51,yy52,yy53,zz51,zz52,zz53) &
+      !$ACC      COPYIN (xy51,xy52,xz51,xz52,yz51,yz52) &
       !$ACC      COPYIN (omegaxS5,omegayS5,omegazS5) &
       !$ACC      COPYIN (omegax5,omegay5,omegaz5) &
 #endif
-      !$ACC      COPY (ruptime,sliptime,rise,peaksliprate)
+#if defined NONLINDAMPING
+      !$ACC      COPYIN (rd_V0) &
+#endif
+      !$ACC      COPY (ruptime,sliptime,rise,peaksliprate,peakstress,efracds,Dceff)
 	  
       do it = 1,ntfd
 	  
@@ -473,7 +481,7 @@
             endif
 #if defined NONLINDAMPING
             sr=sqrt((2.*w1(i,nyt,k))**2+(2.*uZ(i,k))**2)
-            tau_damp=rd_Cr*((1.+(sr/rd_V0)**rd_n)**(1./rd_n)-1.)
+            tau_damp=rd_Cr*((1.+(sr/rd_V0(i,k))**rd_n)**(1./rd_n)-1.)
             friction = friction + tau_damp
 #endif
 
@@ -519,7 +527,7 @@
             endif
 #if defined NONLINDAMPING
             sr=sqrt((2.*wX(i,k))**2+(2.*u1(i,nyt,k))**2)
-            tau_damp=rd_Cr*((1.+(sr/rd_V0)**rd_n)**(1./rd_n)-1.)
+            tau_damp=rd_Cr*((1.+(sr/rd_V0(i,k))**rd_n)**(1./rd_n)-1.)
             friction = friction + tau_damp
 #endif
 
@@ -551,10 +559,12 @@
             slipZ(i,k)=slipZ(i,k)+sliprateoutZ(i,k)*dt
             slipX(i,k)=slipX(i,k)+sliprateoutX(i,k)*dt
 #endif 
-            efracds=efracds+schangeX(i,k)*sliprateoutX(i,k)*dt+schangeZ(i,k)*sliprateoutZ(i,k)*dt
-            eraddt=eraddt+(schangeX(i,k)-t0X(i,k))*sliprateoutX(i,k)*dt+(schangeZ(i,k)-t0Z(i,k))*sliprateoutZ(i,k)*dt
+            efracds(i,k)=efracds(i,k)+schangeX(i,k)*sliprateoutX(i,k)*dt+schangeZ(i,k)*sliprateoutZ(i,k)*dt
+            eraddt=eraddt+(schangeX(i,k)-T0X(i,k))*sliprateoutX(i,k)*dt+(schangeZ(i,k)-T0Z(i,k))*sliprateoutZ(i,k)*dt
             sr=sqrt(sliprateoutX(i,k)**2+sliprateoutZ(i,k)**2)
             if(sr>peaksliprate(i,k))peaksliprate(i,k)=sr
+            sr=sqrt(SCHANGEX(i,k)**2+SCHANGEZ(i,k)**2)
+            if(sr>peakstress(i,k))peakstress(i,k)=sr
 		  enddo
         enddo
         _ACC_END_PARALLEL
@@ -577,10 +587,12 @@
             slipZ(i,k)=slipZ(i,k)+sliprateoutZ(i,k)*dt
             slipX(i,k)=slipX(i,k)+sliprateoutX(i,k)*dt
 #endif 
-            efracds=efracds+schangeX(i,k)*sliprateoutX(i,k)*dt+schangeZ(i,k)*sliprateoutZ(i,k)*dt
-            eraddt=eraddt+(schangeX(i,k)-t0X(i,k))*sliprateoutX(i,k)*dt+(schangeZ(i,k)-t0Z(i,k))*sliprateoutZ(i,k)*dt
+            efracds(i,k)=efracds(i,k)+schangeX(i,k)*sliprateoutX(i,k)*dt+schangeZ(i,k)*sliprateoutZ(i,k)*dt
+            eraddt=eraddt+(schangeX(i,k)-T0X(i,k))*sliprateoutX(i,k)*dt+(schangeZ(i,k)-T0Z(i,k))*sliprateoutZ(i,k)*dt
             sr=sqrt(sliprateoutX(i,k)**2+sliprateoutZ(i,k)**2)
             if(sr>peaksliprate(i,k))peaksliprate(i,k)=sr
+            sr=sqrt(SCHANGEX(i,k)**2+SCHANGEZ(i,k)**2)
+            if(sr>peakstress(i,k))peakstress(i,k)=sr
         enddo
         _ACC_END_PARALLEL
 
@@ -598,10 +610,12 @@
             SCHANGEX(I,K) = (tx(i,k)+tx(i+1,k))/2.+T0X(i,k)
             sliprateoutX(i,k) = (-2.*U1(I,NYSC,K)-2.*U1(I+1,NYSC,K))/2.
 #endif 
-            efracds=efracds+schangeX(i,k)*sliprateoutX(i,k)*dt+schangeZ(i,k)*sliprateoutZ(i,k)*dt
-            eraddt=eraddt+(schangeX(i,k)-t0X(i,k))*sliprateoutX(i,k)*dt+(schangeZ(i,k)-t0Z(i,k))*sliprateoutZ(i,k)*dt
+            efracds(i,k)=efracds(i,k)+schangeX(i,k)*sliprateoutX(i,k)*dt+schangeZ(i,k)*sliprateoutZ(i,k)*dt
+            eraddt=eraddt+(schangeX(i,k)-T0X(i,k))*sliprateoutX(i,k)*dt+(schangeZ(i,k)-T0Z(i,k))*sliprateoutZ(i,k)*dt
             sr=sqrt(sliprateoutX(i,k)**2+sliprateoutZ(i,k)**2)
             if(sr>peaksliprate(i,k))peaksliprate(i,k)=sr
+            sr=sqrt(SCHANGEX(i,k)**2+SCHANGEZ(i,k)**2)
+            if(sr>peakstress(i,k))peakstress(i,k)=sr
           enddo
         _ACC_END_PARALLEL
 		
@@ -738,6 +752,7 @@ _ACC_END_PARALLEL
 #endif
 
 !$ACC END DATA
+
         if(mod(it,ceiling(stoptimecheck/dt))==0)then
           maxvelZ=maxval(sliprateoutZ(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
           maxvelX=maxval(sliprateoutX(nabc+1:nxt-nabc,nabc+1:nzt-nfs))
@@ -803,7 +818,6 @@ _ACC_END_PARALLEL
              slipt(i,j,k)=sqrt(slipX(i,j)**2+slipZ(i,j)**2)
           enddo
         enddo
-        efrac(k)=efracds
         erad(k)=tint2-eraddt
 		
         if(mod(it,ceiling(stoptimecheck/dt))==0)then
@@ -889,7 +903,6 @@ _ACC_END_PARALLEL
 #endif
       SCHANGEZ(:,:)=SCHANGEZ(:,:)-T0Z(:,:)   !stress drop
       SCHANGEX(:,:)=SCHANGEX(:,:)-T0X(:,:)
-     ! schangef=sum(distZ*sqrt((schangeX+T0X)**2+(schangeZ+T0Z)**2))
 
       deallocate(u1,v1,w1)
       deallocate(xx,yy,zz,xy,yz,xz)
@@ -940,7 +953,6 @@ _ACC_END_PARALLEL
       output_param(2) =  0.
       numer           =  0.
       denom           =  0.
-      schangef        =  0.
       do k = nabc+1,nzt-nfs	
         do i = nabc+1,nxt-nabc
           ! --- Seismic moment:
@@ -954,7 +966,7 @@ _ACC_END_PARALLEL
           else
             output_param(4) = 0.0
           endif
-          schangef=schangef+slipX(i,k)*(schangeX(i,k)+T0X(i,k))+slipZ(i,k)*(schangeZ(i,k)+T0Z(i,k))
+          efracds(i,k)=efracds(i,k)-(slipX(i,k)*(schangeX(i,k)+T0X(i,k))+slipZ(i,k)*(schangeZ(i,k)+T0Z(i,k)))
         enddo
       enddo
     ! output_param(5) = (1./2.)**sum(peak_xz*Dc)/dble((nxt-2*nabc)*(nzt-nfs-nabc))
@@ -963,10 +975,9 @@ _ACC_END_PARALLEL
       Mw=(log10(M0)-9.1)/1.5
 
       do k=1,nSR
-        !write(398,*)dt*(k-1),efrac(k),(efrac(k)-schangef)*dh**2
-        if ((efrac(k)-schangef)*dh**2>0.) Eg=(efrac(k)-schangef)*dh**2
         if (erad(k)*dh**2>0.) Er=erad(k)*dh**2		   
       enddo
+      Eg=sum(efracds(nabc+1:nxt-nabc,nabc+1:nzt-nfs))*dh**2
       output_param(5)=Eg
       output_param(6)=Er
 
@@ -978,6 +989,8 @@ _ACC_END_PARALLEL
         open(96,file='result/risetime.res')
         open(97,file='result/ruptime.res')
         open(93,file='result/peaksliprate.dat')
+        open(92,file='result/fractureenergy.dat')
+
 #if defined DIPSLIP
         open(94,file='result/slipZ.res')
         open(95,file='result/stressdropZ.res')
@@ -1023,13 +1036,17 @@ _ACC_END_PARALLEL
             write(96,*) rise(i,k)
             write(97,*) ruptime(i,k)
             write(93,*) peaksliprate(i,k)
+            Dceff=0.
 #if defined DIPSLIP
             write(94,*) slipZ(i,k)
             write(95,*) schangeZ(i,k)
+            if(schangeZ(i,k)<0.)Dceff(i,k)=2.*efracds(i,k)/(peakstress(i,k)-schangeZ(i,k)-T0Z(i,k))
 #else
             write(98,*) slipX(i,k)
             write(99,*) schangeX(i,k)
+            if(schangeX(i,k)<0.)Dceff(i,k)=2.*efracds(i,k)/(peakstress(i,k)-schangeX(i,k)-T0X(i,k))
 #endif
+            write(92,'(2E13.5)')efracds(i,k),Dceff(i,k)
           enddo
         enddo
         close(96)
@@ -1038,6 +1055,7 @@ _ACC_END_PARALLEL
         close(99)
         close(94)
         close(95)
+        close(92)
 
         open(501,file='result/contour.res')
         write(501,*) 'j k t'
@@ -1088,7 +1106,7 @@ _ACC_END_PARALLEL
       output_param(3)=count(slipX(nabc+1:nxt-nabc,nabc+1:nzt-nfs)>0.05*slipmax)*dh*dh
 #endif
 
-      deallocate(efrac,erad,slipt,timek)
+      deallocate(erad,slipt,timek)
       deallocate(nkk)
 
       END SUBROUTINE
