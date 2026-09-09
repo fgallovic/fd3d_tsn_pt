@@ -1,3 +1,15 @@
+! This file holds the routines that turn the fault model (slip-rate history
+! from the FD simulation) into synthetic data - seismograms, GPS/postseismic
+! series, apparent source time functions (ASTFs) or GMPE-based intensity
+! measures (PGA/PSA) - and that compare them against observations to produce
+! the scalar misfit/variance-reduction values consumed by the MCMC sampler
+! (see AdvanceChain in inversionSW.f90 / inversionRS.f90).
+!
+! Which comparison is used is selected by iwaveform (read in inversion_init):
+!   0  no seismograms                        3  moment-only misfit (evalmisfitM)
+!   1  full waveform fit (evalmisfit)        4  ASTF spectrum only (evalmisfitSspec)
+!   2  GMPE/PGA fit (evalmisfit2)            5  ASTF time-domain only (evalmisfitStime)
+!                                            45 ASTF spectrum+time (evalmisfitSspectime)
     MODULE waveforms_com
       REAL,PARAMETER:: PI=3.1415926535
 !waveforms for misfit
@@ -26,6 +38,15 @@
     END MODULE
 
     
+! Read the run setup (input.dat, stainfo.dat) and, for iwaveform==1 (full
+! waveform fit) or ==2 (GMPE fit), the pre-computed Green's functions
+! (NEZsor.dat) for every fault sub-source/component. These are filtered,
+! time-integrated (displacement) or differentiated (velocity, for GMPEs) and
+! assembled into the linear operator H (waveform case) or written back out to
+! disk as GFspectr_st (GMPE case, re-read later in syntseis). Called once at
+! start-up, not per MCMC step - this is why it is comparatively slow.
+! For iwaveform==4/5/45 (ASTF fitting) no Green's functions are needed at all;
+! only station/source geometry is read.
     SUBROUTINE readGFs()
     USE waveforms_com
     USE SlipRates_com
@@ -261,6 +282,17 @@
     
     END
 	
+! Build the synthetic data for the current model, called once per MCMC step
+! after fd3d() has produced a new slip-rate history (MSRX/MSRZ).
+!   iwaveform==4/5/45: convolve the moment-rate at each sub-source with a
+!     travel-time delay to the station to build the apparent source time
+!     function (ASTF) astf(:,j), then its smoothed amplitude spectrum
+!     astfspec/astfspecs.
+!   iwaveform==1: convolve slip rate with the Green's functions in H
+!     (Dsynt = H * MSR) to get full synthetic seismograms.
+!   iwaveform==2: convolve slip rate with the spectra saved by readGFs
+!     (read back from GFspectr_st) to get seismograms for GMPE evaluation,
+!     and record the closest rupture distance per station (ruptdist).
     SUBROUTINE syntseis()
     USE waveforms_com
     USE source_com
@@ -450,6 +482,10 @@
     END    
     
     
+! Read the observed (real) seismograms into Dseis, for iwaveform==1. One file
+! per component (rvseisn/e/z.dat); each file has one column per station, and
+! the `(dum,mm=1,jj)` implied-do read skips the first jj columns (for the
+! preceding stations) so only the current station's column lands in Dseis.
     SUBROUTINE readwaveforms()
     USE waveforms_com
     IMPLICIT NONE
@@ -487,6 +523,10 @@
     END
     
 
+! Read observed apparent source time functions (ASTFs), for iwaveform==4/5/45:
+! their smoothed amplitude spectra (rastfspecmooth.dat -> rastfspecs) and/or
+! their time-domain shape (rastfs.dat -> rastf, one row per time sample, read
+! until end-of-file since the number of samples is not known up front).
     SUBROUTINE readastfs()
     USE waveforms_com
     IMPLICIT NONE
@@ -508,6 +548,8 @@
       open(290,FILE='rastfs.dat')
       rastf=0.
       k=1
+! Old-style read-until-EOF loop: keep reading rows into rastf(k,:) and
+! bumping k until label 399 is reached via the END= branch on end-of-file.
 398   read(290,*,END=399)dum,rastf(k,1:NRseis)
       k=k+1
       goto 398
@@ -518,6 +560,11 @@
     END
     
     
+! Full waveform misfit (iwaveform==1): L2 misfit between synthetic (Dsynt)
+! and observed (Dseis) seismograms, optimizing over a small time shift
+! (+/- maxTshift) to absorb timing/hypocenter-location errors, plus the
+! (optional) static GPS/postseismic misfit and seismic-moment prior term.
+! Sets misfit, VR (variance reduction), Tshift and (if NGPS>0) VRGPS.
     subroutine evalmisfit()
     use waveforms_com
     use SlipRates_com
@@ -612,6 +659,10 @@
     
     END
 
+! ASTF misfit combining spectrum and time-domain fit (iwaveform==45): sum of
+! the log-spectrum misfit (see evalmisfitSspec) and the time-shifted L2
+! time-domain misfit (see evalmisfitStime), each computed inline here rather
+! than by calling those routines. Sets misfit, VR and Tshift.
  subroutine evalmisfitSspectime()
     use waveforms_com
     use SlipRates_com
@@ -667,6 +718,10 @@
     END
 
     
+! ASTF spectrum-only misfit (iwaveform==4): L2 misfit of log-amplitude
+! smoothed ASTF spectra (observed rastfspecs vs synthetic astfspecs). No time
+! shift is searched (spectra are shift-invariant); Tshift is set to a sentinel
+! -1000. to mark that it is not meaningful here.
  subroutine evalmisfitSspec()
     use waveforms_com
     use SlipRates_com
@@ -692,6 +747,11 @@
     END
 
     
+! ASTF time-domain-only misfit (iwaveform==5), searched over a time shift
+! (+/- maxTshift) as in evalmisfit. Two interchangeable metrics, picked by the
+! local MisfitType parameter: 1 = L2 norm of the (normalized) ASTFs, 2 (the
+! default) = 1-Wasserstein distance between their cumulative moment-rate
+! functions, which is less sensitive to the exact pulse shape/timing.
 subroutine evalmisfitStime()
     use waveforms_com
     use SlipRates_com
@@ -777,6 +837,10 @@ subroutine evalmisfitStime()
     END
 
 
+! Moment-only misfit (iwaveform==3): no waveform comparison at all, just the
+! seismic-moment prior term (model discarded via misfit=1e30 if the rupture
+! reached the fault edges or did not stop within the simulated time window,
+! which would mean the true rupture extent was not captured).
     subroutine evalmisfitM()
     use waveforms_com
     use SlipRates_com
@@ -799,6 +863,12 @@ subroutine evalmisfitStime()
     end subroutine
 
 
+! GMPE/PGA-based misfit (iwaveform==2): compares synthetic ground-motion
+! intensity measures (rotD50 PGA/PSA from the synthetic horizontal
+! seismograms, via pcn05/get_rotd50) against a GMPE prediction (pga_theor) at
+! each station/period, using a mixed-effects (between/within-event) residual
+! decomposition. Discards the model up front (return, misfit stays 1e30) for
+! the same "rupture not fully captured" reasons as evalmisfitM.
     subroutine evalmisfit2()
     use mod_pgamisf
     use waveforms_com
@@ -897,6 +967,10 @@ subroutine evalmisfitStime()
     end subroutine 
 
 
+! Write observed and synthetic seismograms (normalized/offset per station and
+! component) plus a gnuplot script (seisplot.gp) that overlays them for a
+! quick visual QC of the fit; used only when ioutput==1 (diagnostic/forward
+! run), not during the MCMC itself.
     SUBROUTINE plotseis()
     USE waveforms_com
     USE SlipRates_com
@@ -1018,6 +1092,11 @@ subroutine evalmisfitStime()
     
     
     
+! Classic Numerical-Recipes-style in-place radix-2 FFT of a complex array of
+! length nn, stored as 2*nn interleaved (real,imag) reals in `data`. nn MUST
+! be a power of two (not checked here). isign=-1 is the forward transform,
+! isign=+1 the inverse (unnormalized - callers divide by nn/multiply by df as
+! needed, see e.g. syntseis).
       SUBROUTINE four1(data,nn,isign)
       INTEGER isign,nn
       REAL data(2*nn)
@@ -1073,7 +1152,12 @@ subroutine evalmisfitStime()
 
     
     SUBROUTINE smoothspectrum(Nf,Nfsmooth,df,flo,fro,spec,freqaxis,smoothspec)
-    !Smoothing spectrum by Konno & Omachi, 1998 BSSA, method
+    !Smoothing spectrum by Konno & Omachi, 1998 BSSA, method.
+    ! spec(1:Nf/2+1) is the (unsmoothed) amplitude spectrum on the regular FFT
+    ! frequency grid (spacing df, i.e. the standard real-FFT half-spectrum
+    ! layout); it is resampled onto Nfsmooth log-spaced frequencies between
+    ! flo and fro (returned in freqaxis) with a triangular-in-log smoothing
+    ! window of half-width controlled by b, giving smoothspec.
     IMPLICIT NONE
     REAL,PARAMETER:: b=40.
     INTEGER Nf,Nfsmooth

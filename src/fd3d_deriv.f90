@@ -15,6 +15,17 @@
 ! their names from the code. This code is distributed in the hope
 ! that it will be useful, but WITHOUT ANY WARRANTY.
 ! ------------------------------------------------------
+! NOTE ON TYPING: unlike the other source files in this project, none of the
+! subroutines in this file use IMPLICIT NONE. All variables therefore rely on
+! Fortran's default implicit typing (names starting with i-n are INTEGER,
+! everything else is REAL) and are otherwise undeclared. This is
+! historical/legacy style, not a bug by itself, but it means a misspelled
+! variable name compiles silently as a new implicit variable instead of
+! producing an error. If you extend this file, either declare every local
+! variable explicitly or add IMPLICIT NONE and fix the resulting compiler
+! errors one subroutine at a time (there was no Fortran compiler available in
+! this review to safely do that automatically here).
+! ------------------------------------------------------
 ! Preprocessor macros: OpenACC directives
 #define _ACC_PARALLEL        !$acc parallel default (present)
 #define _ACC_LOOP_COLLAPSE_2 !$acc loop collapse (2)

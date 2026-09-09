@@ -572,13 +572,14 @@ contains
        Double precision              :: E1,E2,delE
        Double precision              :: T1,T2,delT,delS
        Logical                       :: yn
-! from pt global
-      Integer, allocatable               :: temptrans(:,:,:)
-      Real, allocatable                  :: sjd(:,:)
+! NOTE: temptrans, sjd, record_temp_now and RestrictTemp are module-level
+! (mod_pt) variables used by the diagnostics code below, which is currently
+! disabled. They must NOT be re-declared locally here: a local declaration
+! would shadow the module variable with an uninitialized one, so if the
+! diagnostics block is ever re-enabled it would silently operate on garbage
+! data instead of the real module state.
       real :: a
       integer :: it,jt,k1,k2
-      Logical                            :: record_temp_now
-      Logical                            :: RestrictTemp
       real :: ran3
 
  
@@ -620,11 +621,11 @@ contains
 !
        Subroutine PT_findTbin(T,kbin)
 
-
        Double precision              :: T
        Integer                       :: kbin
-      Double Precision, allocatable      :: Tbins(:)
-       integer :: i,ntemps
+! Tbins and ntemps are module-level (mod_pt) state; see the note in
+! tswap_accept about not shadowing them with local declarations.
+       integer :: i
 
        kbin = ntemps
        do i=ntemps-1,1,-1

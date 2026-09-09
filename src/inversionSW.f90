@@ -291,7 +291,8 @@ jj=jj+1
     implicit none
     logical  modelinvalid
     real x,z,rr,x0,z0
-    integer i,j,nuclOK,ncent,nuclsize,meanoverstress
+    integer i,j,nuclOK,ncent
+    real nuclsize,meanoverstress   ! physical area [m^2] and mean stress [Pa]: must be real, not integer
     real, allocatable :: strengthexcess1(:,:)
 
     modelinvalid=.true.

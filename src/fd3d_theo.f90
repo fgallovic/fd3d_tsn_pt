@@ -480,7 +480,7 @@
               friction = dynZ(i,k) + coh(i,k)
             endif
 #if defined NONLINDAMPING
-            sr=sqrt((2.*w1(i,nyt,k))**2+(2.*uZ(i,k))**2)
+            sr=sqrt((2.*w1(i,NYSC,k))**2+(2.*uZ(i,k))**2)
             tau_damp=rd_Cr*((1.+(sr/rd_V0(i,k))**rd_n)**(1./rd_n)-1.)
             friction = friction + tau_damp
 #endif
@@ -489,11 +489,17 @@
               distZ(i,k) = distZ(i,k)  - 2*u1out*dt
               tz(i,k) =  (tz(i,k) + T0Z(i,k))*friction/tabs - T0Z(i,k)
 
-              if (-2*u1out>rup_tresh) then
+              if (abs(2*u1out)>rup_tresh) then
                 if (ruptime(i,k).ne.1.e4) rise(i,k) = time
                 if (ruptime(i,k).eq.1.e4) ruptime(i,k) = time
               endif
             endif
+
+            !Instant healing!
+            if(abs(2*u1out)<1.e-6)then
+              distZ(i,k)=0.
+            endif
+            
 #endif
 
             if ((sliptime(i,k)==1.e4).AND.(distZ(i,k)>Dc(i,k))) sliptime(i,k)=time
@@ -507,7 +513,7 @@
           do i = nabc+1,nxt-nabc
             tabs=tabsX(i,k)
             u1out=-sqrt(wX(i,k)**2+U1(I,NYSC,K)**2)
-            
+
 #if defined FVW
             sr=sqrt((2*wX(i,k)-wini(i,k))**2+(2*u1(i,nyt,k)-uini(i,k))**2)
             flv = f0X(i,k) - baX(i,k)*log(sr/v0)
@@ -526,7 +532,7 @@
               friction = dynX(i,k) + coh(i,k)
             endif
 #if defined NONLINDAMPING
-            sr=sqrt((2.*wX(i,k))**2+(2.*u1(i,nyt,k))**2)
+            sr=sqrt((2.*wX(i,k))**2+(2.*u1(i,NYSC,k))**2)
             tau_damp=rd_Cr*((1.+(sr/rd_V0(i,k))**rd_n)**(1./rd_n)-1.)
             friction = friction + tau_damp
 #endif
@@ -535,6 +541,12 @@
               distX(i,k) = distX(i,k)  - 2*u1out*dt
               tx(i,k) = (tx(i,k) + T0X(i,k))*friction/tabs - T0X(i,k)
             endif
+            
+            !Instant healing!
+            if(abs(2*u1out)<1.e-6)then
+              distX(i,k)=0.
+            endif
+
 #endif 
 
           enddo
@@ -1004,10 +1016,10 @@ _ACC_END_PARALLEL
         open(297,FILE='mtildeX.dat',form='unformatted')
         write(297)MSRX
         close(297)
-        open(298,FILE='mtildeZ.dat')
-        write(298,'(1E13.5)')MSRZ
-!        open(298,FILE='mtildeZ.dat',form='unformatted')
-!        write(298)MSRZ
+!        open(298,FILE='mtildeZ.dat')
+!        write(298,'(1E13.5)')MSRZ
+        open(298,FILE='mtildeZ.dat',form='unformatted')
+        write(298)MSRZ
         close(298)
         open(299,FILE='mtildemomentrate.dat')
         do k=1,nSR

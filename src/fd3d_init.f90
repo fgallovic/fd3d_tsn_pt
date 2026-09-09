@@ -930,6 +930,8 @@
     CALL inversion_modeltofd3d()
     
     END SUBROUTINE
+    
+    
     SUBROUTINE inversion_modeltofd3d() ! inversion from model control points to fd3d grid
     USE inversion_com
     USE fd3dparam_com
@@ -967,17 +969,7 @@
     coh(:,:)=0.5e6
 
 #if defined NONLINDAMPING
-    do k=nabc+1,nzt-nfs
-      ZS=dh*(k-1-nabc)
-      kk=min(NWI-1,int(ZS/DW)+1)
-      u=min(1.,(ZS-DW*(kk-1))/DW)
-      do i=nabc+1,nxt-nabc
-        XS=dh*(i-1-nabc)
-        ii=min(NLI-1,int(XS/DL)+1)
-        t=min(1.,(XS-DL*(ii-1))/DL) 
-        rd_V0(i,k)=(1.-t)*(1.-u)*DcI(ii,kk)+t*(1.-u)*DcI(ii+1,kk)+t*u*DcI(ii+1,kk+1)+(1.-t)*u*DcI(ii,kk+1)
-      enddo
-    enddo
+    rd_V0(:,:)=Dc(:,:)
     Dc(:,:)=0.001
 #endif
 

@@ -314,8 +314,18 @@
     implicit none
     logical  modelinvalid
     real x,z,rr,x0,z0
-    integer i,j,nuclOK,ncent,nuclsize,meanoverstress
+    integer i,j,nuclOK,ncent
+    real nuclsize,meanoverstress   ! physical area [m^2] and mean stress [Pa]: must be real, not integer
     real, allocatable :: strengthexcess1(:,:)
+! NOTE: nuclOK, ncent, nuclsize, meanoverstress and the ConstraintNucl/
+! NuclConstraint*/OverstressConstraint fields of frictionconstraints_com
+! (declared above) are carried over from the slip-weakening version of this
+! routine (inversionSW.f90) but are not wired up here: inversion_init() never
+! reads them from inputinv.dat, and no code below uses them. For the
+! rate-and-state friction model, nucleation is instead constrained directly
+! via nuclMin/nuclMax on the point-source parameters (nucl(1:5)). This is not
+! a bug, but do not assume a spatial nucleation-zone or mean-overstress
+! constraint is being enforced in the RS/FVW build.
 
     modelinvalid=.true.
   !  read(10,*)T0Min, aMin, baMin, psiMin, f0Min, fwMin, DcMin, vwMin
