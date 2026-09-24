@@ -218,6 +218,9 @@
               CALL XAPIIR(fltr4, np, 'BU', 0.0, 0.0, 4,'LP', fc1(fcsta(jj)), fc2(fcsta(jj)), dtseis, 1, np)
             endif
             if (iwaveform==1) then
+              if (iT1<nSR) then
+                stop 'Seismogram window must start later than source duration, check also data time shift.'
+              endif
               do mm=2,np   !time integration
                 fltr4(mm)=fltr4(mm)+fltr4(mm-1)
               enddo
